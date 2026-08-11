@@ -36,6 +36,6 @@ test("renders the complete approved daily plan mockup", async () => {
 });
 
 test("ships the original food illustration sheet and removes the starter preview", async () => {
-  await access(new URL("public/food-sprite.png", projectRoot));
+  await access(new URL("public/food-sprite.webp", projectRoot));
   await assert.rejects(access(new URL("app/_sites-preview/SkeletonPreview.tsx", projectRoot)));
 });
