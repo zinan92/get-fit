@@ -13,7 +13,7 @@
 
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
-body { margin: 0; background: #eee9df; color: var(--ink); font-family: var(--font-noto-sans-sc), "PingFang SC", sans-serif; }
+body { margin: 0; background: #eee9df; color: var(--ink); font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif; }
 button, a { font: inherit; }
 button { color: inherit; }
 
@@ -96,7 +96,7 @@ button { color: inherit; }
 .meal-check .check { width: 20px; height: 20px; border-color: color-mix(in srgb, var(--meal-accent), transparent 45%); }
 .foods { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
 .food { background: var(--meal-soft); border-radius: 17px; padding: 5px 5px 9px; text-align: center; display: flex; flex-direction: column; align-items: center; min-width: 0; }
-.food-image { width: 100%; aspect-ratio: 1.32; background-image: url('/food-sprite.png'); background-size: 400% 300%; background-repeat: no-repeat; border-radius: 12px; mix-blend-mode: multiply; margin-bottom: 5px; }
+.food-image { width: 100%; aspect-ratio: 1.32; background-image: url('/food-sprite.webp'); background-size: 400% 300%; background-repeat: no-repeat; border-radius: 12px; mix-blend-mode: multiply; margin-bottom: 5px; }
 .food strong { font-size: 10px; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 .food span { color: var(--muted); font-size: 8px; margin-top: 1px; }
 .food small { color: var(--meal-accent); font-size: 9px; font-weight: 800; margin-top: 3px; }
