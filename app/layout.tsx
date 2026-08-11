@@ -1,38 +1,33 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Noto_Sans_SC } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const notoSans = Noto_Sans_SC({
+  variable: "--font-noto-sans-sc",
   subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
 });
 
 export const metadata: Metadata = {
-  title: "Starter Project",
-  description: "A clean starting point for building your site.",
-  icons: {
-    icon: "/favicon.svg",
-    shortcut: "/favicon.svg",
+  title: "轻练 · 今日计划",
+  description: "健身教练客户每日训练与饮食计划 mockup",
+  openGraph: {
+    title: "轻练",
+    description: "今天练什么，吃什么",
+    images: [{ url: "/og.png", width: 1536, height: 908, alt: "轻练今日计划界面" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "轻练",
+    description: "今天练什么，吃什么",
+    images: ["/og.png"],
   },
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        {children}
-      </body>
+    <html lang="zh-CN">
+      <body className={notoSans.variable}>{children}</body>
     </html>
   );
 }
