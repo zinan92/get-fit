@@ -2,6 +2,7 @@
   "pages": [
     "pages/onboarding/onboarding",
     "pages/today/today",
+    "pages/calendar/calendar",
     "pages/profile/profile"
   ],
   "window": {
@@ -16,6 +17,7 @@
     "backgroundColor": "#fffdf8",
     "list": [
       { "pagePath": "pages/today/today", "text": "今天" },
+      { "pagePath": "pages/calendar/calendar", "text": "日历" },
       { "pagePath": "pages/profile/profile", "text": "我的" }
     ]
   }

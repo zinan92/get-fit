@@ -1,4 +1,3 @@
-import { createHash, randomUUID } from "node:crypto";
 import type { Store } from "./types";
 
 export function createMemoryStore(): Store {
@@ -7,6 +6,7 @@ export function createMemoryStore(): Store {
     invitations: new Map(),
     profiles: new Map(),
     consents: new Map(),
+    consentRecords: new Map(),
     sessions: new Map(),
     jobs: new Map(),
     drafts: new Map(),
@@ -25,7 +25,7 @@ export function createMemoryStore(): Store {
 }
 
 export function id(prefix: string): string {
-  return `${prefix}_${randomUUID().replaceAll("-", "").slice(0, 20)}`;
+  return `${prefix}_${uuid().replaceAll("-", "").slice(0, 20)}`;
 }
 
 export async function sha256(value: string): Promise<string> {
@@ -34,14 +34,25 @@ export async function sha256(value: string): Promise<string> {
     const digest = await crypto.subtle.digest("SHA-256", bytes);
     return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
   }
-  return createHash("sha256").update(value).digest("hex");
+  throw new Error("Web Crypto SHA-256 is unavailable");
 }
 
 export function randomToken(): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
     return `${crypto.randomUUID()}${crypto.randomUUID()}`.replaceAll("-", "");
   }
-  return `${randomUUID()}${randomUUID()}`.replaceAll("-", "");
+  return `${uuid()}${uuid()}`.replaceAll("-", "");
+}
+
+function uuid(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
+  if (typeof crypto !== "undefined" && typeof crypto.getRandomValues === "function") {
+    const bytes = crypto.getRandomValues(new Uint8Array(16));
+    bytes[6] = (bytes[6] & 0x0f) | 0x40; bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+  }
+  throw new Error("Web Crypto random UUID is unavailable");
 }
 
 export function nowIso(): string {

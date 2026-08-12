@@ -148,6 +148,7 @@ export function validatePlanPayload(input: unknown, catalog: CatalogContext): Va
       hasOnlyKeys(rawMeal, MEAL_KEYS, mealPath, errors);
       if (typeof rawMeal.mealType !== "string" || !MEAL_TYPES.has(rawMeal.mealType)) errors.push(`${mealPath}.mealType: unsupported`);
       if (!Array.isArray(rawMeal.foods) || rawMeal.foods.length < 1) errors.push(`${mealPath}.foods: at least one food required`);
+      if (rawMeal.note !== undefined && typeof rawMeal.note !== "string") errors.push(`${mealPath}.note: string required`);
       const foods: CatalogFood[] = [];
       (Array.isArray(rawMeal.foods) ? rawMeal.foods : []).forEach((rawFood, foodPosition) => {
         const foodPath = `${mealPath}.foods[${foodPosition}]`;

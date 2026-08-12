@@ -1,0 +1,7 @@
+.hero { background: linear-gradient(145deg, #8eb89c, #5e9377); color: #fff; }
+.hero .eyebrow { color: #fff; opacity: .8; }
+.calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 12rpx; }
+.day-cell { min-height: 100rpx; padding: 10rpx 0; border-radius: 18rpx; display: flex; flex-direction: column; justify-content: center; align-items: center; font-size: 26rpx; }
+.day-cell.training { background: #fff1e7; color: #d85c28; }
+.day-cell.rest { background: #f3f0e9; color: #858177; }
+.day-cell small { margin-top: 8rpx; font-size: 20rpx; }

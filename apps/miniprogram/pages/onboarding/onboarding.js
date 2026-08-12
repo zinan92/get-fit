@@ -14,7 +14,7 @@ Page({
   async acceptInvite() {
     try {
       const accepted = await request('/api/invitations/accept', { method: 'POST', data: { token: this.data.inviteToken } });
-      await new Promise((resolve, reject) => wx.login({ success: async (login) => { try { const session = await request('/api/wx/auth/login', { method: 'POST', data: { code: login.code, devClientId: accepted.client.id } }); getApp().globalData.sessionToken = session.sessionToken; wx.setStorageSync('fit_plan_session', session.sessionToken); resolve(); } catch (error) { reject(error); } }, fail: reject }));
+      await new Promise((resolve, reject) => wx.login({ success: async (login) => { try { const session = await request('/api/wx/auth/login', { method: 'POST', data: { code: login.code, invitationToken: this.data.inviteToken, devClientId: accepted.client.id } }); getApp().globalData.sessionToken = session.sessionToken; wx.setStorageSync('fit_plan_session', session.sessionToken); resolve(); } catch (error) { reject(error); } }, fail: reject }));
       this.setData({ step: 1 });
     }
     catch (error) { wx.showToast({ title: error?.error?.message || '邀请无效', icon: 'none' }); }

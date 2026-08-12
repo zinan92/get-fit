@@ -1,15 +1,21 @@
 const { request } = require('../../utils/api');
 Page({
-  data: { status: 'loading', day: {}, done: {} },
+  data: { status: 'loading', day: {}, planId: '', requestedDate: '', displayDate: '', clientName: '朋友', dayIndex: '', done: {} },
+  onLoad(options) { if (options && options.date) this.setData({ requestedDate: options.date }); },
   onShow() { this.loadToday(); },
-  localDate() { return new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10); },
+  localDate() { return this.data.requestedDate || new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10); },
   async loadToday() {
-    try { const result = await request(`/api/plan/today?date=${this.localDate()}`); this.setData({ status: result.status, day: result.plan?.day || {} }); }
+    try {
+      const date = this.localDate();
+      const [me, result] = await Promise.all([request('/api/me'), request(`/api/plan/today?date=${date}`)]);
+      const day = result.plan?.day || {};
+      this.setData({ status: result.status, planId: result.plan?.id || '', day, displayDate: date, clientName: me.client?.displayName || '朋友', dayIndex: day.dayIndex ? `第 ${day.dayIndex} / 30 天` : '' });
+    }
     catch (error) { this.setData({ status: 'error' }); wx.showToast({ title: error?.error?.message || '加载失败', icon: 'none' }); }
   },
   async toggleExercise(e) {
     const itemId = e.currentTarget.dataset.id; const done = { ...this.data.done, [itemId]: !this.data.done[itemId] }; this.setData({ done });
-    await request('/api/checkins', { method: 'PUT', data: { localDate: this.localDate(), planDayId: this.data.day.localDate, itemId, itemType: 'exercise', status: done[itemId] ? 'completed' : 'not_completed' } });
+    await request('/api/checkins', { method: 'PUT', data: { localDate: this.localDate(), planDayId: `${this.data.planId}:${this.data.day.localDate}`, itemId, itemType: 'exercise', status: done[itemId] ? 'completed' : 'not_completed' } });
   },
   async openFeedback() {
     try {

@@ -1,0 +1,5 @@
+<view class="page">
+  <view class="card hero"><view class="eyebrow">YOUR RHYTHM</view><view class="title">{{month}}<br/>每天向前一点点。</view><view class="muted">点开任意一天，查看训练、餐食和提醒。</view></view>
+  <view class="card" wx:if="{{!loading && days.length}}"><view class="calendar-grid"><block wx:for="{{days}}" wx:key="date"><button class="day-cell {{item.hasTraining ? 'training' : 'rest'}}" data-date="{{item.date}}" bindtap="openDay"><text>{{item.dayNumber}}</text><small>{{item.hasTraining ? '练' : '休'}}</small></button></block></view></view>
+  <view class="card" wx:elif="{{!loading}}"><view class="section-title">计划还在确认</view><view class="muted">教练发布后，这里会出现完整的 30 天日历。</view></view>
+</view>

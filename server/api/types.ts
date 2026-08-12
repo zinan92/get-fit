@@ -21,6 +21,13 @@ export type GenerationStatus =
 
 export type ConsentType = "health_processing" | "third_party_model" | "subscription_message";
 
+export type ConsentRecord = {
+  type: ConsentType;
+  textVersion: string;
+  acceptedAt: string;
+  revokedAt: string | null;
+};
+
 export type HealthProfile = {
   target: "fat_loss" | "muscle_gain" | "general_fitness";
   ageBand: "18_24" | "25_34" | "35_44" | "45_54" | "55_plus";
@@ -172,6 +179,7 @@ export type Store = {
   invitations: Map<string, InvitationRecord>;
   profiles: Map<string, HealthProfile>;
   consents: Map<string, Set<ConsentType>>;
+  consentRecords: Map<string, Map<ConsentType, ConsentRecord>>;
   sessions: Map<string, { kind: "client" | "coach"; subjectId: string; expiresAt: number }>;
   jobs: Map<string, GenerationJobRecord>;
   drafts: Map<string, DraftRecord>;

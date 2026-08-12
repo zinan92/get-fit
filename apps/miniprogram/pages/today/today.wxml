@@ -1,5 +1,5 @@
 <view class="page">
-  <view class="row"><view><view class="eyebrow">8 月 11 日 · 星期二</view><view class="title">早上好，小满</view><view class="muted">今天也照顾好自己的身体。</view></view><view class="pill">第 8 / 30 天</view></view>
+  <view class="row"><view><view class="eyebrow">{{displayDate}}</view><view class="title">早上好，{{clientName}}</view><view class="muted">今天也照顾好自己的身体。</view></view><view class="pill">{{dayIndex}}</view></view>
   <view class="card plan-card" wx:if="{{status === 'ready'}}">
     <view class="row"><view><view class="eyebrow">今日主题</view><view class="section-title">{{day.title}}</view></view><view class="pill">教练已确认</view></view>
     <view class="muted">训练 {{day.exercises.length}} 个动作 · 饮食 {{day.meals.length}} 餐</view>
@@ -10,6 +10,7 @@
     <block wx:for="{{day.exercises}}" wx:key="catalogId"><view class="row item"><view><view>{{item.name}}</view><view class="muted">{{item.sets}} 组 × {{item.reps}} 次 · 休息 {{item.restSeconds}} 秒</view></view><button size="mini" data-id="{{item.catalogId}}" bindtap="toggleExercise">{{done[item.catalogId] ? '已完成' : '完成'}}</button></view></block>
   </view>
   <view class="card" wx:if="{{status === 'ready'}}"><view class="section-title">今天吃什么</view><block wx:for="{{day.meals}}" wx:key="mealType"><view class="meal"><view class="row"><text>{{item.mealType}}</text><text class="pill">{{item.foods.length}} 种食物</text></view><view class="muted" wx:for="{{item.foods}}" wx:for-item="food" wx:key="foodCatalogId">{{food.name}} · {{food.grams}}{{food.unit}} · {{food.kcal}} kcal</view></view></block></view>
+  <view class="card" wx:if="{{status === 'ready' && day.reminders.length}}"><view class="section-title">今天注意</view><view class="muted" wx:for="{{day.reminders}}" wx:key="*this">· {{item}}</view></view>
   <button class="button" bindtap="openFeedback">提交今天的身体反馈</button>
   <button class="button secondary" bindtap="requestReminder">开启每日计划提醒</button>
 </view>
