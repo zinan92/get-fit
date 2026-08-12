@@ -169,6 +169,8 @@ export type ApiEnv = {
   WECHAT_ACCESS_TOKEN?: string;
   WECHAT_SEND_URL?: string;
   COACH_TOKEN?: string;
+  /** Stable owner account id injected by a private Sites access policy. */
+  COACH_ACCESS_USER_ID?: string;
   WECHAT_APP_ID?: string;
   WECHAT_APP_SECRET?: string;
   DEV_MODE?: string;
