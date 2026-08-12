@@ -16,6 +16,7 @@ interface Env {
   DATA_ENCRYPTION_KEY?: string;
   WECHAT_TEMPLATE_ID?: string;
   COACH_TOKEN?: string;
+  COACH_ACCESS_USER_ID?: string;
   WECHAT_APP_ID?: string;
   WECHAT_APP_SECRET?: string;
   WECHAT_ACCESS_TOKEN?: string;

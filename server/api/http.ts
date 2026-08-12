@@ -39,7 +39,13 @@ export function requireCoach(context: ApiContext): true | Response {
   const token = bearer(context.request) ?? context.request.headers.get("x-coach-token");
   const configured = context.env.COACH_TOKEN;
   const devAllowed = (context.env.DEV_MODE === "true" || new URL(context.request.url).hostname === "localhost") && token === "dev-coach";
-  if (!devAllowed && (!configured || !token || token !== configured)) {
+  // Private Sites owner-only access injects this identity header after the
+  // edge has authenticated the visitor. Match it to an explicitly configured
+  // owner id; never trust a header on its own or in a public deployment.
+  const siteUserId = context.request.headers.get("oai-authenticated-user-id");
+  const siteAccessAllowed = Boolean(context.env.COACH_ACCESS_USER_ID && siteUserId && siteUserId === context.env.COACH_ACCESS_USER_ID);
+  const tokenAllowed = Boolean(configured && token && token === configured);
+  if (!devAllowed && !siteAccessAllowed && !tokenAllowed) {
     return error("COACH_AUTH_REQUIRED", "Coach authentication is required", 401);
   }
   return true;

@@ -111,3 +111,26 @@ test("production first login cannot select an arbitrary pending client", async (
     assert.equal(validTicket.response.status, 200);
   } finally { globalThis.fetch = originalFetch; }
 });
+
+test("private Sites owner identity can establish the single coach session", async () => {
+  const siteStore = createMemoryStore();
+  const siteEnv = { COACH_ACCESS_USER_ID: "owner-account-id" };
+  const siteCtx = { waitUntil() {}, passThroughOnException() {} } as ExecutionContext;
+  const response = await handleApi({
+    request: new Request("https://private-site.test/api/coach/session", { method: "POST", headers: { "oai-authenticated-user-id": "owner-account-id" } }),
+    env: siteEnv,
+    store: siteStore,
+    ctx: siteCtx,
+  });
+  assert.equal(response.status, 200);
+  const payload = await response.json() as Record<string, unknown>;
+  assert.equal(typeof payload.sessionToken, "string");
+
+  const forged = await handleApi({
+    request: new Request("https://private-site.test/api/coach/session", { method: "POST", headers: { "oai-authenticated-user-id": "different-account-id" } }),
+    env: siteEnv,
+    store: siteStore,
+    ctx: siteCtx,
+  });
+  assert.equal(forged.status, 401);
+});

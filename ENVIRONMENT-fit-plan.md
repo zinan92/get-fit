@@ -9,7 +9,10 @@ Required before a real client run:
 - `DATA_ENCRYPTION_KEY`: high-entropy key used for the encrypted D1 runtime snapshot and encrypted WeChat openid.
 - `DEEPSEEK_API_KEY`: provider key. The provider retention/residency and model-processing terms remain an explicit launch check.
 - `DEEPSEEK_MODEL`: current account-supported model (default is `deepseek-v4-flash`).
-- `COACH_TOKEN` or Cloudflare Access: single coach authentication.
+- `COACH_TOKEN` or private Sites/Cloudflare Access: single coach authentication.
+- `COACH_ACCESS_USER_ID`: the exact owner account id injected by the private Sites
+  access policy when using the owner-only path. Never accept this header without
+  matching it to this configured value; do not configure it on a public site.
 - `WECHAT_APP_ID` / `WECHAT_APP_SECRET`: server-side WeChat login only.
 
 Optional reminders:
