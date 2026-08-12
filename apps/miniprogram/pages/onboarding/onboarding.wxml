@@ -1,0 +1,31 @@
+<view class="page">
+  <view class="card hero">
+    <view class="eyebrow">轻练 ONBOARDING</view>
+    <view class="title">先了解你，<br/>再安排今天。</view>
+    <view class="muted">资料只用于教练确认和生成你的训练与饮食计划。</view>
+  </view>
+  <view class="card" wx:if="{{step === 0}}">
+    <view class="section-title">输入邀请口令</view>
+    <input placeholder="粘贴教练发来的口令" value="{{inviteToken}}" bindinput="onToken" />
+    <button class="button" bindtap="acceptInvite">接受邀请</button>
+  </view>
+  <view class="card" wx:if="{{step === 1}}">
+    <view class="section-title">同意必要说明</view>
+    <view class="muted">轻练会使用自动化工具辅助生成，草案必须经过教练审核。你可以随时撤回同意或申请删除资料。</view>
+    <checkbox-group bindchange="onConsentChange">
+      <label class="consent"><checkbox value="health_processing" /> 我同意处理必要的健康与饮食资料</label>
+      <label class="consent"><checkbox value="third_party_model" /> 我同意将去身份化资料交给第三方模型辅助生成</label>
+      <label class="consent"><checkbox value="subscription_message" /> 我同意接收每日计划提醒（可单独关闭）</label>
+    </checkbox-group>
+    <button class="button" bindtap="saveConsents">继续</button>
+  </view>
+  <view class="card" wx:if="{{step === 2}}">
+    <view class="section-title">你的基础情况</view>
+    <picker range="{{targets}}" bindchange="onTarget"><view class="field">目标：{{targets[targetIndex]}}</view></picker>
+    <picker range="{{experiences}}" bindchange="onExperience"><view class="field">训练经验：{{experiences[experienceIndex]}}</view></picker>
+    <input type="number" placeholder="身高 cm" value="{{heightCm}}" bindinput="onHeight" />
+    <input type="number" placeholder="体重 kg" value="{{weightKg}}" bindinput="onWeight" />
+    <view class="muted">如有孕期、急性疼痛、严重慢病或饮食障碍，请先直接联系教练。</view>
+    <button class="button" bindtap="saveProfile">提交给教练确认</button>
+  </view>
+</view>
