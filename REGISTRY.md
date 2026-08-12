@@ -8,7 +8,7 @@
 - Codex CLI 仅为教练明确点击后的一次性本机 fallback；同一校验器、仍需审核，Worker 不会自动执行。
 - 本地 HTTP flow 已验证：`/api/health`、邀请、登录、同意/建档、DeepSeek 未配置 fail-closed、fallback 导入、发布、客户端 today kcal；`npm test` 8 tests、lint、tsc、gitleaks 均通过。
 - 私有 Sites 版本已部署成功：https://fit-plan-mockup.parkzz.chatgpt.site（owner-only/custom 访问策略；外部未登录请求返回 401，页面/生产 API 未做匿名可见性宣称）。
-- 状态：代码闭环 `verified`；真实 Cloudflare D1/Worker secret/微信登录/DeepSeek 线上调用 `unknown`；DeepSeek 数据驻留/保留与健康数据上线合规评估 `blocked`。
+- 状态：代码闭环 `verified`；Sites 已配置加密密钥和 DeepSeek secret 并成功部署 env revision 1；微信登录/教练认证/真实 D1 读写尚未配置，保持 `partial/unknown`；DeepSeek 数据驻留/保留与健康数据上线合规评估 `blocked`。
 
 ## 下一步
 
