@@ -1,0 +1,5 @@
+.hero { background: linear-gradient(145deg, #f47b42, #e96332); color: #fff; }
+.hero .eyebrow { color: #fff; opacity: .8; }
+input, .field { background: #f8f3e9; border-radius: 18rpx; padding: 22rpx; margin: 18rpx 0; }
+button { margin-top: 24rpx; }
+.consent { display: block; padding: 18rpx 0; font-size: 25rpx; }

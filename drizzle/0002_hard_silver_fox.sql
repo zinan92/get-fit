@@ -1,0 +1,1 @@
+ALTER TABLE `generation_job` ADD `start_date` text NOT NULL;
