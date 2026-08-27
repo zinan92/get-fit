@@ -10,9 +10,10 @@ flowchart LR
   C[微信小程序客户端] -->|短期会话| API[Cloudflare Worker API]
   W[教练 Web 后台] -->|教练会话| API
   API --> D1[(Cloudflare D1)]
-  API --> Q[计划生成 Queue]
-  Q --> DS[DeepSeek API]
-  Q --> V[Schema + 业务安全校验]
+  API --> H[一次性脱敏输入 + token]
+  H --> CLI[Coach local Codex CLI]
+  CLI -->|上传结果| API
+  API --> V[Schema + 业务安全校验]
   V --> D1
   API --> N[微信订阅消息]
   CRON[Worker Cron] --> N
@@ -73,7 +74,7 @@ docs/
 
 ## 4. 数据模型
 
-身份和健康数据必须分表、分权限、分 retention；DeepSeek 不接收身份表。
+身份和健康数据必须分表、分权限、分 retention；Codex CLI 只接收去身份化结构化输入，Worker 不调用外部模型 API。
 
 | 表 | 关键字段 | 规则 |
 | --- | --- | --- |
@@ -141,11 +142,11 @@ POST /api/coach/reminders/manual
 
 所有 DTO 通过共享 schema 校验；错误返回稳定 `code`，不把 D1 行或 provider 原文直接透传。
 
-## 6. DeepSeek 与 Codex CLI 合同
+## 6. Codex CLI 生成合同
 
-### DeepSeek
+### Codex CLI
 
-Worker 从 secret/env 读取 `DEEPSEEK_API_URL`、`DEEPSEEK_MODEL`、`DEEPSEEK_API_KEY`。请求只含去身份化结构化 profile 和 catalog；不含姓名、手机号、openid、头像、聊天原文、位置或设备元数据。
+Worker 只生成一次性脱敏输入和短期回传 token；教练本机执行 `codex exec`。请求不含姓名、手机号、openid、头像、聊天原文、位置或设备元数据。CLI 原始输出永远不能直接发布，必须回传后通过 `plan.v1`、目录、禁忌和 kcal 校验。
 
 计划输出要求：
 
@@ -173,9 +174,9 @@ Worker 从 secret/env 读取 `DEEPSEEK_API_URL`、`DEEPSEEK_MODEL`、`DEEPSEEK_A
 
 校验通过前永远是 draft。kcal 不信任模型输出，由 `food_catalog.kcal_per_100g × grams` 计算，并显示营养来源版本。
 
-### Codex CLI fallback
+### 本机失败与重试
 
-- DeepSeek 超时、5xx、429、空响应、JSON/业务校验失败时只标记 `failed`。
+- CLI 超时、非 JSON、超大输出、schema/业务校验失败时只标记失败，不覆盖旧 published 版本。
 - 教练明确点击后，后台生成一次性短 token 和最小化输入包。
 - 受控本机 wrapper 调用 `codex exec`，设置超时、大小和幂等限制。
 - CLI 输出必须再次经过同一 schema/业务校验，回传后状态仍是 `pending_review`。
@@ -184,20 +185,19 @@ Worker 从 secret/env 读取 `DEEPSEEK_API_URL`、`DEEPSEEK_MODEL`、`DEEPSEEK_A
 ## 7. 安全、隐私和运行门禁
 
 - 首次调用前分别记录健康数据同意、第三方模型传输同意、订阅消息同意。
-- 隐私说明必须明确“自动化工具/第三方 DeepSeek + 教练审核”；客户端可以不突出 provider 名称，但不能误导成完全人工生成。
+- 隐私说明必须明确“自动化工具/本机 Codex CLI + 教练审核”；客户端可以不突出 provider 名称，但不能误导成完全人工生成。
 - 特殊风险分流人工：未成年人、孕期、急性疼痛、严重慢病、饮食障碍等。
 - Web 教练端使用单账号、强密码哈希/锁定；优先 Cloudflare Access。
 - CORS、CSRF、邀请/登录/生成/fallback/提醒限流；会话 token 只存 hash。
 - 请求日志只含 request_id、状态、耗时和脱敏错误码；不含 openid、健康值、prompt、completion、API key。
 - 已发布计划、审核、发布、撤回同意、疼痛告警、删除、提醒回执均 append-only 审计。
-- 在 DeepSeek 数据驻留、保留、训练使用、跨境和微信审核条件核验前，真实健康数据状态为 `blocked/unknown`，只能用假数据。
+- 在本机 Codex 数据落盘、微信审核和 D1 恢复条件核验前，真实健康数据状态为 `blocked/unknown`，只能用假数据。
 
 ## 8. 测试与运行验收
 
 - 纯单测：schema、日期连续性、时区、目录/kcal、版本生效区间、幂等键。
-- provider 测试：成功、超时、429、5xx、空响应、非法 JSON、缺日、重复日、过敏冲突、异常 kcal。
+- CLI/回传测试：成功、超时、非 JSON、超大输出、过期 token、重复 token、缺日、重复日、过敏冲突、异常 kcal。
 - 权限测试：客户越权读写、过期邀请、过期 fallback token、重复导入。
 - 版本测试：未来版本不覆盖过去日期；发布失败旧版本继续可见。
 - 运行测试：提醒授权与送达回执、疼痛告警、删除 30 天清扫与恢复演练。
 - 安全门：gitleaks、secret scan、日志检查、无原始健康 payload 泄漏。
-

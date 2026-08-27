@@ -10,9 +10,6 @@ interface Env {
   ASSETS: Fetcher;
   DB?: D1Database;
   QUEUE?: Queue;
-  DEEPSEEK_API_KEY?: string;
-  DEEPSEEK_API_URL?: string;
-  DEEPSEEK_MODEL?: string;
   DATA_ENCRYPTION_KEY?: string;
   WECHAT_TEMPLATE_ID?: string;
   COACH_TOKEN?: string;

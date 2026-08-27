@@ -7,7 +7,7 @@
 ### Story 0.1 · 数据流与风险门
 
 - Goal：冻结数据最小化、同意、删除、特殊风险分流和“未审核不显示”规则。
-- Success criteria：数据流图、同意文案版本、删除回执格式、风险 allowlist 和 blocker 清单完成；DeepSeek provider 保留/地域/训练使用仍未知时标记 blocked。
+- Success criteria：数据流图、同意文案版本、删除回执格式、风险 allowlist 和 blocker 清单完成；本机 Codex 数据落盘/回传边界仍未知时标记 blocked。
 - In：数据字段、retention、审计、威胁模型。
 - Out：任何真实模型调用、真实客户数据。
 - 禁区：读取或提交 API key；宣称合规或 production-ready。
@@ -40,7 +40,7 @@
 
 ### Story 1.3 · 建档、双重同意与风险分流
 
-- Goal：收集生成所需最小资料，并在首次 DeepSeek 调用前完成同意和教练确认。
+- Goal：收集生成所需最小资料，并在首次 Codex CLI 导出前完成同意和教练确认。
 - Success criteria：健康处理同意、第三方模型同意、订阅消息同意分开记录；特殊风险进入 manual 状态。
 - In：分步表单、撤回、删除入口、字段版本。
 - Out：自由文本病历、照片、自动诊断。
@@ -64,11 +64,11 @@
 - Out：营养商城、自动抓取。
 - 禁区：把模型自由文本当作热量事实。
 
-### Story 2.2 · DeepSeek 生成任务
+### Story 2.2 · Codex CLI 生成任务
 
 - Goal：从已确认 profile 生成 30 天结构化草案。
-- Success criteria：队列、幂等、超时、重试一次、trace/error 记录；不存 raw prompt/completion。
-- In：server-side API、model config、JSON mode。
+- Success criteria：一次性 token、脱敏输入包、Codex CLI 本机运行、trace/error 记录；不存 raw prompt/completion。
+- In：server-side handoff API、CLI runbook、JSON schema。
 - Out：客户端直连、自动发布。
 - 禁区：API key 前端化；未同意调用。
 
@@ -96,10 +96,10 @@
 - Out：回溯覆盖历史。
 - 禁区：直接 update 已发布行。
 
-### Story 2.6 · Codex CLI 人工 fallback
+### Story 2.6 · Codex CLI 本机回传
 
-- Goal：让教练在 DeepSeek 失败后可受控恢复。
-- Success criteria：一次性 token、脱敏输入包、同一校验器、过期/重复/超时可测；回传仍 pending_review。
+- Goal：限制本机 Codex CLI 的运行边界并可受控回传结果。
+- Success criteria：一次性 token、脱敏输入包、同一校验器、过期/重复/超时/超大输出可测；回传仍 pending_review。
 - In：本机 wrapper、import endpoint、runbook。
 - Out：生产 Worker 自动执行 CLI。
 - 禁区：把客户 raw profile 写入 CLI 日志或命令历史。
@@ -173,4 +173,3 @@
 - In：Cloudflare Worker/D1、WeChat test app、runbook。
 - Out：多环境复杂编排。
 - 禁区：没有 receipt 就报告已上线。
-

@@ -7,6 +7,14 @@ import "./coach.css";
 type Client = { id: string; displayName: string; status: string; createdAt: string };
 type Job = { id: string; status: string; errorCode: string | null; traceId: string };
 
+const jobStatusLabels: Record<string, string> = {
+  awaiting_local: "等待本机 Codex",
+  pending_review: "等待审核",
+  published: "已发布",
+  rejected: "已退回",
+  failed: "失败",
+};
+
 async function api(path: string, options: RequestInit = {}, token = "") {
   const response = await fetch(`/api/${path}`, {
     ...options,
@@ -56,7 +64,7 @@ export default function CoachPage() {
   }
 
   async function generate() {
-    if (!selected) return; try { const data = await api(`coach/clients/${selected.id}/plan-generations`, { method: "POST", body: JSON.stringify({ startDate: new Date().toISOString().slice(0, 10) }) }, token); setJob(data.job); setDraft(null); setMessage("草案生成任务已排队；客户端不会看到草案"); pollJob(data.job.id); } catch (error) { setMessage(error instanceof Error ? error.message : "生成失败"); }
+    if (!selected) return; try { const data = await api(`coach/clients/${selected.id}/plan-generations`, { method: "POST", body: JSON.stringify({ startDate: new Date().toISOString().slice(0, 10) }) }, token); setJob(data.job); setDraft(null); setFallback(null); setMessage("已创建本机 Codex CLI 任务；客户端不会看到草案"); pollJob(data.job.id); } catch (error) { setMessage(error instanceof Error ? error.message : "生成失败"); }
   }
 
   async function pollJob(jobId: string) {
@@ -76,7 +84,7 @@ export default function CoachPage() {
       const blobUrl = URL.createObjectURL(new Blob([input], { type: "application/json" }));
       const link = document.createElement("a"); link.href = blobUrl; link.download = `codex-input-${job.id}.json`; link.click(); URL.revokeObjectURL(blobUrl);
       setFallback({ token: tokenData.token, input: `codex-input-${job.id}.json` });
-      setMessage("已下载脱敏输入；请在教练本机明确运行 Codex fallback，完成后上传到导入接口");
+      setMessage("已下载脱敏输入；请在教练本机明确运行 Codex CLI，完成后上传到导入接口");
     } catch (error) { setMessage(error instanceof Error ? error.message : "回退准备失败"); }
   }
 
@@ -90,7 +98,7 @@ export default function CoachPage() {
       <section className="coach-main">
         <div className="console-card status-card"><div><div className="section-kicker">CURRENT CLIENT</div><h2>{selected?.displayName || "还没有选择客户"}</h2><p>{selectedStatus}</p></div><div className="status-orb">{selected ? "●" : "—"}</div></div>
         <div className="console-card"><div className="row"><div><div className="section-kicker">PROFILE REVIEW</div><h2>建档与风险门</h2></div><span className="badge">{profile ? "已填写" : "等待资料"}</span></div>{profile ? <div className="profile-grid"><span>目标<strong>{String(profile.target)}</strong></span><span>训练经验<strong>{String(profile.trainingExperience)}</strong></span><span>每周<strong>{String(profile.sessionsPerWeek)} 次</strong></span><span>风险标记<strong>{Array.isArray(profile.riskFlags) && profile.riskFlags.length ? profile.riskFlags.join(", ") : "无"}</strong></span><span>过敏/忌口<strong>{Array.isArray(profile.allergyFlags) && profile.allergyFlags.length ? profile.allergyFlags.join(", ") : "无"}</strong></span><span>同意<strong>由客户端记录</strong></span></div> : <p className="empty">客户完成建档并同意后，资料会显示在这里。</p>}<button onClick={confirmProfile} disabled={!ready || !selected || !profile} className="secondary-button">确认资料可用于生成</button></div>
-        <div className="console-card"><div className="row"><div><div className="section-kicker">PLAN WORKFLOW</div><h2>30 天计划</h2><p>DeepSeek 草案 → 规则校验 → 教练审核 → 发布</p></div><button onClick={generate} disabled={!ready || !selected}>生成草案</button></div>{job && <div className="job-strip"><span className={`job-dot ${job.status}`}></span><strong>{job.status}</strong><small>{job.errorCode || "不保存原始 prompt / completion"}</small></div>}{job?.status === "failed" && !draft && <div className="fallback-box"><strong>模型生成失败</strong><p>只有教练明确点击后，才下载脱敏输入到本机运行 Codex CLI。回退结果仍需同一校验和审核。</p><button className="secondary-button" onClick={prepareFallback}>准备本机 Codex fallback</button>{fallback && <><code className="fallback-token">一次性导入 token：{fallback.token}</code><small>输入文件：{fallback.input}<br />运行：npm run codex:fallback -- --input {fallback.input} --output plan.json --post-url {window.location.origin}/api/codex-fallback/import --token {fallback.token}</small></>}</div>}{draft && <div className="draft-review"><div className="row"><strong>草案已通过结构化校验</strong><span className="badge">仅教练可见</span></div><p>共 {Array.isArray(draft.payload.days) ? draft.payload.days.length : 0} 天；发布后客户才会看到。</p><div className="row"><button className="secondary-button" onClick={() => api(`coach/plan-drafts/${draft.id}/reject`, { method: "POST", body: JSON.stringify({ reason: "需要调整" }) }, token).then(() => { setDraft(null); setMessage("草案已退回") })}>退回修改</button><button onClick={publish}>审核并发布</button></div></div>}{!draft && <div className="workflow-hint"><span>1</span>确认资料 <span>2</span>生成草案 <span>3</span>审核发布</div>}</div>
+        <div className="console-card"><div className="row"><div><div className="section-kicker">PLAN WORKFLOW</div><h2>30 天计划</h2><p>脱敏输入 → 本机 Codex CLI → 规则校验 → 教练审核 → 发布</p></div><button onClick={generate} disabled={!ready || !selected}>准备 Codex 草案</button></div>{job && <div className="job-strip"><span className={`job-dot ${job.status}`}></span><strong>{jobStatusLabels[job.status] || job.status}</strong><small>{job.errorCode || "不保存原始 prompt / completion"}</small></div>}{(job?.status === "awaiting_local" || job?.status === "failed") && !draft && <div className="fallback-box"><strong>等待本机 Codex CLI</strong><p>只有教练明确点击后，才下载脱敏输入并在本机运行 Codex CLI。结果仍需同一校验和审核。</p><button className="secondary-button" onClick={prepareFallback}>下载输入并生成一次性 token</button>{fallback && <><code className="fallback-token">一次性导入 token：{fallback.token}</code><small>输入文件：{fallback.input}<br />运行：npm run codex:plan -- --input {fallback.input} --output plan.json --post-url {window.location.origin}/api/codex-fallback/import --token {fallback.token}</small></>}</div>}{draft && <div className="draft-review"><div className="row"><strong>草案已通过结构化校验</strong><span className="badge">仅教练可见</span></div><p>共 {Array.isArray(draft.payload.days) ? draft.payload.days.length : 0} 天；发布后客户才会看到。</p><div className="row"><button className="secondary-button" onClick={() => api(`coach/plan-drafts/${draft.id}/reject`, { method: "POST", body: JSON.stringify({ reason: "需要调整" }) }, token).then(() => { setDraft(null); setMessage("草案已退回") })}>退回修改</button><button onClick={publish}>审核并发布</button></div></div>}{!draft && <div className="workflow-hint"><span>1</span>确认资料 <span>2</span>本机生成 <span>3</span>审核发布</div>}</div>
         <div className="console-card"><div className="row"><div><div className="section-kicker">ALERTS</div><h2>需要关注</h2></div><button className="ghost-button" onClick={() => api("coach/alerts", {}, token).then((data) => setMessage(data.alerts.length ? `有 ${data.alerts.length} 条告警` : "目前没有告警"))}>刷新</button></div><p className="empty">疼痛反馈会进入这里；系统不会自动替换动作。</p></div>
         <div className="toast-message">{message}</div>
       </section>

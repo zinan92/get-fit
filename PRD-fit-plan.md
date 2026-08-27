@@ -23,14 +23,14 @@ V1 只服务一名教练和少量真实客户。支付、公开注册、多人�
 
 现有 mockup 已验证“今天练什么、吃什么、注意什么”的客户端入口。下一步不是扩张功能，而是闭合一条真实链路：
 
-`教练邀请客户 → 客户建档并同意数据处理 → DeepSeek 生成 30 天草案 → 教练审核发布 → 客户每天执行和反馈 → 教练查看异常并调整未来版本`
+`教练邀请客户 → 客户建档并同意数据处理 → 教练本机 Codex CLI 生成 30 天草案 → 规则校验 → 教练审核发布 → 客户每天执行和反馈 → 教练查看异常并调整未来版本`
 
 当前已知约束：
 
 - 只有一名教练；客户通过线下或微信完成买课，不在产品内支付。
 - 客户端是微信小程序，教练端是桌面 Web。
-- DeepSeek 只接收去身份化、结构化且获得同意的必要资料。
-- Codex CLI 只做教练明确触发的人工恢复，不是线上自动 fallback。
+- Codex CLI 只接收教练明确下载的去身份化、结构化且获得同意的必要资料。
+- Codex CLI 只在教练本机执行，不是线上自动任务；结果必须回传后再校验和审核。
 - 未成年人、孕期、急性疼痛、严重慢病、饮食障碍等情况不走自动生成。
 
 ## 4. Objective
@@ -114,12 +114,12 @@ V1 不按“所有健身人群”建设，而服务一个具体工作场景：
 - 生成状态、草案审核、修改和拒绝
 - 发布/版本历史/未来生效日期
 - 近 7 天执行摘要、疼痛告警和处理记录
-- 人工 Codex CLI fallback 的一次性任务包和结果回传入口
+- Codex CLI 一次性任务包和结果回传入口
 
 #### AI 与规则引擎
 
-- DeepSeek 仅通过服务端 Worker 调用，模型和 URL 配置化。
-- 输出使用 JSON mode + 版本化 schema；通过前不进入审核或客户端。
+- Worker 不调用外部模型 API；模型运行只发生在教练本机的 Codex CLI。
+- CLI 输出必须是 JSON + 版本化 schema；通过前不进入审核或客户端。
 - AI 只选择本地动作库和食物库的 ID、份量和说明，不直接发明动作或热量。
 - 服务端按食物目录、克数和营养来源版本计算 kcal。
 - 每周分析只输出执行摘要、风险信号和建议教练查看的问题，不自动改计划。
@@ -132,16 +132,16 @@ V1 不按“所有健身人群”建设，而服务一个具体工作场景：
 - 数据库：Cloudflare D1 + Drizzle migrations。D1 提供 SQLite 语义、Worker binding 和恢复能力，适合本阶段的小规模闭环。参考 [D1 官方文档](https://developers.cloudflare.com/d1/)。
 - 异步：Cloudflare Queue 处理计划生成；Cron 处理每日提醒和 30 天删除清扫。
 - 静态图片：随前端发布，V1 不使用 R2 上传。
-- 密钥：DeepSeek、微信 AppSecret、教练认证密钥全部使用 Worker Secrets，不写入源码、`vars`、日志或前端。参考 [Workers Secrets](https://developers.cloudflare.com/workers/configuration/secrets/)。
+- 密钥：微信 AppSecret、教练认证密钥和数据加密密钥全部使用 Worker Secrets，不写入源码、`vars`、日志或前端。Codex CLI 使用本机登录态，不把凭证上传到 Worker。参考 [Workers Secrets](https://developers.cloudflare.com/workers/configuration/secrets/)。
 
-DeepSeek 接入使用其 OpenAI 兼容接口、配置化模型和 JSON Output。官方文档要求 JSON mode、提示词中明确 JSON 并提供结构示例；当前模型列表和价格会变动，接入时以官方模型列表为准，不依赖已弃用的旧模型名。参考 [DeepSeek Models & Pricing](https://api-docs.deepseek.com/quick_start/pricing)、[JSON Output](https://api-docs.deepseek.com/guides/json_mode/)。
+Codex CLI 生成只接受本机命令输出；Worker 不信任 CLI 原始文本，必须通过共享 `plan.v1`、目录、过敏/禁忌和 kcal 校验后才进入审核。CLI 运行参数、超时、输出大小和一次性回传 token 都由 runbook 固定。
 
 ### 7.4 Assumptions and unknowns
 
 | 假设/未知 | 处理方式 |
 | --- | --- |
 | 教练能提供可信动作库和食物目录 | M0 先收集并版本化；没有目录则不调用 AI |
-| DeepSeek 的数据驻留、保留、训练使用和跨境条件满足目标用户要求 | 当前状态 `unknown`；核验完成前只用假数据/测试资料，不能宣称合规 |
+| 本机 Codex CLI 的登录态、健康资料落盘和回传边界满足目标用户要求 | 当前状态 `unknown`；核验完成前只用假数据/测试资料，不能宣称合规 |
 | 微信小程序主体、类目、域名、订阅模板可通过审核 | 开工前建立微信审核清单并完成一次沙盒登录/订阅回执 |
 | 客户愿意持续反馈三项信号 | 用首个真实客户 7 天闭环验证，不把点击率当长期价值 |
 | 热量可以由目录计算 | 目录必须有来源、单位、版本；模型不得成为热量事实源 |
@@ -152,7 +152,7 @@ DeepSeek 接入使用其 OpenAI 兼容接口、配置化模型和 JSON Output。
 
 - 单教练账号、人工邀请、微信登录
 - 建档、两类同意、风险分流
-- DeepSeek 生成草案、严格校验、教练审核发布
+- Codex CLI 生成草案、严格校验、教练审核发布
 - 今日页、日历、训练/餐次/饮水打卡、三项反馈
 - 计划版本化、过去日期保护
 - 每日一次订阅提醒（明确授权后）
@@ -174,4 +174,3 @@ DeepSeek 接入使用其 OpenAI 兼容接口、配置化模型和 JSON Output。
 - 更丰富的食物替换和库存适配
 - 经过合规评估的多教练租户
 - 经过真实留存证据支持的付费闭环
-

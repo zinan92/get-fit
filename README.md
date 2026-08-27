@@ -99,9 +99,9 @@ actions tied to the current ChatGPT user. Leave public content anonymous.
 - `npm run dev` starts the coach web preview at `/coach` and the Worker API under `/api/*`.
 - Local `.dev.vars` may contain only throwaway values such as `DEV_MODE=true` and a local `DATA_ENCRYPTION_KEY`; it is ignored and must not contain a real provider key.
 - The native WeChat client is under `apps/miniprogram/`. Set its `apiBaseUrl` to the deployed Worker/Sites URL before importing it into the WeChat developer tool.
-- Production requires Worker secrets from [ENVIRONMENT-fit-plan.md](./ENVIRONMENT-fit-plan.md), applies the generated `drizzle/` migrations, and must keep the provider-retention/data-transfer review open until verified.
+- Production requires Worker secrets from [ENVIRONMENT-fit-plan.md](./ENVIRONMENT-fit-plan.md), applies the generated `drizzle/` migrations, and must keep the WeChat review, D1 recovery, and local Codex execution boundary open until verified.
 - The client receives only published coach-confirmed days. Food kcal is calculated from the curated catalog; drafts and provider identity stay in the coach/API boundary.
-- If DeepSeek fails, the coach console can issue a short-lived one-time token for the explicitly operated local `npm run codex:fallback` path. It never runs from the Worker and still requires review/publish.
+- Plan generation uses the coach-operated local `npm run codex:plan` path: the Worker issues a short-lived one-time token and de-identified input, the local Codex CLI writes a plan, and the API applies the same schema/safety/kcal validator before review/publish. It never runs from the Worker and never exposes an unapproved draft to the client.
 
 ## Learn More
 

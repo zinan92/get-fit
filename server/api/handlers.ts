@@ -1,10 +1,10 @@
 import { consentTypes, isConsentType, requiredConsents } from "../../packages/contracts/src/index";
 import { exerciseCatalogById, foodCatalogById } from "../../packages/catalogs/src/index";
 import { PLAN_SCHEMA_VERSION, PLAN_TIMEZONE } from "../../packages/plan-schema/src/index";
-import { generateWithDeepSeek, validateProviderPayload } from "./deepseek";
+import { validateProviderPayload } from "./plan-validation";
 import { body, error, issueSession, json, requireClient, requireCoach } from "./http";
 import { audit, checkinKey, id, nowIso, randomToken, sha256 } from "./store";
-import { encryptSecret, persistStore } from "./persistence";
+import { encryptSecret } from "./persistence";
 import type { ApiContext, ClientRecord, ConsentType, HealthProfile, JsonRecord } from "./types";
 
 function requestId(request: Request): string {
@@ -282,34 +282,26 @@ async function createGeneration(context: ApiContext, clientId: string, reqId: st
   if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate)) return error("INVALID_INPUT", "startDate must be YYYY-MM-DD", 400);
   const idempotencyKey = context.request.headers.get("idempotency-key")?.trim() || null;
   if (idempotencyKey) {
-    const existingAudit = context.store.audit.find((event) => event.action === "generation.queued" && event.clientId === clientId && event.idempotencyKey === idempotencyKey);
+    const existingAudit = context.store.audit.find((event) => (event.action === "generation.local_requested" || event.action === "generation.queued") && event.clientId === clientId && event.idempotencyKey === idempotencyKey);
     const existingJobId = typeof existingAudit?.jobId === "string" ? existingAudit.jobId : null;
     const existingJob = existingJobId ? context.store.jobs.get(existingJobId) : null;
     if (existingJob) return json({ job: existingJob }, 202);
   }
-  const job = { id: id("job"), clientId, provider: "deepseek" as const, model: context.env.DEEPSEEK_MODEL ?? "deepseek-v4-flash", schemaVersion: PLAN_SCHEMA_VERSION, status: "queued" as const, errorCode: null, traceId: id("trace"), startDate, outputHash: null, createdAt: nowIso(), updatedAt: nowIso(), operator: "coach" as const };
-  context.store.jobs.set(job.id, job); audit(context.store, "generation.queued", { requestId: reqId, clientId, jobId: job.id, provider: job.provider, idempotencyKey, startDate });
-  if (context.env.QUEUE) {
-    await context.env.QUEUE.send({ jobId: job.id, clientId, startDate });
-    return json({ job }, 202);
-  }
-  context.ctx.waitUntil((async () => {
-    await runGeneration(context, job.id, startDate);
-    await persistStore(context.store, context.env.DB, context.env.DATA_ENCRYPTION_KEY);
-  })());
+  const job = { id: id("job"), clientId, provider: "codex_cli" as const, model: "codex-cli", schemaVersion: PLAN_SCHEMA_VERSION, status: "awaiting_local" as const, errorCode: null, traceId: id("trace"), startDate, outputHash: null, createdAt: nowIso(), updatedAt: nowIso(), operator: "coach" as const };
+  context.store.jobs.set(job.id, job);
+  audit(context.store, "generation.local_requested", { requestId: reqId, clientId, jobId: job.id, provider: job.provider, idempotencyKey, startDate, operator: "coach" });
   return json({ job }, 202);
 }
 
 export async function runGeneration(context: ApiContext, jobId: string, startDate: string): Promise<void> {
   const job = context.store.jobs.get(jobId); if (!job) return;
-  const profile = context.store.profiles.get(job.clientId); if (!profile) return;
-  job.status = "running"; job.updatedAt = nowIso();
-  const result = await generateWithDeepSeek(context.env, profile, startDate, job.traceId);
+  if (!["queued", "running"].includes(job.status)) return;
+  job.provider = "codex_cli";
+  job.model = "codex-cli";
+  job.status = "awaiting_local";
+  job.errorCode = null;
   job.updatedAt = nowIso();
-  if (!result.ok) { job.status = "failed"; job.errorCode = result.code; audit(context.store, "generation.failed", { clientId: job.clientId, jobId, traceId: job.traceId, errorCode: result.code }); return; }
-  job.status = "pending_review"; job.outputHash = result.outputHash;
-  const draft = { id: id("draft"), generationJobId: job.id, clientId: job.clientId, status: "pending_review" as const, payload: result.payload, validation: { ok: true as const, warnings: result.warnings }, createdAt: nowIso(), reviewedAt: null, rejectionReason: null };
-  context.store.drafts.set(draft.id, draft); audit(context.store, "generation.draft_ready", { clientId: job.clientId, jobId, draftId: draft.id, outputHash: result.outputHash });
+  audit(context.store, "generation.awaiting_local", { clientId: job.clientId, jobId, traceId: job.traceId, startDate, provider: "codex_cli" });
 }
 
 function generationStatus(context: ApiContext, jobId: string): Response {
@@ -322,7 +314,7 @@ function generationStatus(context: ApiContext, jobId: string): Response {
 async function createFallbackToken(context: ApiContext, jobId: string, reqId: string): Promise<Response> {
   const auth = requireCoach(context); if (auth !== true) return auth;
   const job = context.store.jobs.get(jobId);
-  if (!job || job.status !== "failed") return error("FALLBACK_NOT_ALLOWED", "Codex fallback is available only after a failed provider job", 409);
+  if (!job || !["awaiting_local", "failed"].includes(job.status)) return error("FALLBACK_NOT_ALLOWED", "Codex CLI handoff is not available for this job", 409);
   const existing = [...context.store.fallbackTokens.values()].find((item) => item.jobId === jobId && !item.consumedAt && item.expiresAt > nowIso());
   if (existing) return error("FALLBACK_TOKEN_ALREADY_ISSUED", "A fallback token is already active", 409);
   const rawToken = randomToken();
@@ -335,7 +327,7 @@ async function createFallbackToken(context: ApiContext, jobId: string, reqId: st
 function codexInput(context: ApiContext, jobId: string): Response {
   const auth = requireCoach(context); if (auth !== true) return auth;
   const job = context.store.jobs.get(jobId); const profile = job ? context.store.profiles.get(job.clientId) : null;
-  if (!job || !profile || job.status !== "failed") return error("FALLBACK_NOT_ALLOWED", "Codex input is available only for a failed job", 409);
+  if (!job || !profile || !["awaiting_local", "failed"].includes(job.status)) return error("FALLBACK_NOT_ALLOWED", "Codex input is not available for this job", 409);
   return json({ job: { id: job.id, clientId: job.clientId, startDate: job.startDate, schemaVersion: job.schemaVersion }, profile: {
     target: profile.target, ageBand: profile.ageBand, heightCm: profile.heightCm, weightKg: profile.weightKg,
     trainingExperience: profile.trainingExperience, sessionsPerWeek: profile.sessionsPerWeek, minutesPerSession: profile.minutesPerSession,

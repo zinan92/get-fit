@@ -12,6 +12,7 @@ export type ClientStatus =
 export type GenerationStatus =
   | "queued"
   | "running"
+  | "awaiting_local"
   | "draft_ready"
   | "pending_review"
   | "failed"
@@ -63,7 +64,7 @@ export type InvitationRecord = {
 export type GenerationJobRecord = {
   id: string;
   clientId: string;
-  provider: "deepseek" | "codex_cli";
+  provider: "codex_cli";
   model: string;
   schemaVersion: string;
   status: GenerationStatus;
@@ -161,9 +162,6 @@ export type DeliveryLogRecord = {
 export type ApiEnv = {
   DB?: D1Database;
   QUEUE?: Queue;
-  DEEPSEEK_API_KEY?: string;
-  DEEPSEEK_API_URL?: string;
-  DEEPSEEK_MODEL?: string;
   DATA_ENCRYPTION_KEY?: string;
   WECHAT_TEMPLATE_ID?: string;
   WECHAT_ACCESS_TOKEN?: string;

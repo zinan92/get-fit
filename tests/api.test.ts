@@ -4,7 +4,7 @@ import { handleApi } from "../server/api/handlers";
 import { createMemoryStore } from "../server/api/store";
 import { PLAN_SCHEMA_VERSION, PLAN_TIMEZONE } from "../packages/plan-schema/src/index";
 
-const env = { DEV_MODE: "true", DEEPSEEK_MODEL: "deepseek-v4-flash" };
+const env = { DEV_MODE: "true" };
 const store = createMemoryStore();
 const pending: Promise<unknown>[] = [];
 const ctx = { waitUntil: (promise: Promise<unknown>) => pending.push(promise), passThroughOnException() {} } as ExecutionContext;
@@ -39,7 +39,7 @@ function plan(startDate: string) {
   };
 }
 
-test("single-coach onboarding, failed provider, validated fallback, publish and client read path", async () => {
+test("single-coach onboarding, Codex CLI handoff, validated import, publish and client read path", async () => {
   const coach = await call("/api/coach/session", { method: "POST", headers: { "x-coach-token": "dev-coach" } });
   assert.equal(coach.response.status, 200);
   const coachToken = String(coach.payload.sessionToken);
@@ -62,8 +62,14 @@ test("single-coach onboarding, failed provider, validated fallback, publish and 
   assert.equal(generation.response.status, 202);
   await Promise.all(pending.splice(0));
   const jobId = String((generation.payload.job as Record<string, unknown>).id);
-  const failed = await call(`/api/coach/generation-jobs/${jobId}`, { headers: { "x-coach-token": "dev-coach" } });
-  assert.equal((failed.payload.job as Record<string, unknown>).status, "failed");
+  const localJob = generation.payload.job as Record<string, unknown>;
+  assert.equal(localJob.provider, "codex_cli");
+  assert.equal(localJob.status, "awaiting_local");
+  const handoff = await call(`/api/coach/generation-jobs/${jobId}`, { headers: { "x-coach-token": "dev-coach" } });
+  assert.equal((handoff.payload.job as Record<string, unknown>).status, "awaiting_local");
+  const codexInput = await call(`/api/coach/generation-jobs/${jobId}/codex-input`, { headers: { "x-coach-token": "dev-coach" } });
+  assert.equal(codexInput.response.status, 200);
+  assert.equal((codexInput.payload.profile as Record<string, unknown>).displayName, undefined);
   const fallbackToken = await call(`/api/coach/generation-jobs/${jobId}/codex-fallback-token`, { method: "POST", headers: { "x-coach-token": "dev-coach" } });
   const imported = await call("/api/codex-fallback/import", { method: "POST", body: JSON.stringify({ token: fallbackToken.payload.token, payload: plan("2026-08-12") }) });
   assert.equal(imported.response.status, 201);
