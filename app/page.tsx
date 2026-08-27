@@ -65,9 +65,9 @@ const meals: Meal[] = [
 ];
 
 const exercises = [
-  { id: "squat", number: "01", name: "高脚杯深蹲", detail: "4 组 × 12 次", rest: "组间休息 75 秒" },
-  { id: "row", number: "02", name: "单臂哑铃划船", detail: "4 组 × 10 次 / 侧", rest: "背部收紧，慢慢放下" },
-  { id: "bridge", number: "03", name: "臀桥", detail: "3 组 × 15 次", rest: "顶端停留 2 秒" },
+  { id: "squat", number: "01", name: "高脚杯深蹲", detail: "4 组 × 12 次", rest: "组间休息 75 秒", gif: "/exercise-preview/dumbbell-goblet-squat.gif", sourceId: "1760", mediaNote: "站姿演示" },
+  { id: "row", number: "02", name: "单臂哑铃划船", detail: "4 组 × 10 次 / 侧", rest: "背部收紧，慢慢放下", gif: "/exercise-preview/single-arm-dumbbell-row.gif", sourceId: "1330", mediaNote: "支撑版演示" },
+  { id: "bridge", number: "03", name: "臀桥", detail: "3 组 × 15 次", rest: "顶端停留 2 秒", gif: "/exercise-preview/low-glute-bridge.gif", sourceId: "3013", mediaNote: "地面演示" },
 ];
 
 const spritePosition = (index: number) => {
@@ -181,6 +181,20 @@ export default function Home() {
                       aria-pressed={isDone}
                     >
                       <span className="exercise-number">{exercise.number}</span>
+                      <span className="exercise-media">
+                        <span className="exercise-media-fallback">动作演示</span>
+                        {/* Keep the source GIF native so it loops in the client card. */}
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={exercise.gif}
+                          alt={`${exercise.name} 动作演示`}
+                          width={72}
+                          height={72}
+                          loading="lazy"
+                          onError={(event) => { event.currentTarget.style.display = "none"; }}
+                        />
+                        <small>{exercise.mediaNote} · #{exercise.sourceId}</small>
+                      </span>
                       <span className="exercise-copy">
                         <strong>{exercise.name}</strong>
                         <span>{exercise.detail}</span>
@@ -192,6 +206,7 @@ export default function Home() {
                 })}
               </div>
               <div className="form-note"><span>!</span>膝盖保持与脚尖方向一致；若膝部不适，立即停止并联系教练。</div>
+              <p className="exercise-media-credit">动作 GIF：© Gym visual — https://gymvisual.com/ · 原始素材 180×180，仅供演示</p>
             </div>
           </section>
 

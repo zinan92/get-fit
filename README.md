@@ -102,6 +102,7 @@ actions tied to the current ChatGPT user. Leave public content anonymous.
 - Production requires Worker secrets from [ENVIRONMENT-fit-plan.md](./ENVIRONMENT-fit-plan.md), applies the generated `drizzle/` migrations, and must keep the WeChat review, D1 recovery, and local Codex execution boundary open until verified.
 - The client receives only published coach-confirmed days. Food kcal is calculated from the curated catalog; drafts and provider identity stay in the coach/API boundary.
 - Plan generation uses the coach-operated local `npm run codex:plan` path: the Worker issues a short-lived one-time token and de-identified input, the local Codex CLI writes a plan, and the API applies the same schema/safety/kcal validator before review/publish. It never runs from the Worker and never exposes an unapproved draft to the client.
+- The client training cards embed three pinned 180×180 exercise GIFs with a text fallback; `/exercise-preview` shows the same media set for private review. Media attribution and separate Gym visual rights terms remain in force.
 
 ## Learn More
 

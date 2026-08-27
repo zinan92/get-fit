@@ -70,9 +70,13 @@ button { color: inherit; }
 .warmup-row strong { font-size: 12px; }
 .warmup-row span { font-size: 9px; color: #718071; }
 .exercise-list { padding: 3px 15px; }
-.exercise { width: 100%; border: 0; background: transparent; padding: 13px 0; display: grid; grid-template-columns: 30px 1fr 25px; align-items: center; gap: 9px; text-align: left; border-bottom: 1px solid #eee9e1; cursor: pointer; }
+.exercise { width: 100%; border: 0; background: transparent; padding: 13px 0; display: grid; grid-template-columns: 30px 72px minmax(0, 1fr) 25px; align-items: center; gap: 9px; text-align: left; border-bottom: 1px solid #eee9e1; cursor: pointer; }
 .exercise:last-child { border-bottom: 0; }
 .exercise-number { font-family: Georgia, serif; font-style: italic; font-size: 12px; color: #b9b2a7; }
+.exercise-media { width: 72px; height: 72px; border-radius: 16px; background: #f4f0e8; overflow: hidden; position: relative; display: grid; place-items: center; }
+.exercise-media img { display: block; width: 72px; height: 72px; object-fit: cover; }
+.exercise-media-fallback { color: #aaa095; font-size: 9px; position: absolute; inset: 0; display: grid; place-items: center; }
+.exercise-media small { position: absolute; right: 4px; bottom: 4px; padding: 2px 4px; border-radius: 999px; background: rgba(48,47,43,.7); color: rgba(255,255,255,.88); font-size: 6px; line-height: 1; white-space: nowrap; }
 .exercise-copy { display: grid; gap: 2px; }
 .exercise-copy strong { font-size: 13px; }
 .exercise-copy span { font-size: 11px; font-weight: 700; color: var(--orange-dark); }
@@ -82,6 +86,7 @@ button { color: inherit; }
 .exercise.done .exercise-copy strong { text-decoration: line-through; color: #8f8b83; }
 .form-note { margin: 4px 11px 11px; background: #fff4df; color: #836539; border-radius: 13px; padding: 10px; font-size: 9px; line-height: 1.55; }
 .form-note span { display: inline-grid; place-items: center; width: 15px; height: 15px; border-radius: 50%; background: #f0c87c; color: white; font-weight: 800; margin-right: 5px; }
+.exercise-media-credit { margin: 0 11px 12px; color: #a39e95; font-size: 8px; line-height: 1.5; text-align: center; }
 .meal-intro { margin: -5px 0 13px; color: var(--muted); font-size: 11px; }
 .meal-list { display: grid; gap: 13px; }
 .meal-card { border-radius: 25px; padding: 15px; border: 1px solid var(--line); background: white; box-shadow: 0 9px 28px rgba(50,44,36,.05); }

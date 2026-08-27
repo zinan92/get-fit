@@ -27,6 +27,10 @@ test("renders the complete approved daily plan mockup", async () => {
   assert.match(html, /第 8 \/ 30 天/);
   assert.match(html, /今天练什么/);
   assert.match(html, /高脚杯深蹲/);
+  assert.match(html, /exercise-preview\/dumbbell-goblet-squat\.gif/);
+  assert.match(html, /exercise-preview\/single-arm-dumbbell-row\.gif/);
+  assert.match(html, /exercise-preview\/low-glute-bridge\.gif/);
+  assert.match(html, /动作 GIF：© Gym visual/);
   assert.match(html, /今天吃什么/);
   assert.match(html, /水煮蛋/);
   assert.match(html, /144<!-- --> kcal/);
@@ -45,11 +49,11 @@ test("renders the private exercise GIF preview with real media references", asyn
   assert.equal(response.status, 200);
   const html = await response.text();
   assert.match(html, /轻练 · 动作 GIF 预览/);
-  assert.match(html, /哑铃侧平举/);
-  assert.match(html, /俯卧撑/);
-  assert.match(html, /哑铃高脚杯深蹲/);
-  assert.match(html, /exercise-preview\/dumbbell-lateral-raise\.gif/);
-  assert.match(html, /exercise-preview\/push-up\.gif/);
+  assert.match(html, /高脚杯深蹲/);
+  assert.match(html, /单臂哑铃划船/);
+  assert.match(html, /臀桥/);
+  assert.match(html, /exercise-preview\/single-arm-dumbbell-row\.gif/);
+  assert.match(html, /exercise-preview\/low-glute-bridge\.gif/);
   assert.match(html, /exercise-preview\/dumbbell-goblet-squat\.gif/);
   assert.match(html, /© Gym visual/);
 });
