@@ -12,6 +12,8 @@ type DraftMeal = { mealType: "breakfast" | "lunch" | "snack" | "dinner"; foods: 
 type DraftDay = { dayIndex: number; localDate: string; title: string; exercises: DraftExercise[]; meals: DraftMeal[]; reminders: string[] };
 type DraftPayload = { schemaVersion: string; timezone: string; startDate: string; days: DraftDay[] };
 type Draft = { id: string; status: string; payload: DraftPayload; validation?: { ok: boolean; warnings: string[] } };
+type CoachAlert = { id: string; clientId: string; clientName?: string; localDate: string; type: string; status: string; createdAt: string; acknowledgedAt: string | null };
+type CoachSummary = { openedDays: number; trainingCheckins: number; mealCheckins: number; waterCheckins: number; painAlerts: number; feedbackDays: number };
 
 const jobStatusLabels: Record<string, string> = {
   awaiting_local: "等待本机 Codex",
@@ -70,6 +72,8 @@ export default function CoachPage() {
   const [job, setJob] = useState<Job | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [fallback, setFallback] = useState<{ token: string; input: string } | null>(null);
+  const [summary, setSummary] = useState<CoachSummary | null>(null);
+  const [alerts, setAlerts] = useState<CoachAlert[]>([]);
   const [message, setMessage] = useState("先登录教练后台");
 
   const ready = Boolean(token);
@@ -86,7 +90,16 @@ export default function CoachPage() {
   }
 
   async function selectClient(client: Client, auth = token) {
-    setSelected(client); try { const data = await api(`coach/clients/${client.id}/profile`, {}, auth); setProfile(data.profile); } catch (error) { setMessage(error instanceof Error ? error.message : "资料加载失败"); }
+    setSelected(client);
+    try {
+      const [profileData, summaryData] = await Promise.all([
+        api(`coach/clients/${client.id}/profile`, {}, auth),
+        api(`coach/clients/${client.id}/summary?days=7`, {}, auth),
+      ]);
+      setProfile(profileData.profile);
+      setSummary(summaryData.summary);
+      setAlerts(summaryData.alerts || []);
+    } catch (error) { setMessage(error instanceof Error ? error.message : "资料加载失败"); }
   }
 
   async function createInvite() {
@@ -127,6 +140,14 @@ export default function CoachPage() {
     } catch (error) { setMessage(error instanceof Error ? error.message : "修改未保存：请检查计划内容"); }
   }
 
+  async function acknowledgeAlert(alertId: string) {
+    try {
+      const data = await api(`coach/alerts/${alertId}/ack`, { method: "POST" }, token);
+      setAlerts((current) => current.map((alert) => alert.id === alertId ? data.alert as CoachAlert : alert));
+      setMessage("告警已确认；计划不会自动替换");
+    } catch (error) { setMessage(error instanceof Error ? error.message : "告警确认失败"); }
+  }
+
   async function prepareFallback() {
     if (!job) return;
     try {
@@ -161,7 +182,11 @@ export default function CoachPage() {
             {draft && <div className="draft-review"><div className="row"><strong>草案已通过结构化校验</strong><span className="badge">仅教练可见</span></div><p>共 {draft.payload.days.length} 天；发布后客户才会看到。你可以先调整，再保存。</p><div className="draft-day-list">{draft.payload.days.map((day) => <details className="draft-day" key={day.localDate} open={day.dayIndex === 1}><summary>第 {day.dayIndex} 天 · {day.localDate} · {day.title}</summary><label>今日主题<input value={day.title} onChange={(event) => updateDay(day.dayIndex, (current) => ({ ...current, title: event.target.value }))} /></label><div className="draft-editor-section"><span className="draft-editor-label">训练动作</span>{day.exercises.map((exercise, exerciseIndex) => <div className="draft-item" key={`${day.dayIndex}-${exercise.catalogId}`}><strong>{exerciseLabels[exercise.catalogId] || exercise.catalogId}</strong><label>组数<input type="number" min="1" max="10" value={exercise.sets} onChange={(event) => updateDay(day.dayIndex, (current) => ({ ...current, exercises: current.exercises.map((item, index) => index === exerciseIndex ? { ...item, sets: Number(event.target.value) } : item) }))} /></label><label>次数<input type="number" min="1" max="100" value={exercise.reps} onChange={(event) => updateDay(day.dayIndex, (current) => ({ ...current, exercises: current.exercises.map((item, index) => index === exerciseIndex ? { ...item, reps: Number(event.target.value) } : item) }))} /></label><label>休息秒数<input type="number" min="0" max="600" value={exercise.restSeconds} onChange={(event) => updateDay(day.dayIndex, (current) => ({ ...current, exercises: current.exercises.map((item, index) => index === exerciseIndex ? { ...item, restSeconds: Number(event.target.value) } : item) }))} /></label></div>)}</div><div className="draft-editor-section"><span className="draft-editor-label">餐次与份量</span>{day.meals.map((meal, mealIndex) => <div className="draft-meal" key={`${day.dayIndex}-${meal.mealType}`}><strong>{mealLabels[meal.mealType]}</strong>{meal.foods.map((food, foodIndex) => <label key={`${meal.mealType}-${food.foodCatalogId}`}>{foodLabels[food.foodCatalogId] || food.foodCatalogId}<input type="number" min="1" max="2000" value={food.grams} onChange={(event) => updateDay(day.dayIndex, (current) => ({ ...current, meals: current.meals.map((item, index) => index === mealIndex ? { ...item, foods: item.foods.map((entry, entryIndex) => entryIndex === foodIndex ? { ...entry, grams: Number(event.target.value) } : entry) } : item) }))} /><span>g</span></label>)}</div>)}</div><label>今日提醒<textarea value={day.reminders.join("\n")} onChange={(event) => updateDay(day.dayIndex, (current) => ({ ...current, reminders: event.target.value.split("\n").map((line) => line.trim()).filter(Boolean) }))} /></label></details>)}</div><div className="row draft-actions"><button className="secondary-button" onClick={saveDraft}>保存修改</button><button className="secondary-button" onClick={() => api(`coach/plan-drafts/${draft.id}/reject`, { method: "POST", body: JSON.stringify({ reason: "需要调整" }) }, token).then(() => { setDraft(null); setMessage("草案已退回") })}>退回修改</button><button onClick={publish}>审核并发布</button></div></div>}
             {!draft && <div className="workflow-hint"><span>1</span>确认资料 <span>2</span>本机生成 <span>3</span>审核发布</div>}
           </div>
-          <div className="console-card"><div className="row"><div><div className="section-kicker">ALERTS</div><h2>需要关注</h2></div><button className="ghost-button" onClick={() => api("coach/alerts", {}, token).then((data) => setMessage(data.alerts.length ? `有 ${data.alerts.length} 条告警` : "目前没有告警"))}>刷新</button></div><p className="empty">疼痛反馈会进入这里；系统不会自动替换动作。</p></div>
+          <div className="console-card">
+            <div className="row"><div><div className="section-kicker">LAST 7 DAYS</div><h2>执行与需要关注</h2></div><button className="ghost-button" onClick={() => selected && selectClient(selected)}>刷新</button></div>
+            {summary ? <div className="summary-grid"><span>打开天数<strong>{summary.openedDays} 天</strong></span><span>训练打卡<strong>{summary.trainingCheckins} 次</strong></span><span>饮食打卡<strong>{summary.mealCheckins} 次</strong></span><span>身体反馈<strong>{summary.feedbackDays} 天</strong></span></div> : <p className="empty">选择客户后显示近 7 天摘要。</p>}
+            <div className="alert-list">{alerts.map((alert) => <div className={alert.status === "acknowledged" ? "alert-row acknowledged" : "alert-row"} key={alert.id}><span><strong>{alert.clientName || selected?.displayName || "客户"} · {alert.localDate}</strong><small>{alert.status === "acknowledged" ? "已确认" : "疼痛反馈：请联系客户"}</small></span>{alert.status !== "acknowledged" && <button className="ghost-button" onClick={() => acknowledgeAlert(alert.id)}>确认</button>}</div>)}{!alerts.length && <p className="empty">目前没有疼痛告警；系统不会自动替换动作。</p>}</div>
+          </div>
           <div className="toast-message">{message}</div>
         </section>
       </section>

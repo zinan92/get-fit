@@ -105,13 +105,15 @@ export async function handleApi(context: ApiContext): Promise<Response> {
     const revokeConsentMatch = path.match(/^me\/consents\/([^/]+)$/);
     if (revokeConsentMatch && method === "DELETE") return revokeConsent(context, revokeConsentMatch[1], reqId);
     if (path === "reminders/subscribe" && method === "POST") return subscribeReminders(context, reqId);
-    if (path === "plan/today" && method === "GET") return clientToday(context);
+    if (path === "plan/today" && method === "GET") return clientToday(context, reqId);
     if (path === "plans/calendar" && method === "GET") return clientCalendar(context);
     if (path === "checkins" && method === "PUT") return saveCheckin(context, reqId);
     if (path === "wellness-feedback" && method === "PUT") return saveWellness(context, reqId);
     if (path === "me" && method === "DELETE") return requestDeletion(context, reqId);
     const profileMatch = path.match(/^coach\/clients\/([^/]+)\/profile$/);
     if (profileMatch && method === "GET") return coachProfile(context, profileMatch[1]);
+    const summaryMatch = path.match(/^coach\/clients\/([^/]+)\/summary$/);
+    if (summaryMatch && method === "GET") return coachSummary(context, summaryMatch[1]);
     const profileConfirmMatch = path.match(/^coach\/clients\/([^/]+)\/profile\/confirm$/);
     if (profileConfirmMatch && method === "POST") return confirmProfile(context, profileConfirmMatch[1], reqId);
     const generationMatch = path.match(/^coach\/clients\/([^/]+)\/plan-generations$/);
@@ -437,12 +439,39 @@ async function publishDraft(context: ApiContext, draftId: string, reqId: string)
   return json({ plan: { id: plan.id, clientId: plan.clientId, versionNo: plan.versionNo, effectiveFrom: plan.effectiveFrom, status: plan.status } }, 201);
 }
 
-function clientToday(context: ApiContext): Response {
+function clientToday(context: ApiContext, reqId: string): Response {
   const clientId = requireClient(context); if (clientId instanceof Response) return clientId;
   const url = new URL(context.request.url); const date = safeString(url.searchParams.get("date"), new Date().toISOString().slice(0, 10)); const plan = currentPlan(context.store, clientId, date);
   if (!plan) return json({ status: "waiting_for_coach", date, plan: null });
   const day = plan.payload.days.find((item) => item.localDate === date) ?? null;
+  if (day) audit(context.store, "client.today_viewed", { requestId: reqId, clientId, localDate: date });
   return json({ status: day ? "ready" : "waiting_for_coach", date, plan: day ? { id: plan.id, versionNo: plan.versionNo, day: clientDayView(day) } : null, checkins: day ? clientDayCheckins(context.store, clientId, date) : [] });
+}
+
+function coachSummary(context: ApiContext, clientId: string): Response {
+  const auth = requireCoach(context); if (auth !== true) return auth;
+  const client = context.store.clients.get(clientId); if (!client) return error("NOT_FOUND", "Client not found", 404);
+  const url = new URL(context.request.url);
+  const requestedDays = Number(url.searchParams.get("days") ?? 7);
+  const days = Number.isInteger(requestedDays) && requestedDays >= 1 && requestedDays <= 30 ? requestedDays : 7;
+  const dates = new Set<string>();
+  context.store.audit.filter((event) => event.action === "client.today_viewed" && event.clientId === clientId && typeof event.localDate === "string").forEach((event) => dates.add(event.localDate as string));
+  context.store.checkins.forEach((item) => { if (item.clientId === clientId) dates.add(item.localDate); });
+  context.store.feedback.forEach((item) => { if (item.clientId === clientId) dates.add(item.localDate); });
+  context.store.alerts.forEach((item) => { if (item.clientId === clientId) dates.add(item.localDate); });
+  const windowDates = new Set([...dates].sort().slice(-days));
+  const checkins = [...context.store.checkins.values()].filter((item) => item.clientId === clientId && windowDates.has(item.localDate) && item.status === "completed");
+  const feedbackDays = new Set([...context.store.feedback.values()].filter((item) => item.clientId === clientId && windowDates.has(item.localDate)).map((item) => item.localDate));
+  const painAlerts = [...context.store.alerts.values()].filter((item) => item.clientId === clientId && windowDates.has(item.localDate) && item.type === "pain");
+  const summary = {
+    openedDays: new Set([...context.store.audit.filter((event) => event.action === "client.today_viewed" && event.clientId === clientId && typeof event.localDate === "string").map((event) => event.localDate as string)].filter((date) => windowDates.has(date))).size,
+    trainingCheckins: checkins.filter((item) => item.itemType === "exercise").length,
+    mealCheckins: checkins.filter((item) => item.itemType === "meal").length,
+    waterCheckins: checkins.filter((item) => item.itemType === "water").length,
+    painAlerts: painAlerts.length,
+    feedbackDays: feedbackDays.size,
+  };
+  return json({ client: clientView(client), days, summary, alerts: painAlerts.map((alert) => ({ ...alert, clientName: client.displayName })) });
 }
 
 function clientCalendar(context: ApiContext): Response {

@@ -203,3 +203,36 @@ test("client sessions fail closed when their client record no longer exists", as
   const payload = await response.json() as Record<string, unknown>;
   assert.equal((payload.error as Record<string, unknown>).code, "AUTH_INVALID");
 });
+
+test("coach session token authorizes subsequent coach operations", async () => {
+  const coachStore = createMemoryStore();
+  const coachCtx = { waitUntil() {}, passThroughOnException() {} } as ExecutionContext;
+  const loginResponse = await handleApi({ request: new Request("http://localhost/api/coach/session", { method: "POST", headers: { "x-coach-token": "dev-coach" } }), env, store: coachStore, ctx: coachCtx });
+  assert.equal(loginResponse.status, 200);
+  const loginPayload = await loginResponse.json() as Record<string, unknown>;
+  const sessionToken = String(loginPayload.sessionToken);
+  const inviteResponse = await handleApi({ request: new Request("http://localhost/api/coach/invitations", { method: "POST", headers: { authorization: `Bearer ${sessionToken}`, "content-type": "application/json" }, body: JSON.stringify({ displayName: "会话客户" }) }), env, store: coachStore, ctx: coachCtx });
+  assert.equal(inviteResponse.status, 201);
+});
+
+test("coach summary reports unique opened days, check-ins and pain alerts", async () => {
+  const summaryStore = createMemoryStore();
+  const summaryCtx = { waitUntil() {}, passThroughOnException() {} } as ExecutionContext;
+  const clientId = "summary-client";
+  summaryStore.clients.set(clientId, { id: clientId, displayName: "摘要客户", status: "active", createdAt: new Date().toISOString() });
+  const publishedAt = new Date().toISOString();
+  summaryStore.plans.set("summary-plan", { id: "summary-plan", clientId, versionNo: 1, effectiveFrom: "2026-08-12", effectiveTo: null, payload: plan("2026-08-12"), status: "published", approvedAt: publishedAt, changeReason: null });
+  summaryStore.audit.push(
+    { id: "view-1", action: "client.today_viewed", clientId, localDate: "2026-08-12" },
+    { id: "view-2", action: "client.today_viewed", clientId, localDate: "2026-08-12" },
+    { id: "view-3", action: "client.today_viewed", clientId, localDate: "2026-08-13" },
+  );
+  summaryStore.checkins.set("checkin-1", { clientId, planDayId: "summary-plan:2026-08-12", localDate: "2026-08-12", itemId: "ex-walk", itemType: "exercise", status: "completed", completedAt: publishedAt });
+  summaryStore.checkins.set("checkin-2", { clientId, planDayId: "summary-plan:2026-08-12", localDate: "2026-08-12", itemId: "breakfast", itemType: "meal", status: "completed", completedAt: publishedAt });
+  summaryStore.alerts.set("alert-1", { id: "alert-1", clientId, localDate: "2026-08-13", type: "pain", status: "open", createdAt: publishedAt, acknowledgedAt: null });
+  summaryStore.sessions.set("coach-summary-session", { kind: "coach", subjectId: "coach_single", expiresAt: Date.now() + 60_000 });
+  const response = await handleApi({ request: new Request("http://localhost/api/coach/clients/summary-client/summary?days=7", { headers: { authorization: "Bearer coach-summary-session" } }), env, store: summaryStore, ctx: summaryCtx });
+  assert.equal(response.status, 200);
+  const payload = await response.json() as Record<string, unknown>;
+  assert.deepEqual(payload.summary, { openedDays: 2, trainingCheckins: 1, mealCheckins: 1, waterCheckins: 0, painAlerts: 1, feedbackDays: 0 });
+});

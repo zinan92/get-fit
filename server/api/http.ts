@@ -39,7 +39,10 @@ export function requireClient(context: ApiContext): string | Response {
 }
 
 export function requireCoach(context: ApiContext): true | Response {
-  const token = bearer(context.request) ?? context.request.headers.get("x-coach-token");
+  const bearerToken = bearer(context.request);
+  const session = bearerToken ? context.store.sessions.get(bearerToken) : null;
+  const sessionAllowed = Boolean(session && session.kind === "coach" && session.expiresAt >= Date.now());
+  const token = bearerToken ?? context.request.headers.get("x-coach-token");
   const configured = context.env.COACH_TOKEN;
   const devAllowed = (context.env.DEV_MODE === "true" || new URL(context.request.url).hostname === "localhost") && token === "dev-coach";
   // Private Sites owner-only access injects this identity header after the
@@ -48,7 +51,7 @@ export function requireCoach(context: ApiContext): true | Response {
   const siteUserId = context.request.headers.get("oai-authenticated-user-id");
   const siteAccessAllowed = Boolean(context.env.COACH_ACCESS_USER_ID && siteUserId && siteUserId === context.env.COACH_ACCESS_USER_ID);
   const tokenAllowed = Boolean(configured && token && token === configured);
-  if (!devAllowed && !siteAccessAllowed && !tokenAllowed) {
+  if (!sessionAllowed && !devAllowed && !siteAccessAllowed && !tokenAllowed) {
     return error("COACH_AUTH_REQUIRED", "Coach authentication is required", 401);
   }
   return true;
