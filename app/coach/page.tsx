@@ -53,6 +53,10 @@ const mealLabels: Record<DraftMeal["mealType"], string> = {
   dinner: "晚餐",
 };
 
+function shanghaiToday() {
+  return new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
 async function api(path: string, options: RequestInit = {}, token = "") {
   const response = await fetch(`/api/${path}`, {
     ...options,
@@ -117,7 +121,7 @@ export default function CoachPage() {
   }
 
   async function generate() {
-    if (!selected) return; try { const data = await api(`coach/clients/${selected.id}/plan-generations`, { method: "POST", body: JSON.stringify({ startDate: new Date().toISOString().slice(0, 10) }) }, token); setJob(data.job); setDraft(null); setFallback(null); setEffectiveFrom(""); setMessage("已创建本机 Codex CLI 任务；客户端不会看到草案"); pollJob(data.job.id); } catch (error) { setMessage(error instanceof Error ? error.message : "生成失败"); }
+    if (!selected) return; try { const data = await api(`coach/clients/${selected.id}/plan-generations`, { method: "POST", body: JSON.stringify({ startDate: shanghaiToday() }) }, token); setJob(data.job); setDraft(null); setFallback(null); setEffectiveFrom(""); setMessage("已创建本机 Codex CLI 任务；客户端不会看到草案"); pollJob(data.job.id); } catch (error) { setMessage(error instanceof Error ? error.message : "生成失败"); }
   }
 
   async function pollJob(jobId: string) {
