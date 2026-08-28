@@ -31,6 +31,13 @@ test("renders the complete approved daily plan mockup", async () => {
   assert.match(html, /exercise-preview\/single-arm-dumbbell-row\.gif/);
   assert.match(html, /exercise-preview\/low-glute-bridge\.gif/);
   assert.match(html, /动作 GIF：© Gym visual/);
+  assert.match(html, /动作要领/);
+  assert.match(html, /目标：(?:<!-- -->)?股四头肌/);
+  assert.match(html, /器械：(?:<!-- -->)?哑铃 \+ 上斜凳/);
+  assert.match(html, /双脚分开与肩同宽站立/);
+  assert.match(html, /设置一个 45 度角的上斜凳/);
+  assert.match(html, /平躺，膝盖弯曲/);
+  assert.match(html, /<details class="exercise-details" open(?:="")?>/);
   assert.match(html, /今天吃什么/);
   assert.match(html, /水煮蛋/);
   assert.match(html, /144<!-- --> kcal/);

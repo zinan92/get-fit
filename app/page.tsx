@@ -64,10 +64,85 @@ const meals: Meal[] = [
   },
 ];
 
-const exercises = [
-  { id: "squat", number: "01", name: "高脚杯深蹲", detail: "4 组 × 12 次", rest: "组间休息 75 秒", gif: "/exercise-preview/dumbbell-goblet-squat.gif", sourceId: "1760", mediaNote: "站姿演示" },
-  { id: "row", number: "02", name: "单臂哑铃划船", detail: "4 组 × 10 次 / 侧", rest: "背部收紧，慢慢放下", gif: "/exercise-preview/single-arm-dumbbell-row.gif", sourceId: "1330", mediaNote: "支撑版演示" },
-  { id: "bridge", number: "03", name: "臀桥", detail: "3 组 × 15 次", rest: "顶端停留 2 秒", gif: "/exercise-preview/low-glute-bridge.gif", sourceId: "3013", mediaNote: "地面演示" },
+type Exercise = {
+  id: string;
+  number: string;
+  name: string;
+  detail: string;
+  rest: string;
+  gif: string;
+  sourceId: string;
+  mediaNote: string;
+  target: string;
+  equipment: string;
+  steps: string[];
+};
+
+const exercises: Exercise[] = [
+  {
+    id: "squat",
+    number: "01",
+    name: "高脚杯深蹲",
+    detail: "4 组 × 12 次",
+    rest: "组间休息 75 秒",
+    gif: "/exercise-preview/dumbbell-goblet-squat.gif",
+    sourceId: "1760",
+    mediaNote: "站姿演示",
+    target: "股四头肌",
+    equipment: "哑铃",
+    steps: [
+      "双脚分开与肩同宽站立，双手握住哑铃垂直放在胸前。",
+      "保持胸部挺直，核心收紧，通过向后推臀部并弯曲膝盖，将身体降低至蹲姿。",
+      "继续降低，直到大腿与地面平行，或者尽可能低。",
+      "在底部停顿片刻，然后推动脚后跟回到起始位置。",
+      "重复所需的重复次数。",
+    ],
+  },
+  {
+    id: "row",
+    number: "02",
+    name: "单臂哑铃划船",
+    detail: "4 组 × 10 次 / 侧",
+    rest: "背部收紧，慢慢放下",
+    gif: "/exercise-preview/single-arm-dumbbell-row.gif",
+    sourceId: "1330",
+    mediaNote: "支撑版演示",
+    target: "上背部",
+    equipment: "哑铃 + 上斜凳",
+    steps: [
+      "设置一个 45 度角的上斜凳。",
+      "将哑铃放在长凳旁边的地板上。",
+      "面对长凳站立，双脚分开与肩同宽。",
+      "弯曲腰部，将左膝和左手放在长凳上以获得支撑。",
+      "用右手反握（手掌朝下）拿起哑铃。",
+      "保持背部挺直，核心肌群参与。",
+      "将哑铃向上拉向胸部，保持肘部靠近身体。",
+      "在动作的最高点挤压背部肌肉。",
+      "以受控的方式将哑铃放回起始位置。",
+      "重复所需的重复次数。",
+      "换边并用左臂重复练习。",
+    ],
+  },
+  {
+    id: "bridge",
+    number: "03",
+    name: "臀桥",
+    detail: "3 组 × 15 次",
+    rest: "顶端停留 2 秒",
+    gif: "/exercise-preview/low-glute-bridge.gif",
+    sourceId: "3013",
+    mediaNote: "地面演示",
+    target: "臀肌",
+    equipment: "自重",
+    steps: [
+      "平躺，膝盖弯曲，双脚平放在地上。",
+      "将手臂放在身体两侧，手掌朝下。",
+      "启动臀肌和核心肌群，然后将臀部抬离地面，直到身体从膝盖到肩膀形成一条直线。",
+      "在顶部暂停片刻，挤压臀部。",
+      "慢慢地将臀部放回起始位置。",
+      "重复所需的重复次数。",
+    ],
+  },
 ];
 
 const spritePosition = (index: number) => {
@@ -173,35 +248,57 @@ export default function Home() {
                 {exercises.map((exercise) => {
                   const isDone = doneExercises.includes(exercise.id);
                   return (
-                    <button
-                      className={isDone ? "exercise done" : "exercise"}
-                      key={exercise.id}
-                      type="button"
-                      onClick={() => toggle(exercise.id, doneExercises, setDoneExercises)}
-                      aria-pressed={isDone}
-                    >
-                      <span className="exercise-number">{exercise.number}</span>
-                      <span className="exercise-media">
-                        <span className="exercise-media-fallback">动作演示</span>
-                        {/* Keep the source GIF native so it loops in the client card. */}
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={exercise.gif}
-                          alt={`${exercise.name} 动作演示`}
-                          width={72}
-                          height={72}
-                          loading="lazy"
-                          onError={(event) => { event.currentTarget.style.display = "none"; }}
-                        />
-                        <small>{exercise.mediaNote} · #{exercise.sourceId}</small>
-                      </span>
-                      <span className="exercise-copy">
-                        <strong>{exercise.name}</strong>
-                        <span>{exercise.detail}</span>
-                        <small>{exercise.rest}</small>
-                      </span>
-                      <span className="check" aria-hidden="true">{isDone ? "✓" : ""}</span>
-                    </button>
+                    <article className={isDone ? "exercise done" : "exercise"} key={exercise.id}>
+                      <div className="exercise-line">
+                        <details className="exercise-details" open={exercise.id === "squat"}>
+                          <summary className="exercise-summary">
+                            <span className="exercise-number">{exercise.number}</span>
+                            <span className="exercise-media">
+                              <span className="exercise-media-fallback">动作演示</span>
+                              {/* Keep the source GIF native so it loops in the client card. */}
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={exercise.gif}
+                                alt={`${exercise.name} 动作演示`}
+                                width={72}
+                                height={72}
+                                loading="lazy"
+                                onError={(event) => { event.currentTarget.style.display = "none"; }}
+                              />
+                              <small>{exercise.mediaNote} · #{exercise.sourceId}</small>
+                            </span>
+                            <span className="exercise-copy">
+                              <strong>{exercise.name}</strong>
+                              <span>{exercise.detail}</span>
+                              <small>{exercise.rest}</small>
+                            </span>
+                          </summary>
+                          <div className="exercise-detail">
+                            <div className="exercise-detail-heading">
+                              <strong>动作要领</strong>
+                              <span>{exercise.steps.length} 步</span>
+                            </div>
+                            <div className="exercise-tags">
+                              <span>目标：{exercise.target}</span>
+                              <span>器械：{exercise.equipment}</span>
+                            </div>
+                            <ol>
+                              {exercise.steps.map((step, index) => <li key={`${exercise.id}-step-${index}`}>{step}</li>)}
+                            </ol>
+                            <p>按自己的舒适范围完成；出现疼痛时先停下，并联系教练。</p>
+                          </div>
+                        </details>
+                        <button
+                          className="exercise-check"
+                          type="button"
+                          onClick={() => toggle(exercise.id, doneExercises, setDoneExercises)}
+                          aria-pressed={isDone}
+                          aria-label={isDone ? `取消完成${exercise.name}` : `标记完成${exercise.name}`}
+                        >
+                          <span className="check" aria-hidden="true">{isDone ? "✓" : ""}</span>
+                        </button>
+                      </div>
+                    </article>
                   );
                 })}
               </div>
