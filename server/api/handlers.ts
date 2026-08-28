@@ -55,10 +55,18 @@ function currentPlan(store: ApiContext["store"], clientId: string, date: string)
 function clientDayView(day: NonNullable<ReturnType<typeof currentPlan>>["payload"]["days"][number]) {
   return {
     ...day,
-    exercises: day.exercises.map((exercise) => ({
-      ...exercise,
-      name: exerciseCatalogById.get(exercise.catalogId)?.name ?? exercise.catalogId,
-    })),
+    exercises: day.exercises.map((exercise) => {
+      const catalogEntry = exerciseCatalogById.get(exercise.catalogId);
+      return {
+        ...exercise,
+        name: catalogEntry?.name ?? exercise.catalogId,
+        target: catalogEntry?.target ?? "",
+        equipment: catalogEntry?.equipment ?? "",
+        cues: catalogEntry?.cues ?? [],
+        steps: catalogEntry?.steps ?? [],
+        mediaPath: catalogEntry?.mediaPath ?? null,
+      };
+    }),
     meals: day.meals.map((meal) => ({
       ...meal,
       foods: meal.foods.map((food) => ({
@@ -67,8 +75,16 @@ function clientDayView(day: NonNullable<ReturnType<typeof currentPlan>>["payload
         unit: foodCatalogById.get(food.foodCatalogId)?.unit ?? "g",
         kcal: foodCatalogById.has(food.foodCatalogId) ? Math.round((foodCatalogById.get(food.foodCatalogId)!.kcalPer100g * food.grams) / 100) : 0,
       })),
+      mealKcal: meal.foods.reduce((sum, food) => sum + (foodCatalogById.has(food.foodCatalogId) ? Math.round((foodCatalogById.get(food.foodCatalogId)!.kcalPer100g * food.grams) / 100) : 0), 0),
     })),
+    dailyKcal: day.meals.reduce((sum, meal) => sum + meal.foods.reduce((mealSum, food) => mealSum + (foodCatalogById.has(food.foodCatalogId) ? Math.round((foodCatalogById.get(food.foodCatalogId)!.kcalPer100g * food.grams) / 100) : 0), 0), 0),
   };
+}
+
+function clientDayCheckins(store: ApiContext["store"], clientId: string, localDate: string) {
+  return [...store.checkins.values()]
+    .filter((checkin) => checkin.clientId === clientId && checkin.localDate === localDate && checkin.status === "completed")
+    .map((checkin) => ({ itemId: checkin.itemId, itemType: checkin.itemType, status: checkin.status }));
 }
 
 export async function handleApi(context: ApiContext): Promise<Response> {
@@ -426,7 +442,7 @@ function clientToday(context: ApiContext): Response {
   const url = new URL(context.request.url); const date = safeString(url.searchParams.get("date"), new Date().toISOString().slice(0, 10)); const plan = currentPlan(context.store, clientId, date);
   if (!plan) return json({ status: "waiting_for_coach", date, plan: null });
   const day = plan.payload.days.find((item) => item.localDate === date) ?? null;
-  return json({ status: day ? "ready" : "waiting_for_coach", date, plan: day ? { id: plan.id, versionNo: plan.versionNo, day: clientDayView(day) } : null });
+  return json({ status: day ? "ready" : "waiting_for_coach", date, plan: day ? { id: plan.id, versionNo: plan.versionNo, day: clientDayView(day) } : null, checkins: day ? clientDayCheckins(context.store, clientId, date) : [] });
 }
 
 function clientCalendar(context: ApiContext): Response {

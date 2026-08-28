@@ -100,6 +100,7 @@ export type PlanVersionRecord = PlanVersion & {
 export type CheckinRecord = {
   clientId: string;
   planDayId: string;
+  localDate: string;
   itemId: string;
   itemType: "exercise" | "meal" | "water";
   status: "completed" | "not_completed";

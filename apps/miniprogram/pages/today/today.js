@@ -1,6 +1,8 @@
 const { request } = require('../../utils/api');
+
+const mealLabels = { breakfast: '早餐', lunch: '午餐', snack: '下午加餐', dinner: '晚餐' };
 Page({
-  data: { status: 'loading', day: {}, planId: '', requestedDate: '', displayDate: '', clientName: '朋友', dayIndex: '', done: {} },
+  data: { status: 'loading', day: {}, planId: '', requestedDate: '', displayDate: '', clientName: '朋友', dayIndex: '', done: {}, totalKcal: 0 },
   onLoad(options) { if (options && options.date) this.setData({ requestedDate: options.date }); },
   onShow() { this.loadToday(); },
   localDate() { return this.data.requestedDate || new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10); },
@@ -8,14 +10,37 @@ Page({
     try {
       const date = this.localDate();
       const [me, result] = await Promise.all([request('/api/me'), request(`/api/plan/today?date=${date}`)]);
-      const day = result.plan?.day || {};
-      this.setData({ status: result.status, planId: result.plan?.id || '', day, displayDate: date, clientName: me.client?.displayName || '朋友', dayIndex: day.dayIndex ? `第 ${day.dayIndex} / 30 天` : '' });
+      const rawDay = result.plan?.day || {};
+      const completed = {};
+      (result.checkins || []).forEach(item => { completed[item.itemId] = true; });
+      const day = {
+        ...rawDay,
+        exercises: (rawDay.exercises || []).map((item, index) => ({ ...item, open: index === 0 })),
+        meals: (rawDay.meals || []).map(item => ({ ...item, label: mealLabels[item.mealType] || item.mealType }))
+      };
+      this.setData({ status: result.status, planId: result.plan?.id || '', day, totalKcal: day.dailyKcal || 0, done: completed, displayDate: date, clientName: me.client?.displayName || '朋友', dayIndex: day.dayIndex ? `第 ${day.dayIndex} / 30 天` : '' });
     }
     catch (error) { this.setData({ status: 'error' }); wx.showToast({ title: error?.error?.message || '加载失败', icon: 'none' }); }
   },
+  toggleExerciseDetails(e) {
+    const itemId = e.currentTarget.dataset.id;
+    const exercises = (this.data.day.exercises || []).map(item => ({ ...item, open: item.catalogId === itemId ? !item.open : item.open }));
+    this.setData({ 'day.exercises': exercises });
+  },
   async toggleExercise(e) {
     const itemId = e.currentTarget.dataset.id; const done = { ...this.data.done, [itemId]: !this.data.done[itemId] }; this.setData({ done });
-    await request('/api/checkins', { method: 'PUT', data: { localDate: this.localDate(), planDayId: `${this.data.planId}:${this.data.day.localDate}`, itemId, itemType: 'exercise', status: done[itemId] ? 'completed' : 'not_completed' } });
+    try { await request('/api/checkins', { method: 'PUT', data: { localDate: this.localDate(), planDayId: `${this.data.planId}:${this.data.day.localDate}`, itemId, itemType: 'exercise', status: done[itemId] ? 'completed' : 'not_completed' } }); }
+    catch (error) { this.setData({ done: { ...done, [itemId]: !done[itemId] } }); wx.showToast({ title: error?.error?.message || '打卡失败', icon: 'none' }); }
+  },
+  async toggleMeal(e) {
+    const itemId = e.currentTarget.dataset.id; const done = { ...this.data.done, [itemId]: !this.data.done[itemId] }; this.setData({ done });
+    try { await request('/api/checkins', { method: 'PUT', data: { localDate: this.localDate(), planDayId: `${this.data.planId}:${this.data.day.localDate}`, itemId, itemType: 'meal', status: done[itemId] ? 'completed' : 'not_completed' } }); }
+    catch (error) { this.setData({ done: { ...done, [itemId]: !done[itemId] } }); wx.showToast({ title: error?.error?.message || '打卡失败', icon: 'none' }); }
+  },
+  async toggleWater() {
+    const itemId = 'water'; const done = { ...this.data.done, [itemId]: !this.data.done[itemId] }; this.setData({ done });
+    try { await request('/api/checkins', { method: 'PUT', data: { localDate: this.localDate(), planDayId: `${this.data.planId}:${this.data.day.localDate}`, itemId, itemType: 'water', status: done[itemId] ? 'completed' : 'not_completed' } }); }
+    catch (error) { this.setData({ done: { ...done, [itemId]: !done[itemId] } }); wx.showToast({ title: error?.error?.message || '打卡失败', icon: 'none' }); }
   },
   async openFeedback() {
     try {

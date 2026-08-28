@@ -56,3 +56,14 @@ test("rejects a blocked food even when the catalog id exists", () => {
   assert.equal(result.ok, false);
   if (!result.ok) assert.ok(result.errors.some((error) => error.includes("blocked by profile")));
 });
+
+test("exercise catalog exposes customer-facing coaching metadata and media fallbacks", () => {
+  const squat = exerciseCatalog.find((item) => item.id === "ex-goblet-squat");
+  const walk = exerciseCatalog.find((item) => item.id === "ex-walk");
+  assert.equal(squat?.target, "股四头肌");
+  assert.equal(squat?.equipment, "哑铃");
+  assert.ok(squat?.steps.length && squat.steps.length > 0);
+  assert.match(squat?.mediaPath ?? "", /dumbbell-goblet-squat\.gif$/);
+  assert.equal(walk?.mediaPath, undefined);
+  assert.ok(walk?.steps.length && walk.steps.length > 0);
+});
