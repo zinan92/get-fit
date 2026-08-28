@@ -107,6 +107,7 @@ export async function handleApi(context: ApiContext): Promise<Response> {
     const fallbackInputMatch = path.match(/^coach\/generation-jobs\/([^/]+)\/codex-input$/);
     if (fallbackInputMatch && method === "GET") return codexInput(context, fallbackInputMatch[1]);
     const draftMatch = path.match(/^coach\/plan-drafts\/([^/]+)$/);
+    if (draftMatch && method === "PATCH") return updateDraft(context, draftMatch[1], reqId);
     if (draftMatch && method === "GET") return getDraft(context, draftMatch[1]);
     const draftRejectMatch = path.match(/^coach\/plan-drafts\/([^/]+)\/reject$/);
     if (draftRejectMatch && method === "POST") return rejectDraft(context, draftRejectMatch[1], reqId);
@@ -369,6 +370,29 @@ async function importCodexFallback(context: ApiContext, reqId: string): Promise<
 function getDraft(context: ApiContext, draftId: string): Response {
   const auth = requireCoach(context); if (auth !== true) return auth;
   const draft = context.store.drafts.get(draftId); if (!draft) return error("DRAFT_NOT_FOUND", "Draft not found", 404);
+  return json({ draft });
+}
+
+async function updateDraft(context: ApiContext, draftId: string, reqId: string): Promise<Response> {
+  const auth = requireCoach(context); if (auth !== true) return auth;
+  const draft = context.store.drafts.get(draftId);
+  if (!draft || draft.status !== "pending_review") return error("DRAFT_NOT_FOUND", "Pending draft not found", 404);
+  const profile = context.store.profiles.get(draft.clientId);
+  if (!profile) return error("PROFILE_INCOMPLETE", "Client profile is incomplete", 400);
+  const input = await body(context.request);
+  const validation = validateProviderPayload(profile, input.payload);
+  if (!validation.ok) {
+    audit(context.store, "draft.update_rejected", { requestId: reqId, draftId, clientId: draft.clientId, reason: validation.errors.slice(0, 5), actor: "coach" });
+    return error("VALIDATION_FAILED", "Edited draft failed the same plan safety validator", 422, { reasons: validation.errors.slice(0, 5) });
+  }
+  draft.payload = validation.value;
+  draft.validation = { ok: true, warnings: validation.warnings };
+  const job = context.store.jobs.get(draft.generationJobId);
+  if (job) {
+    job.outputHash = await sha256(JSON.stringify(validation.value));
+    job.updatedAt = nowIso();
+  }
+  audit(context.store, "draft.updated", { requestId: reqId, draftId, clientId: draft.clientId, outputHash: job?.outputHash ?? null, actor: "coach" });
   return json({ draft });
 }
 

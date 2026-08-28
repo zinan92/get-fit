@@ -6,6 +6,12 @@ import "./coach.css";
 
 type Client = { id: string; displayName: string; status: string; createdAt: string };
 type Job = { id: string; status: string; errorCode: string | null; traceId: string };
+type DraftExercise = { catalogId: string; sets: number; reps: number; restSeconds: number; cues?: string[] };
+type DraftFood = { foodCatalogId: string; grams: number };
+type DraftMeal = { mealType: "breakfast" | "lunch" | "snack" | "dinner"; foods: DraftFood[]; note?: string };
+type DraftDay = { dayIndex: number; localDate: string; title: string; exercises: DraftExercise[]; meals: DraftMeal[]; reminders: string[] };
+type DraftPayload = { schemaVersion: string; timezone: string; startDate: string; days: DraftDay[] };
+type Draft = { id: string; status: string; payload: DraftPayload; validation?: { ok: boolean; warnings: string[] } };
 
 const jobStatusLabels: Record<string, string> = {
   awaiting_local: "等待本机 Codex",
@@ -13,6 +19,35 @@ const jobStatusLabels: Record<string, string> = {
   published: "已发布",
   rejected: "已退回",
   failed: "失败",
+};
+
+const exerciseLabels: Record<string, string> = {
+  "ex-goblet-squat": "高脚杯深蹲",
+  "ex-dumbbell-row": "单臂哑铃划船",
+  "ex-glute-bridge": "臀桥",
+  "ex-walk": "快走",
+};
+
+const foodLabels: Record<string, string> = {
+  "food-egg": "水煮蛋",
+  "food-yogurt": "原味酸奶",
+  "food-toast": "全麦吐司",
+  "food-chicken": "鸡胸肉",
+  "food-rice": "糙米饭",
+  "food-broccoli": "西兰花",
+  "food-banana": "香蕉",
+  "food-salmon": "三文鱼",
+  "food-sweet-potato": "红薯",
+  "food-spinach": "菠菜",
+  "food-milk": "低脂牛奶",
+  "food-almond": "巴旦木",
+};
+
+const mealLabels: Record<DraftMeal["mealType"], string> = {
+  breakfast: "早餐",
+  lunch: "午餐",
+  snack: "下午加餐",
+  dinner: "晚餐",
 };
 
 async function api(path: string, options: RequestInit = {}, token = "") {
@@ -33,7 +68,7 @@ export default function CoachPage() {
   const [profile, setProfile] = useState<Record<string, unknown> | null>(null);
   const [invitation, setInvitation] = useState<string | null>(null);
   const [job, setJob] = useState<Job | null>(null);
-  const [draft, setDraft] = useState<{ id: string; status: string; payload: Record<string, unknown> } | null>(null);
+  const [draft, setDraft] = useState<Draft | null>(null);
   const [fallback, setFallback] = useState<{ token: string; input: string } | null>(null);
   const [message, setMessage] = useState("先登录教练后台");
 
@@ -75,6 +110,23 @@ export default function CoachPage() {
     if (!draft) return; try { await api(`coach/plan-drafts/${draft.id}/publish`, { method: "POST", body: JSON.stringify({ changeReason: "教练审核发布" }) }, token); setMessage("计划已发布；客户现在只会看到这一版"); setDraft(null); await loadClients(); } catch (error) { setMessage(error instanceof Error ? error.message : "发布失败"); }
   }
 
+  function updateDraftDays(updateDay: (day: DraftDay) => DraftDay) {
+    setDraft((current) => current ? { ...current, payload: { ...current.payload, days: current.payload.days.map((day) => updateDay(day)) } } : current);
+  }
+
+  function updateDay(dayIndex: number, updateDay: (day: DraftDay) => DraftDay) {
+    updateDraftDays((day) => day.dayIndex === dayIndex ? updateDay(day) : day);
+  }
+
+  async function saveDraft() {
+    if (!draft) return;
+    try {
+      const data = await api(`coach/plan-drafts/${draft.id}`, { method: "PATCH", body: JSON.stringify({ payload: draft.payload }) }, token);
+      setDraft(data.draft as Draft);
+      setMessage("修改已保存，并重新通过计划校验");
+    } catch (error) { setMessage(error instanceof Error ? error.message : "修改未保存：请检查计划内容"); }
+  }
+
   async function prepareFallback() {
     if (!job) return;
     try {
@@ -88,20 +140,31 @@ export default function CoachPage() {
     } catch (error) { setMessage(error instanceof Error ? error.message : "回退准备失败"); }
   }
 
-  return <main className="coach-shell">
-    <section className="coach-header"><div><div className="section-kicker">COACH CONSOLE · V1</div><h1>轻练教练台</h1><p>一名教练，把一个月计划交付清楚。</p></div><Link href="/">查看客户端</Link></section>
-    <section className="coach-grid">
-      <aside className="coach-sidebar">
-        <div className="console-card login-card"><div className="section-kicker">SECURE ACCESS</div><h2>教练登录</h2><input value={coachToken} onChange={(event) => setCoachToken(event.target.value)} placeholder="输入后台 token" type="password" /><button onClick={login}>登录 / 刷新会话</button><span className="small-note">生产环境请用 Cloudflare Access 或强密码；此处只做 V1 mockup。</span></div>
-        <div className="console-card"><div className="row"><h2>客户</h2><button className="ghost-button" onClick={createInvite} disabled={!ready}>+ 邀请</button></div><div className="client-list">{clients.map((client) => <button className={selected?.id === client.id ? "client-row selected" : "client-row"} key={client.id} onClick={() => selectClient(client)}><span className="client-avatar">{client.displayName.slice(0, 1)}</span><span><strong>{client.displayName}</strong><small>{client.status.replaceAll("_", " ")}</small></span></button>)}{!clients.length && <p className="empty">登录后创建第一位客户。</p>}</div>{invitation && <div className="invite-result"><small>一次性邀请口令</small><code>{invitation}</code><span>请通过私密方式发给客户，不要放在公开群聊。</span></div>}</div>
-      </aside>
-      <section className="coach-main">
-        <div className="console-card status-card"><div><div className="section-kicker">CURRENT CLIENT</div><h2>{selected?.displayName || "还没有选择客户"}</h2><p>{selectedStatus}</p></div><div className="status-orb">{selected ? "●" : "—"}</div></div>
-        <div className="console-card"><div className="row"><div><div className="section-kicker">PROFILE REVIEW</div><h2>建档与风险门</h2></div><span className="badge">{profile ? "已填写" : "等待资料"}</span></div>{profile ? <div className="profile-grid"><span>目标<strong>{String(profile.target)}</strong></span><span>训练经验<strong>{String(profile.trainingExperience)}</strong></span><span>每周<strong>{String(profile.sessionsPerWeek)} 次</strong></span><span>风险标记<strong>{Array.isArray(profile.riskFlags) && profile.riskFlags.length ? profile.riskFlags.join(", ") : "无"}</strong></span><span>过敏/忌口<strong>{Array.isArray(profile.allergyFlags) && profile.allergyFlags.length ? profile.allergyFlags.join(", ") : "无"}</strong></span><span>同意<strong>由客户端记录</strong></span></div> : <p className="empty">客户完成建档并同意后，资料会显示在这里。</p>}<button onClick={confirmProfile} disabled={!ready || !selected || !profile} className="secondary-button">确认资料可用于生成</button></div>
-        <div className="console-card"><div className="row"><div><div className="section-kicker">PLAN WORKFLOW</div><h2>30 天计划</h2><p>脱敏输入 → 本机 Codex CLI → 规则校验 → 教练审核 → 发布</p></div><button onClick={generate} disabled={!ready || !selected}>准备 Codex 草案</button></div>{job && <div className="job-strip"><span className={`job-dot ${job.status}`}></span><strong>{jobStatusLabels[job.status] || job.status}</strong><small>{job.errorCode || "不保存原始 prompt / completion"}</small></div>}{(job?.status === "awaiting_local" || job?.status === "failed") && !draft && <div className="fallback-box"><strong>等待本机 Codex CLI</strong><p>只有教练明确点击后，才下载脱敏输入并在本机运行 Codex CLI。结果仍需同一校验和审核。</p><button className="secondary-button" onClick={prepareFallback}>下载输入并生成一次性 token</button>{fallback && <><code className="fallback-token">一次性导入 token：{fallback.token}</code><small>输入文件：{fallback.input}<br />运行：npm run codex:plan -- --input {fallback.input} --output plan.json --post-url {window.location.origin}/api/codex-fallback/import --token {fallback.token}</small></>}</div>}{draft && <div className="draft-review"><div className="row"><strong>草案已通过结构化校验</strong><span className="badge">仅教练可见</span></div><p>共 {Array.isArray(draft.payload.days) ? draft.payload.days.length : 0} 天；发布后客户才会看到。</p><div className="row"><button className="secondary-button" onClick={() => api(`coach/plan-drafts/${draft.id}/reject`, { method: "POST", body: JSON.stringify({ reason: "需要调整" }) }, token).then(() => { setDraft(null); setMessage("草案已退回") })}>退回修改</button><button onClick={publish}>审核并发布</button></div></div>}{!draft && <div className="workflow-hint"><span>1</span>确认资料 <span>2</span>本机生成 <span>3</span>审核发布</div>}</div>
-        <div className="console-card"><div className="row"><div><div className="section-kicker">ALERTS</div><h2>需要关注</h2></div><button className="ghost-button" onClick={() => api("coach/alerts", {}, token).then((data) => setMessage(data.alerts.length ? `有 ${data.alerts.length} 条告警` : "目前没有告警"))}>刷新</button></div><p className="empty">疼痛反馈会进入这里；系统不会自动替换动作。</p></div>
-        <div className="toast-message">{message}</div>
+  return (
+    <main className="coach-shell">
+      <section className="coach-header">
+        <div><div className="section-kicker">COACH CONSOLE · V1</div><h1>轻练教练台</h1><p>一名教练，把一个月计划交付清楚。</p></div>
+        <Link href="/">查看客户端</Link>
       </section>
-    </section>
-  </main>;
+      <section className="coach-grid">
+        <aside className="coach-sidebar">
+          <div className="console-card login-card"><div className="section-kicker">SECURE ACCESS</div><h2>教练登录</h2><input value={coachToken} onChange={(event) => setCoachToken(event.target.value)} placeholder="输入后台 token" type="password" /><button onClick={login}>登录 / 刷新会话</button><span className="small-note">生产环境请用 Cloudflare Access 或强密码；此处只做 V1 mockup。</span></div>
+          <div className="console-card"><div className="row"><h2>客户</h2><button className="ghost-button" onClick={createInvite} disabled={!ready}>+ 邀请</button></div><div className="client-list">{clients.map((client) => <button className={selected?.id === client.id ? "client-row selected" : "client-row"} key={client.id} onClick={() => selectClient(client)}><span className="client-avatar">{client.displayName.slice(0, 1)}</span><span><strong>{client.displayName}</strong><small>{client.status.replaceAll("_", " ")}</small></span></button>)}{!clients.length && <p className="empty">登录后创建第一位客户。</p>}</div>{invitation && <div className="invite-result"><small>一次性邀请口令</small><code>{invitation}</code><span>请通过私密方式发给客户，不要放在公开群聊。</span></div>}</div>
+        </aside>
+        <section className="coach-main">
+          <div className="console-card status-card"><div><div className="section-kicker">CURRENT CLIENT</div><h2>{selected?.displayName || "还没有选择客户"}</h2><p>{selectedStatus}</p></div><div className="status-orb">{selected ? "●" : "—"}</div></div>
+          <div className="console-card"><div className="row"><div><div className="section-kicker">PROFILE REVIEW</div><h2>建档与风险门</h2></div><span className="badge">{profile ? "已填写" : "等待资料"}</span></div>{profile ? <div className="profile-grid"><span>目标<strong>{String(profile.target)}</strong></span><span>训练经验<strong>{String(profile.trainingExperience)}</strong></span><span>每周<strong>{String(profile.sessionsPerWeek)} 次</strong></span><span>风险标记<strong>{Array.isArray(profile.riskFlags) && profile.riskFlags.length ? profile.riskFlags.join(", ") : "无"}</strong></span><span>过敏/忌口<strong>{Array.isArray(profile.allergyFlags) && profile.allergyFlags.length ? profile.allergyFlags.join(", ") : "无"}</strong></span><span>同意<strong>由客户端记录</strong></span></div> : <p className="empty">客户完成建档并同意后，资料会显示在这里。</p>}<button onClick={confirmProfile} disabled={!ready || !selected || !profile} className="secondary-button">确认资料可用于生成</button></div>
+          <div className="console-card">
+            <div className="row"><div><div className="section-kicker">PLAN WORKFLOW</div><h2>30 天计划</h2><p>脱敏输入 → 本机 Codex CLI → 规则校验 → 教练审核 → 发布</p></div><button onClick={generate} disabled={!ready || !selected}>准备 Codex 草案</button></div>
+            {job && <div className="job-strip"><span className={`job-dot ${job.status}`}></span><strong>{jobStatusLabels[job.status] || job.status}</strong><small>{job.errorCode || "不保存原始 prompt / completion"}</small></div>}
+            {(job?.status === "awaiting_local" || job?.status === "failed") && !draft && <div className="fallback-box"><strong>等待本机 Codex CLI</strong><p>只有教练明确点击后，才下载脱敏输入并在本机运行 Codex CLI。结果仍需同一校验和审核。</p><button className="secondary-button" onClick={prepareFallback}>下载输入并生成一次性 token</button>{fallback && <><code className="fallback-token">一次性导入 token：{fallback.token}</code><small>输入文件：{fallback.input}<br />运行：npm run codex:plan -- --input {fallback.input} --output plan.json --post-url {window.location.origin}/api/codex-fallback/import --token {fallback.token}</small></>}</div>}
+            {draft && <div className="draft-review"><div className="row"><strong>草案已通过结构化校验</strong><span className="badge">仅教练可见</span></div><p>共 {draft.payload.days.length} 天；发布后客户才会看到。你可以先调整，再保存。</p><div className="draft-day-list">{draft.payload.days.map((day) => <details className="draft-day" key={day.localDate} open={day.dayIndex === 1}><summary>第 {day.dayIndex} 天 · {day.localDate} · {day.title}</summary><label>今日主题<input value={day.title} onChange={(event) => updateDay(day.dayIndex, (current) => ({ ...current, title: event.target.value }))} /></label><div className="draft-editor-section"><span className="draft-editor-label">训练动作</span>{day.exercises.map((exercise, exerciseIndex) => <div className="draft-item" key={`${day.dayIndex}-${exercise.catalogId}`}><strong>{exerciseLabels[exercise.catalogId] || exercise.catalogId}</strong><label>组数<input type="number" min="1" max="10" value={exercise.sets} onChange={(event) => updateDay(day.dayIndex, (current) => ({ ...current, exercises: current.exercises.map((item, index) => index === exerciseIndex ? { ...item, sets: Number(event.target.value) } : item) }))} /></label><label>次数<input type="number" min="1" max="100" value={exercise.reps} onChange={(event) => updateDay(day.dayIndex, (current) => ({ ...current, exercises: current.exercises.map((item, index) => index === exerciseIndex ? { ...item, reps: Number(event.target.value) } : item) }))} /></label><label>休息秒数<input type="number" min="0" max="600" value={exercise.restSeconds} onChange={(event) => updateDay(day.dayIndex, (current) => ({ ...current, exercises: current.exercises.map((item, index) => index === exerciseIndex ? { ...item, restSeconds: Number(event.target.value) } : item) }))} /></label></div>)}</div><div className="draft-editor-section"><span className="draft-editor-label">餐次与份量</span>{day.meals.map((meal, mealIndex) => <div className="draft-meal" key={`${day.dayIndex}-${meal.mealType}`}><strong>{mealLabels[meal.mealType]}</strong>{meal.foods.map((food, foodIndex) => <label key={`${meal.mealType}-${food.foodCatalogId}`}>{foodLabels[food.foodCatalogId] || food.foodCatalogId}<input type="number" min="1" max="2000" value={food.grams} onChange={(event) => updateDay(day.dayIndex, (current) => ({ ...current, meals: current.meals.map((item, index) => index === mealIndex ? { ...item, foods: item.foods.map((entry, entryIndex) => entryIndex === foodIndex ? { ...entry, grams: Number(event.target.value) } : entry) } : item) }))} /><span>g</span></label>)}</div>)}</div><label>今日提醒<textarea value={day.reminders.join("\n")} onChange={(event) => updateDay(day.dayIndex, (current) => ({ ...current, reminders: event.target.value.split("\n").map((line) => line.trim()).filter(Boolean) }))} /></label></details>)}</div><div className="row draft-actions"><button className="secondary-button" onClick={saveDraft}>保存修改</button><button className="secondary-button" onClick={() => api(`coach/plan-drafts/${draft.id}/reject`, { method: "POST", body: JSON.stringify({ reason: "需要调整" }) }, token).then(() => { setDraft(null); setMessage("草案已退回") })}>退回修改</button><button onClick={publish}>审核并发布</button></div></div>}
+            {!draft && <div className="workflow-hint"><span>1</span>确认资料 <span>2</span>本机生成 <span>3</span>审核发布</div>}
+          </div>
+          <div className="console-card"><div className="row"><div><div className="section-kicker">ALERTS</div><h2>需要关注</h2></div><button className="ghost-button" onClick={() => api("coach/alerts", {}, token).then((data) => setMessage(data.alerts.length ? `有 ${data.alerts.length} 条告警` : "目前没有告警"))}>刷新</button></div><p className="empty">疼痛反馈会进入这里；系统不会自动替换动作。</p></div>
+          <div className="toast-message">{message}</div>
+        </section>
+      </section>
+    </main>
+  );
 }

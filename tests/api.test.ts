@@ -74,6 +74,13 @@ test("single-coach onboarding, Codex CLI handoff, validated import, publish and 
   const imported = await call("/api/codex-fallback/import", { method: "POST", body: JSON.stringify({ token: fallbackToken.payload.token, payload: plan("2026-08-12") }) });
   assert.equal(imported.response.status, 201);
   const draftId = String((imported.payload.draft as Record<string, unknown>).id);
+  const editedPlan = plan("2026-08-12");
+  editedPlan.days[0].title = "教练调整后的训练日";
+  editedPlan.days[0].exercises[0].reps = 10;
+  const editedDraft = await call(`/api/coach/plan-drafts/${draftId}`, { method: "PATCH", headers: { "x-coach-token": "dev-coach" }, body: JSON.stringify({ payload: editedPlan }) });
+  assert.equal(editedDraft.response.status, 200);
+  assert.equal((editedDraft.payload.draft as Record<string, unknown>).status, "pending_review");
+  assert.equal(((editedDraft.payload.draft as Record<string, unknown>).payload as Record<string, unknown>).days instanceof Array, true);
   const published = await call(`/api/coach/plan-drafts/${draftId}/publish`, { method: "POST", headers: { "x-coach-token": "dev-coach" }, body: JSON.stringify({ changeReason: "API test" }) });
   assert.equal(published.response.status, 201);
   const today = await call("/api/plan/today?date=2026-08-12", {}, clientToken);
