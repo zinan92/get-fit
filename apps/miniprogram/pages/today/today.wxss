@@ -18,6 +18,7 @@
 .step-row { display: flex; gap: 12rpx; color: #62584e; font-size: 22rpx; line-height: 1.55; margin: 10rpx 0; }
 .step-number { width: 34rpx; height: 34rpx; border-radius: 50%; background: #fff0e5; color: #d85c28; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; font-size: 19rpx; font-weight: 800; }
 .details-note { border-top: 1rpx dashed #ead8c9; margin-top: 14rpx; padding-top: 12rpx; color: #9c806c; font-size: 20rpx; line-height: 1.5; }
+.media-credit { margin: 8rpx 4rpx 0; color: #a39e95; font-size: 18rpx; text-align: right; }
 .meal { background: #f8f3e9; border-radius: 18rpx; padding: 18rpx; margin: 14rpx 0; }
 .meal-name { color: #d85c28; font-size: 28rpx; font-weight: 800; margin-right: 10rpx; }
 .meal-button { background: #fff5ed; color: #d85c28; border: 1rpx solid #f5c7ae; }

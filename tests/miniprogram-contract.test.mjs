@@ -15,8 +15,11 @@ test("mini-program today page projects rich exercise and meal details", async ()
   assert.match(wxml, /item\.steps/);
   assert.match(wxml, /item\.mealKcal/);
   assert.match(wxml, /toggleMeal/);
+  assert.match(wxml, /item\.mediaAttribution/);
+  assert.match(wxml, /binderror="onMediaError"/);
   assert.match(js, /result\.checkins/);
   assert.match(js, /toggleExerciseDetails/);
+  assert.match(js, /onMediaError/);
   await access(new URL("../apps/miniprogram/assets/exercises/dumbbell-goblet-squat.gif", import.meta.url));
   await access(new URL("../apps/miniprogram/assets/exercises/single-arm-dumbbell-row.gif", import.meta.url));
   await access(new URL("../apps/miniprogram/assets/exercises/low-glute-bridge.gif", import.meta.url));

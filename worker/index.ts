@@ -90,7 +90,7 @@ const worker = {
     const now = Date.now();
     for (const request of memoryStore.deletionRequests.values()) {
       if (request.status === "requested" && Date.parse(request.purgeAt) <= now) {
-        await purgeClient(memoryStore, request.clientId);
+        if (request.clientId) await purgeClient(memoryStore, request.clientId);
         request.status = "purged";
         memoryStore.audit.push({ id: `audit_purge_${request.id}`, actor: "system", action: "deletion.executed", at: new Date().toISOString(), requestId: request.id });
       }

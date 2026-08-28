@@ -77,6 +77,7 @@ test("single-coach onboarding, Codex CLI handoff, validated import, publish and 
   const editedPlan = plan("2026-08-12");
   editedPlan.days[0].title = "教练调整后的训练日";
   editedPlan.days[0].exercises[0].reps = 10;
+  editedPlan.days[0].exercises[0].cues = ["教练自定义：动作放慢"];
   const editedDraft = await call(`/api/coach/plan-drafts/${draftId}`, { method: "PATCH", headers: { "x-coach-token": "dev-coach" }, body: JSON.stringify({ payload: editedPlan }) });
   assert.equal(editedDraft.response.status, 200);
   assert.equal((editedDraft.payload.draft as Record<string, unknown>).status, "pending_review");
@@ -91,6 +92,7 @@ test("single-coach onboarding, Codex CLI handoff, validated import, publish and 
   assert.equal(exercise.equipment, "无需器械");
   assert.ok(Array.isArray(exercise.steps) && exercise.steps.length > 0);
   assert.equal(exercise.mediaPath, null);
+  assert.deepEqual(exercise.cues, ["教练自定义：动作放慢"]);
   assert.equal(typeof day.dailyKcal, "number");
   assert.equal((day.meals as Array<Record<string, unknown>>)[0].mealKcal, 341);
   const food = ((day.meals as Array<Record<string, unknown>>)[0].foods as Array<Record<string, unknown>>)[0];
@@ -261,8 +263,61 @@ test("future plan versions switch on their effective date without rewriting hist
   const afterPayload = await after.json() as Record<string, unknown>;
   assert.equal(((afterPayload.plan as Record<string, unknown>).day as Record<string, unknown>).title, "未来调整日");
   assert.equal((afterPayload.plan as Record<string, unknown>).versionNo, 2);
+  versionStore.checkins.set("old-plan-checkin", { clientId, planDayId: "plan-v1:2026-08-15", localDate: "2026-08-15", itemId: "ex-walk", itemType: "exercise", status: "completed", completedAt: new Date().toISOString() });
+  const afterWithOldCheckin = await handleApi({ request: new Request("http://localhost/api/plan/today?date=2026-08-15", { headers: { authorization: "Bearer version-client-session" } }), env, store: versionStore, ctx: versionCtx });
+  const afterWithOldCheckinPayload = await afterWithOldCheckin.json() as Record<string, unknown>;
+  assert.deepEqual(afterWithOldCheckinPayload.checkins, []);
   const list = await handleApi({ request: new Request(`http://localhost/api/coach/clients/${clientId}/plan-versions`, { headers: { authorization: "Bearer version-coach-session" } }), env, store: versionStore, ctx: versionCtx });
   assert.equal(list.status, 200);
   const listPayload = await list.json() as Record<string, unknown>;
   assert.deepEqual((listPayload.versions as Array<Record<string, unknown>>).map((item) => [item.versionNo, item.effectiveFrom, item.effectiveTo, item.changeReason]), [[1, "2026-08-12", "2026-08-15", null], [2, "2026-08-15", null, "未来调整"]]);
+});
+
+test("invitation binding rejects a second OpenID and blocks replayed acceptance", async () => {
+  const replayStore = createMemoryStore();
+  const replayCtx = { waitUntil() {}, passThroughOnException() {} } as ExecutionContext;
+  async function replayCall(path: string, init: RequestInit = {}) {
+    const response = await handleApi({ request: new Request(`http://localhost${path}`, init), env, store: replayStore, ctx: replayCtx });
+    return { response, payload: await response.json() as Record<string, unknown> };
+  }
+  const invite = await replayCall("/api/coach/invitations", { method: "POST", headers: { "x-coach-token": "dev-coach", "content-type": "application/json" }, body: JSON.stringify({ displayName: "绑定客户" }) });
+  const rawToken = String((invite.payload.invitation as Record<string, unknown>).token);
+  const accepted = await replayCall("/api/invitations/accept", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ token: rawToken }) });
+  const clientId = String((accepted.payload.client as Record<string, unknown>).id);
+  const firstLogin = await replayCall("/api/wx/auth/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ devOpenid: "first-openid", devClientId: clientId, invitationToken: rawToken }) });
+  assert.equal(firstLogin.response.status, 200);
+  const secondLogin = await replayCall("/api/wx/auth/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ devOpenid: "second-openid", devClientId: clientId, invitationToken: rawToken }) });
+  assert.equal(secondLogin.response.status, 403);
+  const replayAccept = await replayCall("/api/invitations/accept", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ token: rawToken }) });
+  assert.equal(replayAccept.response.status, 400);
+});
+
+test("coach summary uses a continuous calendar window instead of active-date count", async () => {
+  const gapStore = createMemoryStore();
+  const gapCtx = { waitUntil() {}, passThroughOnException() {} } as ExecutionContext;
+  const clientId = "gap-client";
+  gapStore.clients.set(clientId, { id: clientId, displayName: "间隔客户", status: "active", createdAt: new Date().toISOString() });
+  gapStore.audit.push(
+    { id: "gap-old", action: "client.today_viewed", clientId, localDate: "2026-08-12" },
+    { id: "gap-new", action: "client.today_viewed", clientId, localDate: "2026-08-20" },
+  );
+  gapStore.checkins.set("gap-checkin", { clientId, planDayId: "plan:2026-08-12", localDate: "2026-08-12", itemId: "ex-walk", itemType: "exercise", status: "completed", completedAt: new Date().toISOString() });
+  gapStore.sessions.set("gap-coach-session", { kind: "coach", subjectId: "coach_single", expiresAt: Date.now() + 60_000 });
+  const response = await handleApi({ request: new Request("http://localhost/api/coach/clients/gap-client/summary?days=7", { headers: { authorization: "Bearer gap-coach-session" } }), env, store: gapStore, ctx: gapCtx });
+  assert.equal(response.status, 200);
+  const payload = await response.json() as Record<string, unknown>;
+  assert.deepEqual(payload.summary, { openedDays: 1, trainingCheckins: 0, mealCheckins: 0, waterCheckins: 0, painAlerts: 0, feedbackDays: 0 });
+});
+
+test("publishing an existing plan rejects a backdated effective date", async () => {
+  const backdateStore = createMemoryStore();
+  const backdateCtx = { waitUntil() {}, passThroughOnException() {} } as ExecutionContext;
+  const clientId = "backdate-client";
+  backdateStore.clients.set(clientId, { id: clientId, displayName: "回溯客户", status: "active", createdAt: new Date().toISOString() });
+  backdateStore.plans.set("backdate-existing", { id: "backdate-existing", clientId, versionNo: 1, effectiveFrom: "2026-08-01", effectiveTo: null, payload: plan("2026-08-01"), status: "published", approvedAt: new Date().toISOString(), changeReason: null });
+  backdateStore.jobs.set("backdate-job", { id: "backdate-job", clientId, provider: "codex_cli", model: "codex-cli", schemaVersion: PLAN_SCHEMA_VERSION, status: "pending_review", errorCode: null, traceId: "trace", startDate: "2026-08-20", outputHash: null, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), operator: "coach" });
+  backdateStore.drafts.set("backdate-draft", { id: "backdate-draft", generationJobId: "backdate-job", clientId, status: "pending_review", payload: plan("2026-08-20"), validation: { ok: true, warnings: [] }, createdAt: new Date().toISOString(), reviewedAt: null, rejectionReason: null });
+  const yesterday = new Date(Date.now() + 8 * 60 * 60 * 1000 - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const response = await handleApi({ request: new Request("http://localhost/api/coach/plan-drafts/backdate-draft/publish", { method: "POST", headers: { "x-coach-token": "dev-coach", "content-type": "application/json" }, body: JSON.stringify({ effectiveFrom: yesterday }) }), env, store: backdateStore, ctx: backdateCtx });
+  assert.equal(response.status, 409);
 });

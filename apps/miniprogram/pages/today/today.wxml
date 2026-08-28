@@ -11,7 +11,7 @@
       <view class="exercise-card">
         <view class="row exercise-head" data-id="{{item.catalogId}}" bindtap="toggleExerciseDetails">
           <view class="exercise-media">
-            <image wx:if="{{item.mediaPath}}" src="{{item.mediaPath}}" mode="aspectFill" lazy-load="true" />
+            <image wx:if="{{item.mediaPath && !item.mediaBroken}}" data-id="{{item.catalogId}}" binderror="onMediaError" src="{{item.mediaPath}}" mode="aspectFill" lazy-load="true" />
             <view wx:else class="exercise-media-fallback">动作要领</view>
           </view>
           <view class="exercise-copy"><view class="exercise-name">{{item.name}}</view><view class="muted">{{item.sets}} 组 × {{item.reps}} 次 · 休息 {{item.restSeconds}} 秒</view><view class="tag-row"><text wx:if="{{item.target}}">目标：{{item.target}}</text><text wx:if="{{item.equipment}}">{{item.equipment}}</text></view></view>
@@ -22,6 +22,7 @@
           <view wx:for="{{item.steps}}" wx:for-item="step" wx:for-index="stepIndex" wx:key="stepIndex" class="step-row"><text class="step-number">{{stepIndex + 1}}</text><text>{{step}}</text></view>
           <view class="details-note">按自己的舒适范围完成；出现疼痛时先停下，并联系教练。</view>
         </view>
+        <view wx:if="{{item.mediaAttribution}}" class="media-credit">{{item.mediaAttribution}} · 动作演示素材</view>
       </view>
     </block>
   </view>

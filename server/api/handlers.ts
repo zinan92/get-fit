@@ -15,6 +15,23 @@ function safeString(value: unknown, fallback = ""): string {
   return typeof value === "string" ? value.trim() : fallback;
 }
 
+function localToday(): string {
+  return new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
+function isCalendarDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const [year, month, day] = value.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+}
+
+function addCalendarDays(value: string, offset: number): string {
+  const date = new Date(`${value}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + offset);
+  return date.toISOString().slice(0, 10);
+}
+
 function clientView(client: ClientRecord): JsonRecord {
   return { id: client.id, displayName: client.displayName, status: client.status, createdAt: client.createdAt };
 }
@@ -62,9 +79,10 @@ function clientDayView(day: NonNullable<ReturnType<typeof currentPlan>>["payload
         name: catalogEntry?.name ?? exercise.catalogId,
         target: catalogEntry?.target ?? "",
         equipment: catalogEntry?.equipment ?? "",
-        cues: catalogEntry?.cues ?? [],
+        cues: exercise.cues?.length ? exercise.cues : (catalogEntry?.cues ?? []),
         steps: catalogEntry?.steps ?? [],
         mediaPath: catalogEntry?.mediaPath ?? null,
+        mediaAttribution: catalogEntry?.mediaAttribution ?? null,
       };
     }),
     meals: day.meals.map((meal) => ({
@@ -81,9 +99,9 @@ function clientDayView(day: NonNullable<ReturnType<typeof currentPlan>>["payload
   };
 }
 
-function clientDayCheckins(store: ApiContext["store"], clientId: string, localDate: string) {
+function clientDayCheckins(store: ApiContext["store"], clientId: string, planId: string, localDate: string) {
   return [...store.checkins.values()]
-    .filter((checkin) => checkin.clientId === clientId && checkin.localDate === localDate && checkin.status === "completed")
+    .filter((checkin) => checkin.clientId === clientId && checkin.planDayId === `${planId}:${localDate}` && checkin.status === "completed")
     .map((checkin) => ({ itemId: checkin.itemId, itemType: checkin.itemType, status: checkin.status }));
 }
 
@@ -169,9 +187,13 @@ async function wxLogin(context: ApiContext, reqId: string): Promise<Response> {
   const invitation = invitationHash ? [...context.store.invitations.values()].find((candidate) => candidate.tokenHash === invitationHash) : null;
   if (!requestedClientId && !existing && !invitation) return error("INVITATION_REQUIRED", "A consumed invitation must be supplied for first login", 403);
   const invitedClient = invitation ? context.store.clients.get(invitation.clientId) : null;
+  if (existing && invitation && existing.id !== invitation.clientId) return error("INVITATION_INVALID", "Invitation does not belong to this client", 403);
+  if (requestedClientId && invitation && requestedClientId !== invitation.clientId) return error("INVITATION_INVALID", "Invitation does not belong to this client", 403);
+  if (invitation?.openidHash && invitation.openidHash !== openidHash) return error("INVITATION_INVALID", "Invitation is already bound to another client identity", 403);
   const client = (requestedClientId ? context.store.clients.get(requestedClientId) : null) ?? existing ?? invitedClient;
   if (invitation && (!invitation.consumedAt || invitation.revokedAt || invitation.expiresAt <= nowIso())) return error("INVITATION_INVALID", "Invitation is invalid or expired", 403);
   if (!client) return error("INVITATION_REQUIRED", "An invitation is required before login", 403);
+  if (invitation && !invitation.openidHash) invitation.openidHash = openidHash;
   const token = await issueSession(context, "client", client.id);
   context.store.authByOpenId.set(openidHash, client.id);
   if (context.env.DATA_ENCRYPTION_KEY) context.store.authOpenIdCiphertext.set(client.id, await encryptSecret(openid, context.env.DATA_ENCRYPTION_KEY));
@@ -189,6 +211,7 @@ async function acceptInvitation(context: ApiContext, reqId: string): Promise<Res
   const client = context.store.clients.get(invitation.clientId);
   if (!client) return error("NOT_FOUND", "Client not found", 404);
   if (invitation.consumedAt) {
+    if (invitation.openidHash) return error("INVITATION_INVALID", "Invitation is no longer available", 400);
     if (["onboarding", "pending_profile_review"].includes(client.status)) {
       audit(context.store, "invitation.reopened", { requestId: reqId, clientId: client.id });
       return json({ client: clientView(client) });
@@ -214,7 +237,7 @@ async function createInvitation(context: ApiContext, reqId: string): Promise<Res
   if (!displayName || displayName.length > 40) return error("INVALID_INPUT", "displayName is required", 400);
   const client = { id: id("client"), displayName, status: "invited" as const, createdAt: nowIso() };
   const rawToken = randomToken();
-  const record = { id: id("invite"), clientId: client.id, tokenHash: await sha256(rawToken), expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 48).toISOString(), consumedAt: null, revokedAt: null };
+  const record = { id: id("invite"), clientId: client.id, tokenHash: await sha256(rawToken), openidHash: null, expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 48).toISOString(), consumedAt: null, revokedAt: null };
   context.store.clients.set(client.id, client); context.store.invitations.set(record.id, record);
   audit(context.store, "invitation.created", { requestId: reqId, clientId: client.id, actor: "coach" });
   return json({ invitation: { id: record.id, expiresAt: record.expiresAt, token: rawToken, client: clientView(client) } }, 201);
@@ -306,8 +329,8 @@ async function createGeneration(context: ApiContext, clientId: string, reqId: st
   if (!client || !profile) return error("PROFILE_INCOMPLETE", "Client profile is incomplete", 400);
   if (!requiredConsents(consents)) return error("CONSENT_REQUIRED", "Required consent is missing", 400);
   if (hasManualRisk(profile)) return error("RISK_MANUAL_REVIEW", "This profile requires manual coach handling", 409);
-  const input = await body(context.request); const startDate = safeString(input.startDate, new Date().toISOString().slice(0, 10));
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate)) return error("INVALID_INPUT", "startDate must be YYYY-MM-DD", 400);
+  const input = await body(context.request); const startDate = safeString(input.startDate, localToday());
+  if (!isCalendarDate(startDate)) return error("INVALID_INPUT", "startDate must be YYYY-MM-DD", 400);
   const idempotencyKey = context.request.headers.get("idempotency-key")?.trim() || null;
   if (idempotencyKey) {
     const existingAudit = context.store.audit.find((event) => (event.action === "generation.local_requested" || event.action === "generation.queued") && event.clientId === clientId && event.idempotencyKey === idempotencyKey);
@@ -430,9 +453,10 @@ async function publishDraft(context: ApiContext, draftId: string, reqId: string)
   const draft = context.store.drafts.get(draftId); if (!draft || draft.status !== "pending_review") return error("DRAFT_NOT_FOUND", "Pending draft not found", 404);
   const client = context.store.clients.get(draft.clientId); if (!client) return error("NOT_FOUND", "Client not found", 404);
   const input = await body(context.request); const effectiveFrom = safeString(input.effectiveFrom, draft.payload.startDate); const changeReason = safeString(input.changeReason, "Initial coach-approved plan");
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(effectiveFrom)) return error("INVALID_INPUT", "effectiveFrom must be YYYY-MM-DD", 400);
+  if (!isCalendarDate(effectiveFrom)) return error("INVALID_INPUT", "effectiveFrom must be YYYY-MM-DD", 400);
   const existing = [...context.store.plans.values()].filter((plan) => plan.clientId === draft.clientId && plan.status !== "archived").sort((a, b) => b.versionNo - a.versionNo)[0];
   if (existing && effectiveFrom <= existing.effectiveFrom) return error("CONFLICT", "Future version must start after current version", 409);
+  if (existing && effectiveFrom < localToday()) return error("CONFLICT", "Future version cannot start before today", 409);
   if (existing && existing.effectiveTo === null) existing.effectiveTo = effectiveFrom;
   if (existing) existing.status = "superseded";
   const plan = { id: id("plan"), clientId: draft.clientId, versionNo: (existing?.versionNo ?? 0) + 1, effectiveFrom, effectiveTo: null, payload: draft.payload, status: "published" as const, approvedAt: nowIso(), changeReason };
@@ -443,11 +467,12 @@ async function publishDraft(context: ApiContext, draftId: string, reqId: string)
 
 function clientToday(context: ApiContext, reqId: string): Response {
   const clientId = requireClient(context); if (clientId instanceof Response) return clientId;
-  const url = new URL(context.request.url); const date = safeString(url.searchParams.get("date"), new Date().toISOString().slice(0, 10)); const plan = currentPlan(context.store, clientId, date);
-  if (!plan) return json({ status: "waiting_for_coach", date, plan: null });
+  const url = new URL(context.request.url); const date = safeString(url.searchParams.get("date"), localToday());
+  audit(context.store, "client.today_viewed", { requestId: reqId, clientId, localDate: date });
+  const plan = currentPlan(context.store, clientId, date);
+  if (!plan) return json({ status: "waiting_for_coach", date, plan: null, checkins: [] });
   const day = plan.payload.days.find((item) => item.localDate === date) ?? null;
-  if (day) audit(context.store, "client.today_viewed", { requestId: reqId, clientId, localDate: date });
-  return json({ status: day ? "ready" : "waiting_for_coach", date, plan: day ? { id: plan.id, versionNo: plan.versionNo, day: clientDayView(day) } : null, checkins: day ? clientDayCheckins(context.store, clientId, date) : [] });
+  return json({ status: day ? "ready" : "waiting_for_coach", date, plan: day ? { id: plan.id, versionNo: plan.versionNo, day: clientDayView(day) } : null, checkins: day ? clientDayCheckins(context.store, clientId, plan.id, date) : [] });
 }
 
 function coachSummary(context: ApiContext, clientId: string): Response {
@@ -461,7 +486,9 @@ function coachSummary(context: ApiContext, clientId: string): Response {
   context.store.checkins.forEach((item) => { if (item.clientId === clientId) dates.add(item.localDate); });
   context.store.feedback.forEach((item) => { if (item.clientId === clientId) dates.add(item.localDate); });
   context.store.alerts.forEach((item) => { if (item.clientId === clientId) dates.add(item.localDate); });
-  const windowDates = new Set([...dates].sort().slice(-days));
+  const orderedDates = [...dates].sort();
+  const endDate = orderedDates.at(-1);
+  const windowDates = new Set(endDate ? Array.from({ length: days }, (_, index) => addCalendarDays(endDate, index - days + 1)).filter((date) => dates.has(date)) : []);
   const checkins = [...context.store.checkins.values()].filter((item) => item.clientId === clientId && windowDates.has(item.localDate) && item.status === "completed");
   const feedbackDays = new Set([...context.store.feedback.values()].filter((item) => item.clientId === clientId && windowDates.has(item.localDate)).map((item) => item.localDate));
   const painAlerts = [...context.store.alerts.values()].filter((item) => item.clientId === clientId && windowDates.has(item.localDate) && item.type === "pain");
@@ -488,7 +515,7 @@ function coachPlanVersions(context: ApiContext, clientId: string): Response {
 
 function clientCalendar(context: ApiContext): Response {
   const clientId = requireClient(context); if (clientId instanceof Response) return clientId;
-  const url = new URL(context.request.url); const month = safeString(url.searchParams.get("month"), new Date().toISOString().slice(0, 7));
+  const url = new URL(context.request.url); const month = safeString(url.searchParams.get("month"), localToday().slice(0, 7));
   const days = [...context.store.plans.values()]
     .filter((item) => item.clientId === clientId && item.status !== "archived")
     .flatMap((item) => item.payload.days.filter((day) => day.localDate.startsWith(month) && item.effectiveFrom <= day.localDate && (!item.effectiveTo || item.effectiveTo > day.localDate)).map((day) => ({ versionNo: item.versionNo, date: day.localDate, title: day.title, hasTraining: day.exercises.length > 0, mealCount: day.meals.length })))
@@ -516,7 +543,7 @@ async function saveCheckin(context: ApiContext, reqId: string): Promise<Response
 
 async function saveWellness(context: ApiContext, reqId: string): Promise<Response> {
   const clientId = requireClient(context); if (clientId instanceof Response) return clientId;
-  const input = await body(context.request); const localDate = safeString(input.localDate, new Date().toISOString().slice(0, 10));
+  const input = await body(context.request); const localDate = safeString(input.localDate, localToday());
   if (!["none", "present"].includes(String(input.pain)) || !["low", "normal", "good"].includes(String(input.energy)) || !["low", "normal", "high"].includes(String(input.hunger))) return error("INVALID_INPUT", "pain, energy and hunger are required", 400);
   const feedback = { clientId, localDate, pain: input.pain as "none" | "present", energy: input.energy as "low" | "normal" | "good", hunger: input.hunger as "low" | "normal" | "high" };
   context.store.feedback.set(`${clientId}:${localDate}`, feedback); let alert: unknown = null;

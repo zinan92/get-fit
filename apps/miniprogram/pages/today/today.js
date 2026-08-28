@@ -27,6 +27,11 @@ Page({
     const exercises = (this.data.day.exercises || []).map(item => ({ ...item, open: item.catalogId === itemId ? !item.open : item.open }));
     this.setData({ 'day.exercises': exercises });
   },
+  onMediaError(e) {
+    const itemId = e.currentTarget.dataset.id;
+    const exercises = (this.data.day.exercises || []).map(item => item.catalogId === itemId ? { ...item, mediaBroken: true } : item);
+    this.setData({ 'day.exercises': exercises });
+  },
   async toggleExercise(e) {
     const itemId = e.currentTarget.dataset.id; const done = { ...this.data.done, [itemId]: !this.data.done[itemId] }; this.setData({ done });
     try { await request('/api/checkins', { method: 'PUT', data: { localDate: this.localDate(), planDayId: `${this.data.planId}:${this.data.day.localDate}`, itemId, itemType: 'exercise', status: done[itemId] ? 'completed' : 'not_completed' } }); }

@@ -56,6 +56,7 @@ export type InvitationRecord = {
   id: string;
   clientId: string;
   tokenHash: string;
+  openidHash: string | null;
   expiresAt: string;
   consumedAt: string | null;
   revokedAt: string | null;
@@ -127,7 +128,7 @@ export type AlertRecord = {
 
 export type DeletionRequestRecord = {
   id: string;
-  clientId: string;
+  clientId: string | null;
   requestedAt: string;
   purgeAt: string;
   receiptHash: string;

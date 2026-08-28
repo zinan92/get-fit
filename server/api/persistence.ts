@@ -154,5 +154,6 @@ export async function purgeClient(store: Store, clientId: string): Promise<void>
   store.fallbackTokens.forEach((value, key) => { if (value.clientId === clientId) store.fallbackTokens.delete(key); });
   store.subscriptions.forEach((value, key) => { if (value.clientId === clientId) store.subscriptions.delete(key); });
   store.delivery.forEach((value, key) => { if (value.clientId === clientId) store.delivery.delete(key); });
+  store.deletionRequests.forEach((value) => { if (value.clientId === clientId) value.clientId = null; });
   store.audit = store.audit.filter((event) => event.clientId !== clientId);
 }
