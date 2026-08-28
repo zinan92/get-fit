@@ -31,7 +31,12 @@ Page({
         heightCm: Number(this.data.heightCm), weightKg: Number(this.data.weightKg), trainingExperience: ['beginner', 'intermediate', 'advanced'][this.data.experienceIndex],
         sessionsPerWeek: 3, minutesPerSession: 45, equipment: ['dumbbell'], injuryFlags: [], allergyFlags: [], dietaryPreferences: [], riskFlags: [], timezone: 'Asia/Shanghai'
       } });
-      wx.showModal({ title: '已提交', content: '等教练确认后，你就能看到完整的 30 天计划。', showCancel: false });
+      wx.showModal({
+        title: '已提交',
+        content: '等教练确认后，你就能看到完整的 30 天计划。',
+        showCancel: false,
+        success: () => wx.switchTab({ url: '/pages/today/today' })
+      });
     } catch (error) { wx.showToast({ title: error?.error?.message || '资料不完整', icon: 'none' }); }
   }
 });

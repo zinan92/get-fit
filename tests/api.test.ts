@@ -96,6 +96,38 @@ test("single-coach onboarding, Codex CLI handoff, validated import, publish and 
   void coachToken;
 });
 
+test("onboarding can resume after a consumed invitation and keeps risky profiles out of generation", async () => {
+  const onboardingStore = createMemoryStore();
+  const onboardingCtx = { waitUntil() {}, passThroughOnException() {} } as ExecutionContext;
+  async function onboardingCall(path: string, init: RequestInit = {}, token?: string) {
+    const headers = new Headers(init.headers);
+    if (token) headers.set("authorization", `Bearer ${token}`);
+    const response = await handleApi({ request: new Request(`http://localhost${path}`, { ...init, headers }), env, store: onboardingStore, ctx: onboardingCtx });
+    return { response, payload: await response.json() as Record<string, unknown> };
+  }
+
+  const invite = await onboardingCall("/api/coach/invitations", { method: "POST", headers: { "x-coach-token": "dev-coach" }, body: JSON.stringify({ displayName: "可恢复客户" }) });
+  const invitation = invite.payload.invitation as Record<string, unknown>;
+  const accepted = await onboardingCall("/api/invitations/accept", { method: "POST", body: JSON.stringify({ token: invitation.token }) });
+  assert.equal(accepted.response.status, 200);
+  const resumed = await onboardingCall("/api/invitations/accept", { method: "POST", body: JSON.stringify({ token: invitation.token }) });
+  assert.equal(resumed.response.status, 200);
+  const clientId = String((resumed.payload.client as Record<string, unknown>).id);
+  const login = await onboardingCall("/api/wx/auth/login", { method: "POST", body: JSON.stringify({ devOpenid: "resumable-openid", devClientId: clientId }) });
+  const clientToken = String(login.payload.sessionToken);
+
+  await onboardingCall("/api/me/profile", { method: "PUT", body: JSON.stringify({ target: "general_fitness", ageBand: "25_34", heightCm: 170, weightKg: 65, trainingExperience: "beginner", sessionsPerWeek: 3, minutesPerSession: 45, equipment: ["dumbbell"], injuryFlags: [], allergyFlags: [], dietaryPreferences: [], riskFlags: ["acute_pain"], timezone: "Asia/Shanghai" }) }, clientToken);
+  const missingConsent = await onboardingCall(`/api/coach/clients/${clientId}/profile/confirm`, { method: "POST", headers: { "x-coach-token": "dev-coach" } });
+  assert.equal(missingConsent.response.status, 400);
+  await onboardingCall("/api/me/consents", { method: "POST", body: JSON.stringify({ types: ["health_processing", "third_party_model"] }) }, clientToken);
+  const confirmed = await onboardingCall(`/api/coach/clients/${clientId}/profile/confirm`, { method: "POST", headers: { "x-coach-token": "dev-coach" } });
+  assert.equal(confirmed.response.status, 200);
+  assert.equal(confirmed.payload.safetyGate, "manual");
+  const blockedGeneration = await onboardingCall(`/api/coach/clients/${clientId}/plan-generations`, { method: "POST", headers: { "x-coach-token": "dev-coach" }, body: JSON.stringify({ startDate: "2026-08-12" }) });
+  assert.equal(blockedGeneration.response.status, 409);
+  assert.equal((blockedGeneration.payload.error as Record<string, unknown>).code, "RISK_MANUAL_REVIEW");
+});
+
 test("production first login cannot select an arbitrary pending client", async () => {
   const productionStore = createMemoryStore();
   const productionEnv = { COACH_TOKEN: "coach-secret", WECHAT_APP_ID: "app-id", WECHAT_APP_SECRET: "app-secret" };

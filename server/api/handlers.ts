@@ -164,9 +164,16 @@ async function acceptInvitation(context: ApiContext, reqId: string): Promise<Res
   if (!token) return error("INVITATION_INVALID", "Invitation token is required", 400);
   const tokenHash = await sha256(token);
   const invitation = [...context.store.invitations.values()].find((candidate) => candidate.tokenHash === tokenHash);
-  if (!invitation || invitation.consumedAt || invitation.revokedAt || invitation.expiresAt <= nowIso()) return error("INVITATION_INVALID", "Invitation is invalid or expired", 400);
+  if (!invitation || invitation.revokedAt || invitation.expiresAt <= nowIso()) return error("INVITATION_INVALID", "Invitation is invalid or expired", 400);
   const client = context.store.clients.get(invitation.clientId);
   if (!client) return error("NOT_FOUND", "Client not found", 404);
+  if (invitation.consumedAt) {
+    if (["onboarding", "pending_profile_review"].includes(client.status)) {
+      audit(context.store, "invitation.reopened", { requestId: reqId, clientId: client.id });
+      return json({ client: clientView(client) });
+    }
+    return error("INVITATION_INVALID", "Invitation is no longer available", 400);
+  }
   invitation.consumedAt = nowIso(); client.status = "onboarding";
   audit(context.store, "invitation.accepted", { requestId: reqId, clientId: client.id });
   return json({ client: clientView(client) });
