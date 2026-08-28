@@ -2,7 +2,7 @@
 
 这是原生微信小程序客户端的 V1 代码表面。它只调用 `/api`，不保存任何模型/CLI 凭证，也不接触教练后台接口。
 
-开发者工具中把 `apiBaseUrl` 配成 Worker 地址；本地联调时可使用 `http://localhost:3000` 并在 Worker 的 `DEV_MODE=true` 下使用开发登录。
+开发者工具中把 `apiBaseUrl` 配成已批准的客户 API origin；不要填教练私有 Sites 地址。本地联调时可使用 `http://localhost:3000` 并在 Worker 的 `DEV_MODE=true` 下使用开发登录。
 
 进入流程：邀请 → 微信登录 → 健康/第三方模型/提醒说明 → 建档 → 等待教练发布 → 今日/30 天日历 → 训练打卡/身体反馈 → 删除申请。
 

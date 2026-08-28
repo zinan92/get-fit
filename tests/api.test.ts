@@ -172,3 +172,18 @@ test("private Sites owner identity can establish the single coach session", asyn
   });
   assert.equal(forged.status, 401);
 });
+
+test("client sessions fail closed when their client record no longer exists", async () => {
+  const staleStore = createMemoryStore();
+  const staleCtx = { waitUntil() {}, passThroughOnException() {} } as ExecutionContext;
+  staleStore.sessions.set("stale-client-session", { kind: "client", subjectId: "purged-client", expiresAt: Date.now() + 60_000 });
+  const response = await handleApi({
+    request: new Request("http://localhost/api/me", { headers: { authorization: "Bearer stale-client-session" } }),
+    env,
+    store: staleStore,
+    ctx: staleCtx,
+  });
+  assert.equal(response.status, 401);
+  const payload = await response.json() as Record<string, unknown>;
+  assert.equal((payload.error as Record<string, unknown>).code, "AUTH_INVALID");
+});

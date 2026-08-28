@@ -32,6 +32,9 @@ export function requireClient(context: ApiContext): string | Response {
   if (!session || session.kind !== "client" || session.expiresAt < Date.now()) {
     return error("AUTH_INVALID", "Client session is invalid or expired", 401);
   }
+  if (!context.store.clients.has(session.subjectId)) {
+    return error("AUTH_INVALID", "Client session is no longer active", 401);
+  }
   return session.subjectId;
 }
 

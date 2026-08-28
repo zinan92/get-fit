@@ -24,6 +24,7 @@ test("D1 adapter encrypts the single-coach snapshot and hydrates it", async () =
   const db = fakeDb();
   const first = createMemoryStore();
   first.clients.set("client_1", { id: "client_1", displayName: "小满", status: "active", createdAt: new Date().toISOString() });
+  first.sessions.set("session_1", { kind: "client", subjectId: "client_1", expiresAt: Date.now() + 60_000 });
   first.profiles.set("client_1", { target: "general_fitness", ageBand: "25_34", heightCm: 170, weightKg: 65, trainingExperience: "beginner", sessionsPerWeek: 3, minutesPerSession: 45, equipment: [], injuryFlags: [], allergyFlags: [], dietaryPreferences: [], riskFlags: [], timezone: "Asia/Shanghai" });
   await persistStore(first, db, "unit-test-encryption-key");
   const row = db.getRow();
@@ -32,6 +33,7 @@ test("D1 adapter encrypts the single-coach snapshot and hydrates it", async () =
   const second = createMemoryStore();
   await hydrateStore(second, db, "unit-test-encryption-key");
   assert.equal(second.clients.get("client_1")?.displayName, "小满");
+  assert.equal(second.sessions.get("session_1")?.subjectId, "client_1");
   assert.equal(second.profiles.get("client_1")?.weightKg, 65);
   await purgeClient(second, "client_1");
   assert.equal(second.clients.has("client_1"), false);
