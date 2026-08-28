@@ -109,6 +109,9 @@ test("single-coach onboarding, Codex CLI handoff, validated import, publish and 
   const deletion = await call("/api/me", { method: "DELETE" }, clientToken);
   assert.equal(deletion.response.status, 202);
   assert.equal(store.clients.get(clientId)?.status, "deletion_pending");
+  const deletionAgain = await call("/api/me", { method: "DELETE" }, clientToken);
+  assert.equal(deletionAgain.response.status, 202);
+  assert.equal((deletionAgain.payload as Record<string, unknown>).receipt, (deletion.payload as Record<string, unknown>).receipt);
   void coachToken;
 });
 
