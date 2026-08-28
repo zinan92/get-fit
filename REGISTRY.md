@@ -6,7 +6,7 @@
 - M1 已合并：单教练闭环 API、教练 Web `/coach`、客户今日/30 天日历/资料页、结构化计划校验、教练审核发布、版本化、打卡/疼痛告警、提醒授权和 30 天删除清扫。
 - 客户端只读 published plan；draft/provider/raw prompt/completion 不会进入客户端响应。食物 kcal 由本地目录按份量计算。
 - Codex CLI 是当前主生成路径：教练明确点击后才下载脱敏输入和一次性 token，本机生成结果经过同一校验器并仍需审核，Worker 不会自动执行。
-- 今日训练卡已嵌入 3 个已核验动作 GIF（高脚杯深蹲、单臂哑铃划船支撑版、臀桥）；`/exercise-preview` 仍可独立查看，素材保持 180×180 与 Gym visual attribution。
+- 今日训练卡已嵌入 3 个已核验动作 GIF（高脚杯深蹲、单臂哑铃划船支撑版、臀桥），并把动作库的中文分步要领、目标肌群和器械信息放进可展开的动作卡；`/exercise-preview` 仍可独立查看，素材保持 180×180 与 Gym visual attribution。
 - 本地 HTTP flow 已验证：`/api/health`、邀请、登录、同意/建档、Codex CLI handoff、fallback 导入、发布、客户端 today kcal；runtime tests、lint、tsc、gitleaks 均通过。
 - 私有 Sites 版本已部署成功：https://fit-plan-mockup.parkzz.chatgpt.site（owner-only/custom 访问策略；外部未登录请求返回 401，页面/生产 API 未做匿名可见性宣称）。
 - 状态：代码闭环 `verified`；Sites 已配置加密密钥和私有 owner 身份认证，主计划链路只使用教练本机 Codex CLI；微信登录/真实 D1 读写/首位客户验收尚未完成，保持 `partial/unknown`；健康数据上线合规评估仍 `blocked`。
