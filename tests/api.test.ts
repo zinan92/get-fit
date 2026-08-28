@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { handleApi } from "../server/api/handlers";
 import { createMemoryStore } from "../server/api/store";
-import { PLAN_SCHEMA_VERSION, PLAN_TIMEZONE } from "../packages/plan-schema/src/index";
+import { PLAN_SCHEMA_VERSION, PLAN_TIMEZONE, type PlanPayload } from "../packages/plan-schema/src/index";
 
 const env = { DEV_MODE: "true" };
 const store = createMemoryStore();
@@ -17,7 +17,7 @@ async function call(path: string, init: RequestInit = {}, token?: string) {
   return { response, payload };
 }
 
-function plan(startDate: string) {
+function plan(startDate: string): PlanPayload {
   const start = new Date(`${startDate}T00:00:00Z`);
   return {
     schemaVersion: PLAN_SCHEMA_VERSION,
