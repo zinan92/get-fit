@@ -27,7 +27,7 @@ function plan(startDate: string) {
       const date = new Date(start); date.setUTCDate(date.getUTCDate() + index);
       return {
         dayIndex: index + 1, localDate: date.toISOString().slice(0, 10), title: "轻量训练日",
-        exercises: [{ catalogId: "ex-walk", sets: 2, reps: 20, restSeconds: 30 }],
+        exercises: [{ catalogId: "ex-walk", sets: 2, reps: 20, restSeconds: 30, cues: [] }],
         meals: [
           { mealType: "breakfast" as const, foods: [{ foodCatalogId: "food-egg", grams: 100 }, { foodCatalogId: "food-toast", grams: 80 }] },
           { mealType: "lunch" as const, foods: [{ foodCatalogId: "food-chicken", grams: 150 }, { foodCatalogId: "food-rice", grams: 200 }, { foodCatalogId: "food-broccoli", grams: 200 }] },
