@@ -236,3 +236,30 @@ test("coach summary reports unique opened days, check-ins and pain alerts", asyn
   const payload = await response.json() as Record<string, unknown>;
   assert.deepEqual(payload.summary, { openedDays: 2, trainingCheckins: 1, mealCheckins: 1, waterCheckins: 0, painAlerts: 1, feedbackDays: 0 });
 });
+
+test("future plan versions switch on their effective date without rewriting history", async () => {
+  const versionStore = createMemoryStore();
+  const versionCtx = { waitUntil() {}, passThroughOnException() {} } as ExecutionContext;
+  const clientId = "version-client";
+  versionStore.clients.set(clientId, { id: clientId, displayName: "版本客户", status: "active", createdAt: new Date().toISOString() });
+  const firstPayload = plan("2026-08-12");
+  firstPayload.days[2].title = "第一版训练日";
+  const secondPayload = plan("2026-08-15");
+  secondPayload.days[0].title = "未来调整日";
+  versionStore.plans.set("plan-v1", { id: "plan-v1", clientId, versionNo: 1, effectiveFrom: "2026-08-12", effectiveTo: "2026-08-15", payload: firstPayload, status: "superseded", approvedAt: new Date().toISOString(), changeReason: null });
+  versionStore.plans.set("plan-v2", { id: "plan-v2", clientId, versionNo: 2, effectiveFrom: "2026-08-15", effectiveTo: null, payload: secondPayload, status: "published", approvedAt: new Date().toISOString(), changeReason: "未来调整" });
+  versionStore.sessions.set("version-client-session", { kind: "client", subjectId: clientId, expiresAt: Date.now() + 60_000 });
+  versionStore.sessions.set("version-coach-session", { kind: "coach", subjectId: "coach_single", expiresAt: Date.now() + 60_000 });
+  const before = await handleApi({ request: new Request("http://localhost/api/plan/today?date=2026-08-14", { headers: { authorization: "Bearer version-client-session" } }), env, store: versionStore, ctx: versionCtx });
+  const beforePayload = await before.json() as Record<string, unknown>;
+  assert.equal(((beforePayload.plan as Record<string, unknown>).day as Record<string, unknown>).title, "第一版训练日");
+  assert.equal((beforePayload.plan as Record<string, unknown>).versionNo, 1);
+  const after = await handleApi({ request: new Request("http://localhost/api/plan/today?date=2026-08-15", { headers: { authorization: "Bearer version-client-session" } }), env, store: versionStore, ctx: versionCtx });
+  const afterPayload = await after.json() as Record<string, unknown>;
+  assert.equal(((afterPayload.plan as Record<string, unknown>).day as Record<string, unknown>).title, "未来调整日");
+  assert.equal((afterPayload.plan as Record<string, unknown>).versionNo, 2);
+  const list = await handleApi({ request: new Request(`http://localhost/api/coach/clients/${clientId}/plan-versions`, { headers: { authorization: "Bearer version-coach-session" } }), env, store: versionStore, ctx: versionCtx });
+  assert.equal(list.status, 200);
+  const listPayload = await list.json() as Record<string, unknown>;
+  assert.deepEqual((listPayload.versions as Array<Record<string, unknown>>).map((item) => [item.versionNo, item.effectiveFrom, item.effectiveTo, item.changeReason]), [[1, "2026-08-12", "2026-08-15", null], [2, "2026-08-15", null, "未来调整"]]);
+});

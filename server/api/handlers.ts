@@ -114,6 +114,8 @@ export async function handleApi(context: ApiContext): Promise<Response> {
     if (profileMatch && method === "GET") return coachProfile(context, profileMatch[1]);
     const summaryMatch = path.match(/^coach\/clients\/([^/]+)\/summary$/);
     if (summaryMatch && method === "GET") return coachSummary(context, summaryMatch[1]);
+    const planVersionsMatch = path.match(/^coach\/clients\/([^/]+)\/plan-versions$/);
+    if (planVersionsMatch && method === "GET") return coachPlanVersions(context, planVersionsMatch[1]);
     const profileConfirmMatch = path.match(/^coach\/clients\/([^/]+)\/profile\/confirm$/);
     if (profileConfirmMatch && method === "POST") return confirmProfile(context, profileConfirmMatch[1], reqId);
     const generationMatch = path.match(/^coach\/clients\/([^/]+)\/plan-generations$/);
@@ -472,6 +474,16 @@ function coachSummary(context: ApiContext, clientId: string): Response {
     feedbackDays: feedbackDays.size,
   };
   return json({ client: clientView(client), days, summary, alerts: painAlerts.map((alert) => ({ ...alert, clientName: client.displayName })) });
+}
+
+function coachPlanVersions(context: ApiContext, clientId: string): Response {
+  const auth = requireCoach(context); if (auth !== true) return auth;
+  const client = context.store.clients.get(clientId); if (!client) return error("NOT_FOUND", "Client not found", 404);
+  const versions = [...context.store.plans.values()]
+    .filter((plan) => plan.clientId === clientId && plan.status !== "archived")
+    .sort((a, b) => a.versionNo - b.versionNo)
+    .map((plan) => ({ id: plan.id, versionNo: plan.versionNo, effectiveFrom: plan.effectiveFrom, effectiveTo: plan.effectiveTo, status: plan.status, approvedAt: plan.approvedAt, changeReason: plan.changeReason }));
+  return json({ client: clientView(client), versions });
 }
 
 function clientCalendar(context: ApiContext): Response {
