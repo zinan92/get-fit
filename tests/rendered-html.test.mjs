@@ -42,6 +42,8 @@ test("renders the complete approved daily plan mockup", async () => {
   assert.match(html, /水煮蛋/);
   assert.match(html, /144<!-- --> kcal/);
   assert.match(html, /今天注意什么/);
+  assert.match(html, /href="\/plan"/);
+  assert.match(html, /href="\/me"/);
   assert.match(html, /不构成个人健康建议/);
   assert.doesNotMatch(html, /codex-preview|Building your site|react-loading-skeleton/);
 });
@@ -63,4 +65,26 @@ test("renders the private exercise GIF preview with real media references", asyn
   assert.match(html, /exercise-preview\/low-glute-bridge\.gif/);
   assert.match(html, /exercise-preview\/dumbbell-goblet-squat\.gif/);
   assert.match(html, /© Gym visual/);
+});
+
+test("renders the 30-day plan tab with selectable day details", async () => {
+  const response = await render("/plan");
+  assert.equal(response.status, 200);
+  const html = await response.text();
+  assert.match(html, /30 天计划/);
+  assert.match(html, /选择一天/);
+  assert.match(html, /第 8 天/);
+  assert.match(html, /下肢力量日/);
+  assert.match(html, /href="\/me"/);
+});
+
+test("renders the my tab with profile, consent and delete controls", async () => {
+  const response = await render("/me");
+  assert.equal(response.status, 200);
+  const html = await response.text();
+  assert.match(html, /我的/);
+  assert.match(html, /小满/);
+  assert.match(html, /基础情况/);
+  assert.match(html, /申请删除/);
+  assert.match(html, /href="\/plan"/);
 });

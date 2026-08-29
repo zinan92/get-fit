@@ -1,6 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
+import { MiniNav } from "./components/mini-nav";
 
 type Food = {
   name: string;
@@ -177,10 +179,10 @@ export default function Home() {
             <span className="brand-mark">轻</span>
             <span>轻练</span>
           </a>
-          <button className="calendar-button" type="button" aria-label="查看完整月计划">
+          <Link className="calendar-button" href="/plan" aria-label="查看完整月计划">
             <span className="calendar-glyph">▦</span>
             月计划
-          </button>
+          </Link>
         </header>
 
         <div className="scroll-content" id="top">
@@ -386,11 +388,7 @@ export default function Home() {
           </section>
         </div>
 
-        <nav className="bottom-nav" aria-label="主要导航">
-          <a className="nav-item active" href="#top"><span>●</span><strong>今天</strong></a>
-          <button className="nav-item" type="button"><span>▦</span><strong>计划</strong></button>
-          <button className="nav-item" type="button"><span>◉</span><strong>我的</strong></button>
-        </nav>
+        <MiniNav active="today" />
       </section>
     </main>
   );
