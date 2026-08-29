@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { access } from "node:fs/promises";
+import { access, readFile } from "node:fs/promises";
 import test from "node:test";
 
 const projectRoot = new URL("../", import.meta.url);
@@ -87,4 +87,20 @@ test("renders the my tab with profile, consent and delete controls", async () =>
   assert.match(html, /基础情况/);
   assert.match(html, /申请删除/);
   assert.match(html, /href="\/plan"/);
+});
+
+test("uses native anchors for navigation in the Sites/vinext runtime", async () => {
+  const navigationSources = [
+    "app/page.tsx",
+    "app/components/mini-nav.tsx",
+    "app/plan/page.tsx",
+    "app/me/page.tsx",
+    "app/coach/page.tsx",
+    "app/exercise-preview/page.tsx",
+  ];
+
+  for (const relativePath of navigationSources) {
+    const source = await readFile(new URL(relativePath, projectRoot), "utf8");
+    assert.doesNotMatch(source, /from ["']next\/link["']/);
+  }
 });

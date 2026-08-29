@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo, useState } from "react";
 import { MiniNav } from "./components/mini-nav";
 
@@ -179,10 +178,10 @@ export default function Home() {
             <span className="brand-mark">轻</span>
             <span>轻练</span>
           </a>
-          <Link className="calendar-button" href="/plan" aria-label="查看完整月计划">
+          <a className="calendar-button" href="/plan" aria-label="查看完整月计划">
             <span className="calendar-glyph">▦</span>
             月计划
-          </Link>
+          </a>
         </header>
 
         <div className="scroll-content" id="top">

@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo, useState } from "react";
 import { MiniNav } from "../components/mini-nav";
 import "./plan.css";
@@ -55,10 +54,12 @@ export default function PlanPage() {
       <div className="ambient ambient-two" />
       <section className="phone plan-phone" aria-label="轻练计划 mockup">
         <header className="topbar">
-          <Link className="brand" href="/" aria-label="返回轻练今天">
+          {/* Native anchors keep navigation working in the Sites/vinext runtime. */}
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+          <a className="brand" href="/" aria-label="返回轻练今天">
             <span className="brand-mark">轻</span>
             <span>轻练</span>
-          </Link>
+          </a>
           <span className="subpage-label">30 天计划</span>
         </header>
 
@@ -118,7 +119,9 @@ export default function PlanPage() {
             ) : (
               <div className="recovery-note"><span>☼</span><p>今天让身体恢复一下：轻松散步 30 分钟，睡前做 8 分钟拉伸。</p></div>
             )}
-            <Link className="selected-plan-link" href="/">回到今天，开始执行 <span>→</span></Link>
+            {/* Native anchors keep navigation working in the Sites/vinext runtime. */}
+            {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+            <a className="selected-plan-link" href="/">回到今天，开始执行 <span>→</span></a>
           </section>
         </div>
 

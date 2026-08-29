@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 import { MiniNav } from "../components/mini-nav";
 import "./me.css";
@@ -20,10 +19,12 @@ export default function MePage() {
       <div className="ambient ambient-two" />
       <section className="phone me-phone" aria-label="轻练我的 mockup">
         <header className="topbar">
-          <Link className="brand" href="/" aria-label="返回轻练今天">
+          {/* Native anchors keep navigation working in the Sites/vinext runtime. */}
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+          <a className="brand" href="/" aria-label="返回轻练今天">
             <span className="brand-mark">轻</span>
             <span>轻练</span>
-          </Link>
+          </a>
           <span className="subpage-label">我的</span>
         </header>
 
