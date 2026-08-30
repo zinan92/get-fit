@@ -100,6 +100,8 @@ test("renders the local customer sandbox without production identity claims", as
   assert.match(source, /输入教练邀请/);
   assert.match(source, /本地开发身份/);
   assert.match(source, /不会在生产地址尝试开发身份登录/);
+  assert.match(source, /browserMediaPath/);
+  assert.match(source, /exercise-preview/);
   assert.doesNotMatch(html, /WECHAT_APP_SECRET|COACH_TOKEN|DATA_ENCRYPTION_KEY/);
 });
 
