@@ -13,6 +13,7 @@
 - Claude Sonnet 5 已完成只读 review；Issue #26 的邀请绑定、未来版本日期、删除回执、时区、摘要和媒体降级修复已合并并复测。
 - Issue #27 已完成：网页 Today/计划/我的三处导航互通，计划页支持 30 天选日与摘要，我的页支持资料/同意/删除演示反馈。
 - Issue #28 已完成：Sites/vinext 运行时不兼容 `next/link`，已统一改为原生导航链接；首页“月计划”、底部“计划/我的”、子页返回入口均已在线点击验证。
+- Issue #29 已完成：新增仅限 localhost 的 `/sandbox` 客户沙盒，以及小程序显式 `devMode` 登录；邀请、同意、建档、已发布计划、kcal、打卡、反馈和 30 天日历已用本地 API 实际跑通，生产环境继续拒绝开发身份。
 - 本地 HTTP flow 已验证：`/api/health`、邀请、登录、同意/建档、Codex CLI handoff、fallback 导入、草案编辑、发布、客户 today/calendar、打卡、反馈/告警、版本和删除清理；主流程 15 项 + 小程序/试用契约 3 项测试、build、lint、tsc、gitleaks 均通过。
 - 私有 Sites 最新版本已部署成功：https://fit-plan-mockup.parkzz.chatgpt.site（owner-only/custom 访问策略；外部未登录请求返回 401，生产 Worker 最近检查无错误）。
 - 状态：代码闭环 `verified`；Sites 已配置加密密钥和私有 owner 身份认证，主计划链路只使用教练本机 Codex CLI；微信登录/真实 D1 读写/首位客户验收尚未完成，保持 `partial/unknown`；健康数据上线合规评估仍 `blocked`。
