@@ -1,4 +1,5 @@
 <view class="page">
+  <view wx:if="{{devMode}}" class="dev-banner">本地 DevTools 模式 · 不使用微信 AppID</view>
   <view class="card hero">
     <view class="eyebrow">轻练 ONBOARDING</view>
     <view class="title">先了解你，<br/>再安排今天。</view>

@@ -89,6 +89,20 @@ test("renders the my tab with profile, consent and delete controls", async () =>
   assert.match(html, /href="\/plan"/);
 });
 
+test("renders the local customer sandbox without production identity claims", async () => {
+  const response = await render("/sandbox");
+  assert.equal(response.status, 200);
+  const html = await response.text();
+  assert.match(html, /轻练 · LOCAL SANDBOX/);
+  assert.match(html, /正在检查本地环境/);
+  const source = await readFile(new URL("app/sandbox/page.tsx", projectRoot), "utf8");
+  assert.match(source, /CUSTOMER SANDBOX/);
+  assert.match(source, /输入教练邀请/);
+  assert.match(source, /本地开发身份/);
+  assert.match(source, /不会在生产地址尝试开发身份登录/);
+  assert.doesNotMatch(html, /WECHAT_APP_SECRET|COACH_TOKEN|DATA_ENCRYPTION_KEY/);
+});
+
 test("uses native anchors for navigation in the Sites/vinext runtime", async () => {
   const navigationSources = [
     "app/page.tsx",
