@@ -41,6 +41,8 @@ test("renders the complete approved daily plan mockup", async () => {
   assert.match(html, /今天吃什么/);
   assert.match(html, /水煮蛋/);
   assert.match(html, /144<!-- --> kcal/);
+  assert.match(html, /food-face/);
+  assert.match(html, /check-glyph/);
   assert.match(html, /今天注意什么/);
   assert.match(html, /href="\/plan"/);
   assert.match(html, /href="\/me"/);

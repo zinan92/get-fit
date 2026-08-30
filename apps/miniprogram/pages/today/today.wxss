@@ -23,5 +23,7 @@
 .meal-name { color: #d85c28; font-size: 28rpx; font-weight: 800; margin-right: 10rpx; }
 .meal-button { background: #fff5ed; color: #d85c28; border: 1rpx solid #f5c7ae; }
 .food-row { display: flex; justify-content: space-between; gap: 16rpx; padding: 14rpx 0 0; color: #62584e; font-size: 22rpx; }
+.food-label { display: flex; align-items: center; gap: 8rpx; min-width: 0; }
+.food-face { width: 34rpx; height: 30rpx; line-height: 28rpx; text-align: center; border-radius: 999rpx; background: #fff; color: #d85c28; font-size: 22rpx; }
 .food-row text:last-child { color: #8b7565; white-space: nowrap; }
 .compact-title { margin: 0; font-size: 28rpx; }

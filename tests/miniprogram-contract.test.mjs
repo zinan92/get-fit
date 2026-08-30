@@ -27,6 +27,7 @@ test("mini-program today page projects rich exercise and meal details", async ()
   assert.match(wxml, /item\.mediaPath/);
   assert.match(wxml, /item\.steps/);
   assert.match(wxml, /item\.mealKcal/);
+  assert.match(wxml, /food-face/);
   assert.match(wxml, /toggleMeal/);
   assert.match(wxml, /item\.mediaAttribution/);
   assert.match(wxml, /binderror="onMediaError"/);

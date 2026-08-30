@@ -91,9 +91,11 @@
 .meal-done { padding: 7px 10px; color: var(--orange-dark); background: #fff0e5; font-size: 10px; font-weight: 800; }
 .meal-done.done { color: white; background: var(--green); }
 .sandbox-food { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 9px 11px; margin-top: 6px; border-radius: 12px; background: #f8f3e9; }
-.sandbox-food span { display: flex; align-items: baseline; gap: 7px; min-width: 0; }
+.sandbox-food-name { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.sandbox-food-name > span:last-child { display: flex; align-items: baseline; gap: 7px; min-width: 0; }
 .sandbox-food strong { font-size: 12px; }
 .sandbox-food small { color: var(--muted); font-size: 10px; }
+.sandbox-food .food-face { position: static; width: 25px; height: 18px; padding: 3px 2px; flex: 0 0 auto; box-shadow: none; }
 .sandbox-food b { color: var(--orange-dark); white-space: nowrap; font-size: 11px; }
 .sandbox-meal-total { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; padding-top: 10px; border-top: 1px dashed #ded8ce; color: var(--muted); font-size: 11px; }
 .sandbox-meal-total strong { color: var(--ink); }

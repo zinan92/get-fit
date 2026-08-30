@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { FoodFace } from "./components/food-face";
 import { MiniNav } from "./components/mini-nav";
 
 type Food = {
@@ -296,7 +297,7 @@ export default function Home() {
                           aria-pressed={isDone}
                           aria-label={isDone ? `取消完成${exercise.name}` : `标记完成${exercise.name}`}
                         >
-                          <span className="check" aria-hidden="true">{isDone ? "✓" : ""}</span>
+                          <span className="check" aria-hidden="true">{isDone && <span className="check-glyph" />}</span>
                         </button>
                       </div>
                     </article>
@@ -332,19 +333,22 @@ export default function Home() {
                         onClick={() => toggle(meal.id, doneMeals, setDoneMeals)}
                         aria-pressed={isDone}
                       >
-                        <span className="check" aria-hidden="true">{isDone ? "✓" : ""}</span>
+                        <span className="check" aria-hidden="true">{isDone && <span className="check-glyph" />}</span>
                         {isDone ? "已吃完" : "完成打卡"}
                       </button>
                     </div>
                     <div className="foods">
                       {meal.foods.map((food) => (
                         <div className="food" key={food.name}>
-                          <div
-                            className="food-image"
-                            style={{ backgroundPosition: spritePosition(food.sprite) }}
-                            role="img"
-                            aria-label={food.name}
-                          />
+                          <div className="food-visual">
+                            <div
+                              className="food-image"
+                              style={{ backgroundPosition: spritePosition(food.sprite) }}
+                              role="img"
+                              aria-label={food.name}
+                            />
+                            <FoodFace tone={meal.tone} />
+                          </div>
                           <strong>{food.name}</strong>
                           <span>{food.portion}</span>
                           <small>{food.kcal} kcal</small>
