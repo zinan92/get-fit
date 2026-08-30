@@ -15,6 +15,7 @@
 - Issue #28 已完成：Sites/vinext 运行时不兼容 `next/link`，已统一改为原生导航链接；首页“月计划”、底部“计划/我的”、子页返回入口均已在线点击验证。
 - Issue #29 已完成：新增仅限 localhost 的 `/sandbox` 客户沙盒，以及小程序显式 `devMode` 登录；邀请、同意、建档、已发布计划、kcal、打卡、反馈和 30 天日历已用本地 API 实际跑通，生产环境继续拒绝开发身份。
 - Issue #30 已完成：沙盒媒体层将固定动作资源映射到网页内已核验 GIF，加载失败仍保留文字要领降级；线上版本同步完成。
+- Issue #32 已完成：客户侧完成控件加入轻微歪斜/勾线动效，食物卡片与小程序餐食行加入小表情和腮红；保留 reduced-motion、触控和无障碍状态。
 - 本地 HTTP flow 已验证：`/api/health`、邀请、登录、同意/建档、Codex CLI handoff、fallback 导入、草案编辑、发布、客户 today/calendar、打卡、反馈/告警、版本和删除清理；主流程 15 项 + 小程序/试用契约 3 项测试、build、lint、tsc、gitleaks 均通过。
 - 私有 Sites 最新版本已部署成功：https://fit-plan-mockup.parkzz.chatgpt.site（owner-only/custom 访问策略；外部未登录请求返回 401，生产 Worker 最近检查无错误）。
 - 状态：代码闭环 `verified`；Sites 已配置加密密钥和私有 owner 身份认证，主计划链路只使用教练本机 Codex CLI；微信登录/真实 D1 读写/首位客户验收尚未完成，保持 `partial/unknown`；健康数据上线合规评估仍 `blocked`。
