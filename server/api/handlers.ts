@@ -178,10 +178,10 @@ async function wxLogin(context: ApiContext, reqId: string): Promise<Response> {
     if (!response.ok || !payload.openid) return error("WECHAT_LOGIN_FAILED", "WeChat login failed", 401);
     openid = payload.openid;
   }
-  if (!openid || (!code && context.env.DEV_MODE !== "true" && new URL(context.request.url).hostname !== "localhost")) return error("WECHAT_LOGIN_REQUIRED", "WeChat login code is required", 400);
+  if (!openid || (!code && context.env.DEV_MODE !== "true")) return error("WECHAT_LOGIN_REQUIRED", "WeChat login code is required", 400);
   const openidHash = await sha256(openid);
   const existing = context.store.clients.get(context.store.authByOpenId.get(openidHash) ?? "");
-  const requestedClientId = context.env.DEV_MODE === "true" || new URL(context.request.url).hostname === "localhost" ? safeString(input.devClientId) : "";
+  const requestedClientId = context.env.DEV_MODE === "true" ? safeString(input.devClientId) : "";
   const invitationToken = safeString(input.invitationToken);
   const invitationHash = invitationToken ? await sha256(invitationToken) : null;
   const invitation = invitationHash ? [...context.store.invitations.values()].find((candidate) => candidate.tokenHash === invitationHash) : null;

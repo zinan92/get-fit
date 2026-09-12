@@ -171,6 +171,40 @@ test("production first login cannot select an arbitrary pending client", async (
   } finally { globalThis.fetch = originalFetch; }
 });
 
+test("localhost host header cannot unlock dev auth in production env", async () => {
+  const productionEnv = { COACH_TOKEN: "coach-secret" };
+  const productionStore = createMemoryStore();
+  const productionCtx = { waitUntil() {}, passThroughOnException() {} } as ExecutionContext;
+  const devCoachResponse = await handleApi({
+    request: new Request("http://localhost/api/coach/session", { method: "POST", headers: { "x-coach-token": "dev-coach" } }),
+    env: productionEnv,
+    store: productionStore,
+    ctx: productionCtx,
+  });
+  assert.equal(devCoachResponse.status, 401);
+
+  const configuredCoachResponse = await handleApi({
+    request: new Request("http://localhost/api/coach/session", { method: "POST", headers: { "x-coach-token": "coach-secret" } }),
+    env: productionEnv,
+    store: productionStore,
+    ctx: productionCtx,
+  });
+  assert.equal(configuredCoachResponse.status, 200);
+  const configuredCoachPayload = await configuredCoachResponse.json() as Record<string, unknown>;
+  assert.equal(typeof configuredCoachPayload.sessionToken, "string");
+
+  const loginResponse = await handleApi({
+    request: new Request("http://localhost/api/wx/auth/login", { method: "POST", body: JSON.stringify({ devOpenid: "openid-test", devClientId: "client-test" }) }),
+    env: productionEnv,
+    store: productionStore,
+    ctx: productionCtx,
+  });
+  assert.equal(loginResponse.status, 400);
+  const loginPayload = await loginResponse.json() as Record<string, unknown>;
+  assert.equal((loginPayload.error as Record<string, unknown>).code, "WECHAT_LOGIN_REQUIRED");
+  assert.equal(loginPayload.sessionToken, undefined);
+});
+
 test("private Sites owner identity can establish the single coach session", async () => {
   const siteStore = createMemoryStore();
   const siteEnv = { COACH_ACCESS_USER_ID: "owner-account-id" };

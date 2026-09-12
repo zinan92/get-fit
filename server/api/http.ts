@@ -44,7 +44,7 @@ export function requireCoach(context: ApiContext): true | Response {
   const sessionAllowed = Boolean(session && session.kind === "coach" && session.expiresAt >= Date.now());
   const token = bearerToken ?? context.request.headers.get("x-coach-token");
   const configured = context.env.COACH_TOKEN;
-  const devAllowed = (context.env.DEV_MODE === "true" || new URL(context.request.url).hostname === "localhost") && token === "dev-coach";
+  const devAllowed = context.env.DEV_MODE === "true" && token === "dev-coach";
   // Private Sites owner-only access injects this identity header after the
   // edge has authenticated the visitor. Match it to an explicitly configured
   // owner id; never trust a header on its own or in a public deployment.
