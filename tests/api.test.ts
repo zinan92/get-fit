@@ -205,6 +205,40 @@ test("localhost host header cannot unlock dev auth in production env", async () 
   assert.equal(loginPayload.sessionToken, undefined);
 });
 
+test("devOpenid is ignored in production even with a valid invitation", async () => {
+  const productionStore = createMemoryStore();
+  const productionEnv = { COACH_TOKEN: "coach-secret" };
+  const productionCtx = { waitUntil() {}, passThroughOnException() {} } as ExecutionContext;
+  async function productionCall(path: string, init: RequestInit = {}) {
+    const response = await handleApi({ request: new Request(`https://example.test${path}`, init), env: productionEnv, store: productionStore, ctx: productionCtx });
+    return { response, payload: await response.json() as Record<string, unknown> };
+  }
+
+  const invite = await productionCall("/api/coach/invitations", {
+    method: "POST",
+    headers: { "x-coach-token": "coach-secret", "content-type": "application/json" },
+    body: JSON.stringify({ displayName: "Production client" }),
+  });
+  assert.equal(invite.response.status, 201);
+  const rawToken = String((invite.payload.invitation as Record<string, unknown>).token);
+
+  const accepted = await productionCall("/api/invitations/accept", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ token: rawToken }),
+  });
+  assert.equal(accepted.response.status, 200);
+
+  const login = await productionCall("/api/wx/auth/login", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ code: "anything", devOpenid: "attacker-chosen", invitationToken: rawToken }),
+  });
+  assert.equal(login.response.status, 400);
+  assert.equal((login.payload.error as Record<string, unknown>).code, "WECHAT_LOGIN_REQUIRED");
+  assert.equal(login.payload.sessionToken, undefined);
+});
+
 test("private Sites owner identity can establish the single coach session", async () => {
   const siteStore = createMemoryStore();
   const siteEnv = { COACH_ACCESS_USER_ID: "owner-account-id" };

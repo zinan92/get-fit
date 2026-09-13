@@ -166,7 +166,7 @@ export async function handleApi(context: ApiContext): Promise<Response> {
 async function wxLogin(context: ApiContext, reqId: string): Promise<Response> {
   const input = await body(context.request);
   const code = safeString(input.code);
-  let openid = safeString(input.devOpenid);
+  let openid = context.env.DEV_MODE === "true" ? safeString(input.devOpenid) : "";
   if (context.env.WECHAT_APP_ID && context.env.WECHAT_APP_SECRET && code) {
     const wxUrl = new URL("https://api.weixin.qq.com/sns/jscode2session");
     wxUrl.searchParams.set("appid", context.env.WECHAT_APP_ID);
