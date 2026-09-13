@@ -167,6 +167,7 @@ async function wxLogin(context: ApiContext, reqId: string): Promise<Response> {
   const input = await body(context.request);
   const code = safeString(input.code);
   let openid = context.env.DEV_MODE === "true" ? safeString(input.devOpenid) : "";
+  const isLocalDevelopment = context.env.DEV_MODE === "true";
   if (context.env.WECHAT_APP_ID && context.env.WECHAT_APP_SECRET && code) {
     const wxUrl = new URL("https://api.weixin.qq.com/sns/jscode2session");
     wxUrl.searchParams.set("appid", context.env.WECHAT_APP_ID);
@@ -181,10 +182,16 @@ async function wxLogin(context: ApiContext, reqId: string): Promise<Response> {
   if (!openid || (!code && context.env.DEV_MODE !== "true")) return error("WECHAT_LOGIN_REQUIRED", "WeChat login code is required", 400);
   const openidHash = await sha256(openid);
   const existing = context.store.clients.get(context.store.authByOpenId.get(openidHash) ?? "");
-  const requestedClientId = context.env.DEV_MODE === "true" ? safeString(input.devClientId) : "";
+  const requestedClientId = isLocalDevelopment ? safeString(input.devClientId) : "";
   const invitationToken = safeString(input.invitationToken);
   const invitationHash = invitationToken ? await sha256(invitationToken) : null;
   const invitation = invitationHash ? [...context.store.invitations.values()].find((candidate) => candidate.tokenHash === invitationHash) : null;
+  if (isLocalDevelopment && input.devOpenid !== undefined) {
+    const expectedOpenId = requestedClientId ? `openid-local-sandbox:${requestedClientId}` : "";
+    if (!requestedClientId || !invitation || invitation.clientId !== requestedClientId || !invitation.consumedAt || openid !== expectedOpenId) {
+      return error("INVITATION_INVALID", "Local development identity must match the consumed invitation", 403);
+    }
+  }
   if (!requestedClientId && !existing && !invitation) return error("INVITATION_REQUIRED", "A consumed invitation must be supplied for first login", 403);
   const invitedClient = invitation ? context.store.clients.get(invitation.clientId) : null;
   if (existing && invitation && existing.id !== invitation.clientId) return error("INVITATION_INVALID", "Invitation does not belong to this client", 403);

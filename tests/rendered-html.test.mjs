@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { access } from "node:fs/promises";
+import { access, readFile } from "node:fs/promises";
 import test from "node:test";
 
 const projectRoot = new URL("../", import.meta.url);
@@ -41,7 +41,11 @@ test("renders the complete approved daily plan mockup", async () => {
   assert.match(html, /今天吃什么/);
   assert.match(html, /水煮蛋/);
   assert.match(html, /144<!-- --> kcal/);
+  assert.match(html, /food-face/);
+  assert.match(html, /check-glyph/);
   assert.match(html, /今天注意什么/);
+  assert.match(html, /href="\/plan"/);
+  assert.match(html, /href="\/me"/);
   assert.match(html, /不构成个人健康建议/);
   assert.doesNotMatch(html, /codex-preview|Building your site|react-loading-skeleton/);
 });
@@ -63,4 +67,58 @@ test("renders the private exercise GIF preview with real media references", asyn
   assert.match(html, /exercise-preview\/low-glute-bridge\.gif/);
   assert.match(html, /exercise-preview\/dumbbell-goblet-squat\.gif/);
   assert.match(html, /© Gym visual/);
+});
+
+test("renders the 30-day plan tab with selectable day details", async () => {
+  const response = await render("/plan");
+  assert.equal(response.status, 200);
+  const html = await response.text();
+  assert.match(html, /30 天计划/);
+  assert.match(html, /选择一天/);
+  assert.match(html, /第 8 天/);
+  assert.match(html, /下肢力量日/);
+  assert.match(html, /href="\/me"/);
+});
+
+test("renders the my tab with profile, consent and delete controls", async () => {
+  const response = await render("/me");
+  assert.equal(response.status, 200);
+  const html = await response.text();
+  assert.match(html, /我的/);
+  assert.match(html, /小满/);
+  assert.match(html, /基础情况/);
+  assert.match(html, /申请删除/);
+  assert.match(html, /href="\/plan"/);
+});
+
+test("renders the local customer sandbox without production identity claims", async () => {
+  const response = await render("/sandbox");
+  assert.equal(response.status, 200);
+  const html = await response.text();
+  assert.match(html, /轻练 · LOCAL SANDBOX/);
+  assert.match(html, /正在检查本地环境/);
+  const source = await readFile(new URL("app/sandbox/page.tsx", projectRoot), "utf8");
+  assert.match(source, /CUSTOMER SANDBOX/);
+  assert.match(source, /输入教练邀请/);
+  assert.match(source, /本地开发身份/);
+  assert.match(source, /不会在生产地址尝试开发身份登录/);
+  assert.match(source, /browserMediaPath/);
+  assert.match(source, /exercise-preview/);
+  assert.doesNotMatch(html, /WECHAT_APP_SECRET|COACH_TOKEN|DATA_ENCRYPTION_KEY/);
+});
+
+test("uses native anchors for navigation in the Sites/vinext runtime", async () => {
+  const navigationSources = [
+    "app/page.tsx",
+    "app/components/mini-nav.tsx",
+    "app/plan/page.tsx",
+    "app/me/page.tsx",
+    "app/coach/page.tsx",
+    "app/exercise-preview/page.tsx",
+  ];
+
+  for (const relativePath of navigationSources) {
+    const source = await readFile(new URL(relativePath, projectRoot), "utf8");
+    assert.doesNotMatch(source, /from ["']next\/link["']/);
+  }
 });

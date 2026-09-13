@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo, useState } from "react";
 import "./coach.css";
 
@@ -174,7 +173,9 @@ export default function CoachPage() {
     <main className="coach-shell">
       <section className="coach-header">
         <div><div className="section-kicker">COACH CONSOLE · V1</div><h1>轻练教练台</h1><p>一名教练，把一个月计划交付清楚。</p></div>
-        <Link href="/">查看客户端</Link>
+        {/* Native anchors keep navigation working in the Sites/vinext runtime. */}
+        {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+        <a href="/">查看客户端</a>
       </section>
       <section className="coach-grid">
         <aside className="coach-sidebar">

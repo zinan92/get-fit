@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { FoodFace } from "./components/food-face";
+import { MiniNav } from "./components/mini-nav";
 
 type Food = {
   name: string;
@@ -177,10 +179,10 @@ export default function Home() {
             <span className="brand-mark">轻</span>
             <span>轻练</span>
           </a>
-          <button className="calendar-button" type="button" aria-label="查看完整月计划">
+          <a className="calendar-button" href="/plan" aria-label="查看完整月计划">
             <span className="calendar-glyph">▦</span>
             月计划
-          </button>
+          </a>
         </header>
 
         <div className="scroll-content" id="top">
@@ -295,7 +297,7 @@ export default function Home() {
                           aria-pressed={isDone}
                           aria-label={isDone ? `取消完成${exercise.name}` : `标记完成${exercise.name}`}
                         >
-                          <span className="check" aria-hidden="true">{isDone ? "✓" : ""}</span>
+                          <span className="check" aria-hidden="true">{isDone && <span className="check-glyph" />}</span>
                         </button>
                       </div>
                     </article>
@@ -331,19 +333,22 @@ export default function Home() {
                         onClick={() => toggle(meal.id, doneMeals, setDoneMeals)}
                         aria-pressed={isDone}
                       >
-                        <span className="check" aria-hidden="true">{isDone ? "✓" : ""}</span>
+                        <span className="check" aria-hidden="true">{isDone && <span className="check-glyph" />}</span>
                         {isDone ? "已吃完" : "完成打卡"}
                       </button>
                     </div>
                     <div className="foods">
                       {meal.foods.map((food) => (
                         <div className="food" key={food.name}>
-                          <div
-                            className="food-image"
-                            style={{ backgroundPosition: spritePosition(food.sprite) }}
-                            role="img"
-                            aria-label={food.name}
-                          />
+                          <div className="food-visual">
+                            <div
+                              className="food-image"
+                              style={{ backgroundPosition: spritePosition(food.sprite) }}
+                              role="img"
+                              aria-label={food.name}
+                            />
+                            <FoodFace tone={meal.tone} />
+                          </div>
                           <strong>{food.name}</strong>
                           <span>{food.portion}</span>
                           <small>{food.kcal} kcal</small>
@@ -386,11 +391,7 @@ export default function Home() {
           </section>
         </div>
 
-        <nav className="bottom-nav" aria-label="主要导航">
-          <a className="nav-item active" href="#top"><span>●</span><strong>今天</strong></a>
-          <button className="nav-item" type="button"><span>▦</span><strong>计划</strong></button>
-          <button className="nav-item" type="button"><span>◉</span><strong>我的</strong></button>
-        </nav>
+        <MiniNav active="today" />
       </section>
     </main>
   );

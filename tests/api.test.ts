@@ -48,7 +48,7 @@ test("single-coach onboarding, Codex CLI handoff, validated import, publish and 
   const inviteValue = (invitation.payload.invitation as Record<string, unknown>).token;
   const accepted = await call("/api/invitations/accept", { method: "POST", body: JSON.stringify({ token: inviteValue }) });
   const clientId = String((accepted.payload.client as Record<string, unknown>).id);
-  const login = await call("/api/wx/auth/login", { method: "POST", body: JSON.stringify({ devOpenid: "openid-test", devClientId: clientId }) });
+  const login = await call("/api/wx/auth/login", { method: "POST", body: JSON.stringify({ devOpenid: `openid-local-sandbox:${clientId}`, devClientId: clientId, invitationToken: inviteValue }) });
   const clientToken = String(login.payload.sessionToken);
   await call("/api/me/consents", { method: "POST", body: JSON.stringify({ types: ["health_processing", "third_party_model", "subscription_message"] }) }, clientToken);
   const subscription = await call("/api/reminders/subscribe", { method: "POST", body: JSON.stringify({ templateId: "template-demo" }) }, clientToken);
@@ -134,7 +134,7 @@ test("onboarding can resume after a consumed invitation and keeps risky profiles
   const resumed = await onboardingCall("/api/invitations/accept", { method: "POST", body: JSON.stringify({ token: invitation.token }) });
   assert.equal(resumed.response.status, 200);
   const clientId = String((resumed.payload.client as Record<string, unknown>).id);
-  const login = await onboardingCall("/api/wx/auth/login", { method: "POST", body: JSON.stringify({ devOpenid: "resumable-openid", devClientId: clientId }) });
+  const login = await onboardingCall("/api/wx/auth/login", { method: "POST", body: JSON.stringify({ devOpenid: `openid-local-sandbox:${clientId}`, devClientId: clientId, invitationToken: invitation.token }) });
   const clientToken = String(login.payload.sessionToken);
 
   await onboardingCall("/api/me/profile", { method: "PUT", body: JSON.stringify({ target: "general_fitness", ageBand: "25_34", heightCm: 170, weightKg: 65, trainingExperience: "beginner", sessionsPerWeek: 3, minutesPerSession: 45, equipment: ["dumbbell"], injuryFlags: [], allergyFlags: [], dietaryPreferences: [], riskFlags: ["acute_pain"], timezone: "Asia/Shanghai" }) }, clientToken);
@@ -352,12 +352,37 @@ test("invitation binding rejects a second OpenID and blocks replayed acceptance"
   const rawToken = String((invite.payload.invitation as Record<string, unknown>).token);
   const accepted = await replayCall("/api/invitations/accept", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ token: rawToken }) });
   const clientId = String((accepted.payload.client as Record<string, unknown>).id);
-  const firstLogin = await replayCall("/api/wx/auth/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ devOpenid: "first-openid", devClientId: clientId, invitationToken: rawToken }) });
+  const firstLogin = await replayCall("/api/wx/auth/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ devOpenid: `openid-local-sandbox:${clientId}`, devClientId: clientId, invitationToken: rawToken }) });
   assert.equal(firstLogin.response.status, 200);
-  const secondLogin = await replayCall("/api/wx/auth/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ devOpenid: "second-openid", devClientId: clientId, invitationToken: rawToken }) });
+  const secondLogin = await replayCall("/api/wx/auth/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ devOpenid: `openid-local-sandbox:second-${clientId}`, devClientId: clientId, invitationToken: rawToken }) });
   assert.equal(secondLogin.response.status, 403);
   const replayAccept = await replayCall("/api/invitations/accept", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ token: rawToken }) });
   assert.equal(replayAccept.response.status, 400);
+});
+
+test("local development login binds the identity to the invited client", async () => {
+  const bindingStore = createMemoryStore();
+  const bindingCtx = { waitUntil() {}, passThroughOnException() {} } as ExecutionContext;
+  async function bindingCall(path: string, init: RequestInit = {}) {
+    const response = await handleApi({ request: new Request(`http://localhost${path}`, init), env, store: bindingStore, ctx: bindingCtx });
+    return { response, payload: await response.json() as Record<string, unknown> };
+  }
+
+  const invite = await bindingCall("/api/coach/invitations", { method: "POST", headers: { "x-coach-token": "dev-coach", "content-type": "application/json" }, body: JSON.stringify({ displayName: "开发绑定客户" }) });
+  const rawToken = String((invite.payload.invitation as Record<string, unknown>).token);
+  const accepted = await bindingCall("/api/invitations/accept", { method: "POST", body: JSON.stringify({ token: rawToken }) });
+  const clientId = String((accepted.payload.client as Record<string, unknown>).id);
+
+  const mismatchedOpenId = await bindingCall("/api/wx/auth/login", { method: "POST", body: JSON.stringify({ devOpenid: `openid-local-sandbox:other-${clientId}`, devClientId: clientId, invitationToken: rawToken }) });
+  assert.equal(mismatchedOpenId.response.status, 403);
+  assert.equal((mismatchedOpenId.payload.error as Record<string, unknown>).code, "INVITATION_INVALID");
+
+  const mismatchedClient = await bindingCall("/api/wx/auth/login", { method: "POST", body: JSON.stringify({ devOpenid: `openid-local-sandbox:other-client`, devClientId: "client_other", invitationToken: rawToken }) });
+  assert.equal(mismatchedClient.response.status, 403);
+  assert.equal((mismatchedClient.payload.error as Record<string, unknown>).code, "INVITATION_INVALID");
+
+  const valid = await bindingCall("/api/wx/auth/login", { method: "POST", body: JSON.stringify({ devOpenid: `openid-local-sandbox:${clientId}`, devClientId: clientId, invitationToken: rawToken }) });
+  assert.equal(valid.response.status, 200);
 });
 
 test("coach summary uses a continuous calendar window instead of active-date count", async () => {

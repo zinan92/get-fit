@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import "./preview.css";
 
 export const metadata: Metadata = {
@@ -54,7 +53,9 @@ export default function ExercisePreview() {
             <h1>这几个动作，动起来好看吗？</h1>
             <p className="preview-lede">先看清楚动作，再决定要不要放进教练审核的动作库。</p>
           </div>
-          <Link className="preview-back" href="/">返回今日计划 ↗</Link>
+          {/* Native anchors keep navigation working in the Sites/vinext runtime. */}
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+          <a className="preview-back" href="/">返回今日计划 ↗</a>
         </header>
 
         <div className="preview-note">

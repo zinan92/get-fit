@@ -96,7 +96,8 @@ actions tied to the current ChatGPT user. Leave public content anonymous.
 
 ## Fit plan V1 loop
 
-- `npm run dev` starts the coach web preview at `/coach` and the Worker API under `/api/*`.
+- `npm run dev` starts the coach web preview at `/coach`, the local customer sandbox at `/sandbox`, and the Worker API under `/api/*`.
+- When a WeChat AppID is unavailable, use `/sandbox` on localhost to exercise the real customer API with the explicitly scoped development identity; it is local-only and does not represent WeChat or production readiness.
 - Local `.dev.vars` may contain only throwaway values such as `DEV_MODE=true` and a local `DATA_ENCRYPTION_KEY`; it is ignored and must not contain a real provider key.
 - The native WeChat client is under `apps/miniprogram/`. Set its `apiBaseUrl` to the deployed Worker/Sites URL before importing it into the WeChat developer tool.
 - Production requires Worker secrets from [ENVIRONMENT-fit-plan.md](./ENVIRONMENT-fit-plan.md), applies the generated `drizzle/` migrations, and must keep the WeChat review, D1 recovery, and local Codex execution boundary open until verified.
