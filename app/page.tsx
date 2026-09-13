@@ -15,6 +15,7 @@ type Meal = {
   id: string;
   label: string;
   time: string;
+  totalKcal: number;
   foods: Food[];
 };
 
@@ -23,16 +24,18 @@ const meals: Meal[] = [
     id: "breakfast",
     label: "早餐",
     time: "07:30",
+    totalKcal: 418,
     foods: [
-      { name: "水煮蛋", portion: "2 个", kcal: 144, illustration: 0 },
-      { name: "原味酸奶", portion: "200g", kcal: 126, illustration: 1 },
-      { name: "全麦吐司", portion: "60g", kcal: 148, illustration: 2 },
+      { name: "水煮蛋", portion: "100g", kcal: 140, illustration: 0 },
+      { name: "无糖酸奶", portion: "150g", kcal: 95, illustration: 1 },
+      { name: "全麦吐司", portion: "73g", kcal: 180, illustration: 2 },
     ],
   },
   {
     id: "lunch",
     label: "午餐",
     time: "12:00",
+    totalKcal: 455,
     foods: [
       { name: "香煎鸡胸", portion: "150g", kcal: 248, illustration: 3 },
       { name: "糙米饭", portion: "120g", kcal: 139, illustration: 4 },
@@ -43,6 +46,7 @@ const meals: Meal[] = [
     id: "snack",
     label: "下午加餐",
     time: "15:30",
+    totalKcal: 297,
     foods: [
       { name: "香蕉", portion: "120g", kcal: 107, illustration: 6 },
       { name: "低脂牛奶", portion: "250ml", kcal: 103, illustration: 7 },
@@ -53,10 +57,11 @@ const meals: Meal[] = [
     id: "dinner",
     label: "晚餐",
     time: "18:30",
+    totalKcal: 471,
     foods: [
-      { name: "香烤三文鱼", portion: "150g", kcal: 312, illustration: 9 },
-      { name: "烤红薯", portion: "200g", kcal: 172, illustration: 10 },
-      { name: "清炒菠菜", portion: "200g", kcal: 46, illustration: 11 },
+      { name: "三文鱼", portion: "160g", kcal: 288, illustration: 9 },
+      { name: "蒸红薯", portion: "180g", kcal: 155, illustration: 10 },
+      { name: "菠菜", portion: "120g", kcal: 28, illustration: 11 },
     ],
   },
 ];
@@ -163,7 +168,7 @@ export default function Home() {
   const [cheerMeal, setCheerMeal] = useState<string | null>(null);
 
   const totalKcal = useMemo(
-    () => meals.flatMap((meal) => meal.foods).reduce((sum, food) => sum + food.kcal, 0),
+    () => 1700,
     [],
   );
   const completed = doneExercises.length + doneMeals.length;
@@ -321,7 +326,7 @@ export default function Home() {
           <div className="sec-head"><span className="eyebrow">Meals</span><h3>今天吃什么</h3><span className="count num">约 {totalKcal} kcal</span></div>
 
           {meals.map((meal) => {
-            const mealKcal = meal.foods.reduce((sum, food) => sum + food.kcal, 0);
+            const mealKcal = meal.totalKcal;
             const isDone = doneMeals.includes(meal.id);
             return (
               <article className="meal" data-meal={meal.id} key={meal.id}>

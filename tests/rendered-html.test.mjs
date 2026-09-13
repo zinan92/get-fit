@@ -44,7 +44,10 @@ test("renders the complete approved daily plan mockup", async () => {
   assert.match(html, /aria-expanded="true"/);
   assert.match(html, /今天吃什么/);
   assert.match(html, /水煮蛋/);
-  assert.match(html, /144<!-- --> kcal/);
+  assert.match(html, /140<!-- --> kcal/);
+  assert.match(html, /无糖酸奶/);
+  assert.match(html, /100g/);
+  assert.match(html, /蒸红薯/);
   assert.match(html, /food-illustration/);
   assert.match(html, /check-mark/);
   assert.match(html, /class="safetybar"/);
