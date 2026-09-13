@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { CheckMark, HandIcon } from "../components/illustrations";
 import { MiniNav } from "../components/mini-nav";
 import "./me.css";
 
@@ -32,7 +33,7 @@ export default function MePage() {
           <section className="profile-hero">
             <div className="profile-avatar">M</div>
             <div><p className="eyebrow">MY RHYTHM</p><h1>小满</h1><p className="welcome-copy">和身体好好相处的第 8 天</p></div>
-            <span className="profile-sparkle" aria-hidden="true">✦</span>
+            <span className="profile-sparkle" aria-hidden="true"><HandIcon name="sun" /></span>
           </section>
 
           <section className="profile-status-card">
@@ -56,7 +57,7 @@ export default function MePage() {
           <section className="me-section">
             <div className="section-heading"><div><p className="section-kicker">CONSENTS</p><h2>我的同意</h2></div></div>
             <div className="consent-list">
-              {consentItems.map(([label, status]) => <div className="consent-row" key={label}><span className="consent-icon">{status === "已同意" ? "✓" : "·"}</span><strong>{label}</strong><small className={status === "已同意" ? "consent-on" : "consent-off"}>{status}</small></div>)}
+              {consentItems.map(([label, status]) => <div className="consent-row" key={label}><span className="consent-icon">{status === "已同意" ? <CheckMark /> : <span className="consent-dot" />}</span><strong>{label}</strong><small className={status === "已同意" ? "consent-on" : "consent-off"}>{status}</small></div>)}
             </div>
             <p className="me-note">自动化工具只辅助生成草案，客户始终只会看到教练确认后的内容。</p>
           </section>

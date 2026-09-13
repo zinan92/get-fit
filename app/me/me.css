@@ -1,7 +1,8 @@
 .profile-hero { display:flex; align-items:center; gap:13px; padding:20px 2px 22px; position:relative; }
 .profile-avatar { width:62px; height:62px; border-radius:23px 23px 23px 8px; display:grid; place-items:center; background:#dce8d9; color:#4c7054; font-family:Georgia,serif; font-weight:800; font-size:24px; box-shadow:0 8px 17px rgba(76,112,84,.13); }
 .profile-hero h1 { margin:2px 0 0; font-size:28px; letter-spacing:-1px; }
-.profile-sparkle { margin-left:auto; align-self:flex-start; color:#e9a238; font-size:23px; transform:rotate(12deg); }
+.profile-sparkle { margin-left:auto; align-self:flex-start; color:#e9a238; transform:rotate(12deg); }
+.profile-sparkle .hand-icon { width:23px; height:23px; }
 .profile-status-card { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:18px; border-radius:26px; background:linear-gradient(145deg,#f47b42,#e86533); color:#fff; box-shadow:0 15px 25px rgba(226,102,46,.2); }
 .profile-status-card .approved { background:rgba(255,255,255,.17); border-color:rgba(255,255,255,.24); }
 .profile-status-card h2 { margin:16px 0 3px; font-size:20px; }
@@ -19,6 +20,9 @@
 .consent-list { display:grid; gap:7px; }
 .consent-row { display:flex; align-items:center; gap:9px; padding:11px 12px; border-radius:14px; background:#fff; border:1px solid var(--line); }
 .consent-icon { width:20px; height:20px; display:grid; place-items:center; border-radius:50%; background:#e4f0e1; color:#4f8e70; font-size:11px; font-weight:800; }
+.consent-icon .check-mark { width:13px; height:13px; display:block; }
+.consent-icon .check-mark svg { width:100%; height:100%; stroke:currentColor; stroke-width:3; fill:none; stroke-linecap:round; stroke-linejoin:round; }
+.consent-dot { width:5px; height:5px; border-radius:50%; background:#aaa49a; }
 .consent-row strong { flex:1; font-size:11px; }
 .consent-row small { font-size:9px; font-weight:800; }
 .consent-on { color:#4f8e70; }

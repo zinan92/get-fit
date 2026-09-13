@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
+import { ExerciseIllustration, HandIcon } from "../components/illustrations";
 import "./preview.css";
 
 export const metadata: Metadata = {
-  title: "轻练 · 动作 GIF 预览",
-  description: "代表性动作素材的私有观感预览，不代表商业复用权已清除。",
+  title: "轻练 · 动作角色预览",
+  description: "轻练原创动作角色的循环演示。",
 };
-
-const sourceCommit = "7455efae41b330c265e7cd4b78dfa848e7ce5ebd";
 
 const samples = [
   {
@@ -16,7 +15,7 @@ const samples = [
     equipment: "哑铃",
     bodyPart: "大腿",
     target: "股四头肌",
-    file: "dumbbell-goblet-squat.gif",
+    kind: "squat" as const,
     cue: "膝盖跟着脚尖方向，站起时收紧臀部。",
   },
   {
@@ -26,7 +25,7 @@ const samples = [
     equipment: "哑铃",
     bodyPart: "背部",
     target: "背阔肌",
-    file: "single-arm-dumbbell-row.gif",
+    kind: "row" as const,
     cue: "支撑住身体，肘部向后拉，不要耸肩。",
   },
   {
@@ -36,7 +35,7 @@ const samples = [
     equipment: "自重",
     bodyPart: "大腿",
     target: "臀大肌",
-    file: "low-glute-bridge.gif",
+    kind: "bridge" as const,
     cue: "顶端停留两秒，不要过度挺腰。",
   },
 ];
@@ -55,27 +54,25 @@ export default function ExercisePreview() {
           </div>
           {/* Native anchors keep navigation working in the Sites/vinext runtime. */}
           {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
-          <a className="preview-back" href="/">返回今日计划 ↗</a>
+          <a className="preview-back" href="/">返回今日计划 <HandIcon name="arrow" /></a>
         </header>
 
         <div className="preview-note">
-          <span className="note-icon">◎</span>
-          <p><strong>这是私有素材评估预览</strong> · GIF 为 180×180，来自固定 commit；页面不代表商业复用权已经清除。</p>
+          <span className="note-icon"><HandIcon name="warning" /></span>
+          <p><strong>这是动作角色预览</strong> · 三个原创角色会循环演示动作节奏，供教练检查动作表达。</p>
         </div>
 
-        <section className="sample-grid" aria-label="代表性动作 GIF">
+        <section className="sample-grid" aria-label="代表性动作演示">
           {samples.map((sample) => (
             <article className="sample-card" key={sample.id}>
               <div className="sample-media">
-                {/* GIFs must remain native <img> elements so the animation plays. */}
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={`/exercise-preview/${sample.file}`} alt={`${sample.name} 动作演示`} width={180} height={180} />
+                <ExerciseIllustration kind={sample.kind} />
                 <span className="sample-id">#{sample.id}</span>
               </div>
               <div className="sample-copy">
                 <div className="sample-title-row">
                   <div><h2>{sample.name}</h2><p>{sample.english}</p></div>
-                  <span className="motion-pill">GIF 动画</span>
+                  <span className="motion-pill">循环演示</span>
                 </div>
                 <div className="sample-tags"><span>{sample.equipment}</span><span>{sample.bodyPart}</span><span>目标 · {sample.target}</span></div>
                 <p className="sample-cue">教练提示：{sample.cue}</p>
@@ -85,9 +82,9 @@ export default function ExercisePreview() {
         </section>
 
         <footer className="preview-footer">
-          <span>© Gym visual — https://gymvisual.com/</span>
-          <span>source commit · {sourceCommit.slice(0, 7)}</span>
-          <span>仅供动作素材评估</span>
+          <span>动作演示 · 轻练原创角色</span>
+          <span>训练动作会随打卡状态变化</span>
+          <span>仅供动作角色预览</span>
         </footer>
       </section>
     </main>

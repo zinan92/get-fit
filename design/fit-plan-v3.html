@@ -1,0 +1,715 @@
+<title>轻练视觉重构</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap">
+<style>
+  :root{
+    --paper:#F3EEE3; --surface:#FFFFFF; --surface-2:#FBF6EA;
+    --ink:#2E2A24; --ink-2:#6B6255; --ink-3:#A79C8B;
+    --line:#E6DDC9; --line-2:#D8CBAE;
+    --train:#D85C28; --train-soft:#FBE4D3;
+    --diet:#4F9D6E; --diet-soft:#E4F1E6;
+    --warn:#A9720A; --warn-soft:#F7ECD3;
+    --clay:#E9A97F; --clay-line:#C9814F; --iron:#4A3F38;
+    --shadow:rgba(46,42,36,.14);
+    --cjk:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
+    --display:"Fredoka",system-ui,sans-serif;
+    --ease:cubic-bezier(.4,0,.2,1);
+    --spring:cubic-bezier(.34,1.56,.64,1);
+  }
+  *{box-sizing:border-box}
+  body{margin:0; background:var(--paper); color:var(--ink); font-family:var(--cjk)}
+  .num{font-family:var(--display); font-variant-numeric:tabular-nums}
+  :focus-visible{outline:2.5px solid var(--train); outline-offset:2px}
+
+  .stage{
+    position:relative; min-height:100vh; padding:40px 20px 80px;
+    display:flex; flex-direction:column; align-items:center; gap:28px; overflow:hidden;
+  }
+  .blob{position:absolute; border-radius:50%; filter:blur(60px); opacity:.5; pointer-events:none}
+  .blob.a{width:340px;height:340px;background:#F6C9A4; top:-90px; left:-80px}
+  .blob.b{width:380px;height:380px;background:#BFDCC4; bottom:-120px; right:-90px}
+
+  .brief{position:relative; max-width:720px; text-align:center; display:flex; flex-direction:column; gap:6px}
+  .brief .kicker{font-size:11.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--train); font-weight:600}
+  .brief h1{margin:0; font-size:22px; letter-spacing:-.01em}
+  .brief p{margin:0; font-size:13.5px; color:var(--ink-2); line-height:1.65}
+
+  .frames{position:relative; display:flex; flex-wrap:wrap; gap:30px; justify-content:center; align-items:flex-start}
+  .frame-col{display:flex; flex-direction:column; align-items:center; gap:12px}
+  .frame-label{font-size:11.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-3); font-weight:600}
+
+  .phone{
+    position:relative; width:376px; border-radius:42px; padding:9px;
+    background:linear-gradient(160deg,#EFE6D2,#D6C5A5);
+    box-shadow:0 26px 54px -16px var(--shadow), 0 1px 0 rgba(255,255,255,.6) inset;
+  }
+  .screen{
+    border-radius:34px; overflow:hidden; background:var(--paper);
+    height:788px; overflow-y:auto; scrollbar-width:none; position:relative;
+  }
+  .screen::-webkit-scrollbar{display:none}
+
+  /* entrance */
+  .rise{animation:rise .5s var(--ease) both}
+  @keyframes rise{from{opacity:0; transform:translateY(10px)} to{opacity:1; transform:none}}
+
+  .topbar{position:sticky; top:0; z-index:9; display:flex; align-items:center; gap:9px; padding:14px 16px 10px;
+    background:color-mix(in srgb, var(--paper) 90%, transparent); backdrop-filter:blur(10px)}
+  .mark{width:26px;height:26px;border-radius:9px;background:var(--train);color:#fff;display:grid;place-items:center;font-size:13px;font-weight:700}
+  .wordmark{font-size:15.5px; font-weight:700}
+  .topbtn{margin-left:auto; display:flex; align-items:center; gap:6px; border:1.5px solid var(--line-2); background:var(--surface);
+    color:var(--ink); padding:6px 12px; border-radius:999px; font-size:12px; font-weight:600; cursor:pointer;
+    transition:transform .3s var(--spring)}
+  .topbtn:active{transform:scale(.94)}
+  .topbtn svg{width:13px;height:13px}
+
+  .greet{padding:2px 16px 12px; display:flex; align-items:flex-start; gap:12px}
+  .greet .eyebrow{font-size:11.5px; color:var(--train); font-weight:600}
+  .greet h1{margin:5px 0 4px; font-size:21px; letter-spacing:-.01em}
+  .greet p{margin:0; font-size:12.5px; color:var(--ink-2)}
+  .avatar{margin-left:auto; flex:0 0 34px; width:34px; height:34px; border-radius:50%; background:var(--diet-soft);
+    color:var(--diet); display:grid; place-items:center; font-weight:700; font-size:14px; font-family:var(--display)}
+
+  .datestrip{display:flex; gap:7px; padding:0 16px 16px}
+  .dcell{flex:1; text-align:center; border-radius:14px; padding:8px 0 7px; background:var(--surface);
+    border:1.5px solid var(--line); cursor:pointer; transition:background .3s var(--ease), border-color .3s var(--ease), transform .35s var(--spring)}
+  .dcell:active{transform:scale(.95)}
+  .dcell .wd{font-size:10.5px; color:var(--ink-3); transition:color .3s}
+  .dcell .dn{font-family:var(--display); font-size:15px; font-weight:600; margin-top:2px; transition:color .3s}
+  .dcell.sel{background:var(--ink); border-color:var(--ink)}
+  .dcell.sel .wd{color:#D8CBAE} .dcell.sel .dn{color:#fff}
+  .dcell .dot{width:4px;height:4px;border-radius:50%;background:var(--train);margin:4px auto 0}
+  .dcell.sel .dot{background:var(--train-soft)}
+
+  .card{margin:0 16px 16px; background:var(--surface); border-radius:22px; padding:16px; border:1px solid var(--line)}
+
+  .hero{display:flex; flex-direction:column; gap:12px}
+  .hero-top{display:flex; align-items:center; gap:8px}
+  .chip{font-size:11px; font-weight:600; padding:4px 9px; border-radius:999px}
+  .chip.confirmed{background:var(--diet-soft); color:var(--diet); display:inline-flex; align-items:center; gap:5px}
+  .chip.confirmed::before{content:"";width:5px;height:5px;border-radius:50%;background:var(--diet)}
+  .hero-top .dayof{margin-left:auto; font-size:12px; color:var(--ink-3)}
+  .hero-top .dayof b{font-family:var(--display); color:var(--ink); font-weight:600}
+  .hero-mid{display:flex; align-items:center; gap:14px}
+  .hero-mid .eyebrow{font-size:11px; color:var(--ink-3); letter-spacing:.06em; text-transform:uppercase}
+  .hero-mid h2{margin:4px 0 9px; font-size:22px; letter-spacing:-.01em}
+  .metachips{display:flex; gap:7px}
+  .metachips span{font-size:11.5px; font-weight:600; color:var(--ink-2); background:var(--surface-2); border:1px solid var(--line); padding:4px 9px; border-radius:999px}
+  .ring{position:relative; flex:0 0 74px; width:74px; height:74px; margin-left:auto}
+  .ring svg{transform:rotate(-90deg)}
+  .ring .arc{transition:stroke-dashoffset .75s var(--ease)}
+  .ring-txt{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center}
+  .ring-txt b{font-family:var(--display); font-size:17px}
+  .ring-txt span{font-size:8.5px; color:var(--ink-3); margin-top:1px; transition:color .3s}
+  .ring.full .ring-txt span{color:var(--diet); font-weight:700}
+  .quote{font-size:12.5px; color:var(--ink-2); line-height:1.6; padding-top:10px; border-top:1px dashed var(--line); font-style:italic}
+  .quote::before{content:"“"; font-style:normal; color:var(--train); font-weight:700}
+  .quote::after{content:"”"; font-style:normal; color:var(--train); font-weight:700}
+
+  .warmup{margin:0 16px 16px; display:flex; align-items:center; gap:11px; background:var(--diet-soft); border-radius:18px; padding:11px 14px}
+  .warmup .ic{flex:0 0 36px; height:36px; border-radius:50%; background:var(--surface); display:grid; place-items:center}
+  .warmup .ic svg{width:24px;height:24px}
+  .warmup .t{font-size:13px; font-weight:700}
+  .warmup .s{font-size:11.5px; color:var(--ink-2); margin-top:1px}
+
+  .sec-head{padding:0 16px; display:flex; align-items:baseline; gap:8px; margin-bottom:10px}
+  .sec-head .eyebrow{font-size:10.5px; letter-spacing:.14em; color:var(--ink-3); text-transform:uppercase}
+  .sec-head h3{margin:0; font-size:17px; flex:1}
+  .sec-head .count{font-size:11px; color:var(--ink-3); background:var(--surface-2); border:1px solid var(--line); padding:3px 8px; border-radius:999px}
+
+  .exlist{margin:0 16px 14px; background:var(--surface); border-radius:22px; border:1px solid var(--line); overflow:hidden}
+  .exrow{display:flex; align-items:center; gap:11px; padding:12px 14px; cursor:pointer}
+  .exrow + .exrow{border-top:1px solid var(--line)}
+  .exidx{font-family:var(--display); font-size:11px; color:var(--ink-3); width:16px}
+  .exdemo-tile{flex:0 0 62px; height:62px; border-radius:16px; background:var(--surface-2); border:1px solid var(--line); overflow:hidden}
+  .exdemo-tile svg{width:100%; height:100%; display:block}
+  .exb{flex:1; min-width:0}
+  .exb .n{font-size:14px; font-weight:700}
+  .exb .s{font-size:12px; margin-top:3px; color:var(--ink-2)}
+  .exb .s .num{color:var(--train); font-weight:600}
+  .exb .cue{font-size:11px; color:var(--ink-3); margin-top:2px}
+
+  .exdetail{display:grid; grid-template-rows:0fr; transition:grid-template-rows .4s var(--ease); background:var(--surface-2)}
+  .exrow.open + .exdetail{grid-template-rows:1fr}
+  .exdetail-clip{overflow:hidden}
+  .exdetail-in{padding:6px 16px 16px}
+  .exdetail-head{display:flex; align-items:baseline; gap:8px; margin-bottom:8px}
+  .exdetail-head .lb{font-size:11.5px; font-weight:700; color:var(--train)}
+  .exdetail-head .steps-n{margin-left:auto; font-size:11px; color:var(--ink-3)}
+  .tagrow{display:flex; gap:6px; margin-bottom:9px}
+  .tagrow span{font-size:10.5px; color:var(--ink-2); background:var(--surface); border:1px solid var(--line); padding:3px 8px; border-radius:999px}
+  .steplist{display:flex; flex-direction:column; gap:7px; margin-bottom:10px}
+  .step{display:flex; gap:9px; font-size:12.5px; color:var(--ink-2); line-height:1.55}
+  .step b{flex:0 0 17px; height:17px; border-radius:50%; background:var(--train); color:#fff; font-size:9.5px; font-family:var(--display);
+    display:grid; place-items:center; margin-top:2px}
+  .safenote{font-size:11.5px; color:var(--ink-2); border-top:1px dashed var(--line-2); padding-top:9px}
+
+  /* the check: tilted at rest, snaps upright */
+  .chk{flex:0 0 42px; width:42px; height:42px; border-radius:14px; border:2px solid var(--line-2); background:var(--surface);
+    display:grid; place-items:center; transform:rotate(-9deg); position:relative;
+    box-shadow:2px 3px 0 rgba(46,42,36,.08); cursor:pointer;
+    transition:transform .5s var(--spring), background-color .25s, border-color .25s, box-shadow .35s;
+  }
+  .chk svg{width:21px; height:21px; stroke:#fff; stroke-width:3; fill:none; stroke-linecap:round; stroke-linejoin:round;
+    stroke-dasharray:26; stroke-dashoffset:26; transition:stroke-dashoffset .32s .14s}
+  .chk.on{transform:rotate(0deg) scale(1.08); box-shadow:0 1px 0 rgba(46,42,36,.05)}
+  .chk.on svg{stroke-dashoffset:0}
+  .chk.on.cat-train{background:var(--train); border-color:var(--train)}
+  .chk.on::after{content:""; position:absolute; inset:-3px; border-radius:17px; border:2px solid var(--train); opacity:0}
+  .chk.on.pulse::after{animation:pulse .55s var(--ease)}
+  @keyframes pulse{from{opacity:.55; transform:scale(1)} to{opacity:0; transform:scale(1.35)}}
+
+  .safetybar{margin:0 16px 4px; display:flex; align-items:flex-start; gap:9px; background:var(--warn-soft); color:#7A5205;
+    border-radius:14px; padding:10px 12px; font-size:12px; line-height:1.5}
+  .safetybar svg{flex:0 0 16px; width:16px; height:16px; margin-top:1px}
+  .credit{margin:8px 16px 18px; font-size:10.5px; color:var(--ink-3); text-align:center}
+
+  .meal{margin:0 16px 14px; background:var(--surface); border-radius:22px; border:1px solid var(--line); padding:15px}
+  .meal-head{display:flex; align-items:center; gap:9px; margin-bottom:12px}
+  .meal-time{font-family:var(--display); font-size:12px; color:var(--ink-3)}
+  .meal-name{font-size:14.5px; font-weight:700}
+  .pill{margin-left:auto; display:flex; align-items:center; gap:7px; border-radius:999px; padding:4px 12px 4px 4px;
+    background:var(--surface-2); border:1.5px solid var(--line); cursor:pointer;
+    transition:background-color .3s var(--ease), border-color .3s var(--ease)}
+  .pill-badge{width:26px; height:26px; border-radius:9px; background:var(--surface); border:2px solid var(--line-2);
+    display:grid; place-items:center; transform:rotate(-9deg);
+    transition:transform .5s var(--spring), background-color .25s, border-color .25s}
+  .pill-badge svg{width:14px;height:14px; stroke:#fff; stroke-width:3.4; fill:none; stroke-linecap:round; stroke-linejoin:round;
+    stroke-dasharray:18; stroke-dashoffset:18; transition:stroke-dashoffset .28s .12s}
+  .pill .lb{font-size:11.5px; font-weight:700; color:var(--ink-2); transition:color .3s}
+  .pill.on{background:var(--diet-soft); border-color:var(--diet)}
+  .pill.on .pill-badge{transform:rotate(0) scale(1.1); background:var(--diet); border-color:var(--diet)}
+  .pill.on .pill-badge svg{stroke-dashoffset:0}
+  .pill.on .lb{color:var(--diet)}
+
+  .foods{display:grid; grid-template-columns:repeat(3,1fr); gap:9px; margin-bottom:11px}
+  .food{text-align:center}
+  .food svg{width:100%; height:auto; aspect-ratio:1; display:block; margin-bottom:4px}
+  .food.cheer svg{animation:cheer .6s var(--spring)}
+  @keyframes cheer{0%{transform:none}35%{transform:translateY(-5px) scale(1.1) rotate(-4deg)}100%{transform:none}}
+  .food .fn{font-size:11.5px; font-weight:700; line-height:1.3}
+  .food .fg{font-size:10px; color:var(--ink-3); font-family:var(--display); margin-top:1px}
+  .food .fk{display:inline-block; margin-top:4px; font-family:var(--display); font-size:10.5px; font-weight:600;
+    color:var(--diet); background:var(--diet-soft); border-radius:7px; padding:1px 6px}
+  .mealsum{display:flex; justify-content:space-between; align-items:baseline; padding-top:10px; border-top:1px dashed var(--line-2)}
+  .mealsum .lb{font-size:12px; color:var(--ink-2)}
+  .mealsum .vv{font-family:var(--display); font-size:15px; font-weight:600; color:var(--diet)}
+
+  .tabbar{position:sticky; bottom:0; display:flex; border-top:1px solid var(--line);
+    background:color-mix(in srgb, var(--paper) 92%, transparent); backdrop-filter:blur(10px); padding:8px 0 16px; margin-top:6px}
+  .tab{flex:1; text-align:center; font-size:10.5px; color:var(--ink-3)}
+  .tab svg{width:21px;height:21px; display:block; margin:0 auto 3px}
+  .tab.on{color:var(--train); font-weight:700}
+
+  /* exercise demo loops */
+  .sq-legs{transform-box:fill-box; transform-origin:bottom center; animation:sqLegs 2.6s var(--ease) infinite}
+  .sq-upper{animation:sqUp 2.6s var(--ease) infinite}
+  @keyframes sqLegs{0%,100%{transform:scaleY(1)} 50%{transform:scaleY(.52)}}
+  @keyframes sqUp{0%,100%{transform:translateY(0)} 50%{transform:translateY(8px)}}
+  .row-arm{animation:rowArm 2.2s var(--ease) infinite}
+  @keyframes rowArm{0%,100%{transform:translateY(0)} 50%{transform:translateY(-9px)}}
+  .br-hip{transform-box:fill-box; transform-origin:bottom center; animation:brHip 2.6s var(--ease) infinite}
+  @keyframes brHip{0%,100%{transform:translateY(0) scaleY(1)} 50%{transform:translateY(5px) scaleY(.72)}}
+  .walk-bean{animation:walkBob 1.5s var(--ease) infinite}
+  @keyframes walkBob{0%,100%{transform:translateY(0) rotate(-4deg)} 50%{transform:translateY(-2px) rotate(4deg)}}
+
+  @media (prefers-reduced-motion: reduce){
+    *{transition-duration:.01ms !important}
+    .sq-legs,.sq-upper,.row-arm,.br-hip,.walk-bean,.rise{animation:none !important}
+  }
+
+  /* calendar frame */
+  .calgrid{display:grid; grid-template-columns:repeat(7,1fr); gap:6px; padding:0 16px 16px}
+  .calgrid .wd{text-align:center; font-size:10.5px; color:var(--ink-3); padding-bottom:4px}
+  .calcell{aspect-ratio:1; border-radius:12px; background:var(--surface); border:1.5px solid var(--line);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; cursor:pointer;
+    transition:background .3s var(--ease), border-color .3s var(--ease), transform .35s var(--spring)}
+  .calcell:active{transform:scale(.93)}
+  .calcell .dn{font-family:var(--display); font-size:13px; font-weight:600; transition:color .3s}
+  .calcell .dot{width:4px;height:4px;border-radius:50%;background:var(--train)}
+  .calcell.rest .dot{background:var(--line-2)}
+  .calcell.sel{background:var(--ink); border-color:var(--ink)}
+  .calcell.sel .dn{color:#fff} .calcell.sel .dot{background:var(--train-soft)}
+  .statrow{margin:0 16px 16px; display:flex; align-items:center; gap:24px; background:var(--surface);
+    border:1px solid var(--line); border-radius:20px; padding:13px 16px}
+  .statrow .lb{font-size:10.5px; color:var(--ink-3)}
+  .statrow .vv{font-family:var(--display); font-size:19px; font-weight:600; margin-top:1px}
+  .daypreview{margin:2px 16px 20px; background:var(--surface); border:1px solid var(--line); border-radius:20px; padding:15px}
+  .dp-head{display:flex; align-items:center; gap:8px; margin-bottom:6px}
+  .dp-head .tag{font-family:var(--display); font-size:10.5px; color:var(--train); font-weight:600}
+  .dp-head .chip{margin-left:auto}
+  .miniex{display:flex; align-items:center; gap:9px; padding:7px 0; font-size:12.5px; color:var(--ink-2)}
+  .miniex + .miniex{border-top:1px dashed var(--line)}
+  .miniex .num{margin-left:auto; color:var(--train); font-weight:600}
+  .cta{display:flex; align-items:center; gap:6px; margin-top:8px; padding-top:11px; border-top:1px dashed var(--line-2);
+    font-size:12.5px; font-weight:700; color:var(--train); cursor:pointer}
+  .cta svg{width:15px;height:15px}
+</style>
+
+<div class="stage">
+  <div class="blob a"></div><div class="blob b"></div>
+
+  <div class="brief">
+    <div class="kicker">v3 · 一套语言，从头到尾</div>
+    <h1>让它一直可爱下去</h1>
+    <p>动作演示也画成了同一套角色，会真的动起来；页面上原来所有借来的符号（emoji、方块字符、箭头）全部换成手绘图标；打卡会让进度环实时走动、让那一餐的食物跳一下。<b>点点看方块和"完成打卡"。</b></p>
+  </div>
+
+  <div class="frames">
+    <div class="frame-col">
+      <div class="frame-label">今天</div>
+      <div class="phone"><div class="screen" id="screen1">
+
+        <div class="topbar">
+          <div class="mark">轻</div>
+          <div class="wordmark">轻练</div>
+          <button class="topbtn">
+            <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="4" fill="#D85C28" opacity=".18"/><rect x="3" y="5" width="18" height="16" rx="4" stroke="#D85C28" stroke-width="2"/><path d="M3 10h18" stroke="#D85C28" stroke-width="2"/><circle cx="8.5" cy="14.5" r="1.4" fill="#D85C28"/><circle cx="13" cy="14.5" r="1.4" fill="#D85C28"/></svg>
+            月计划
+          </button>
+        </div>
+
+        <div class="greet rise">
+          <div>
+            <div class="eyebrow">8月11日 · 星期二</div>
+            <h1>早上好，小满</h1>
+            <p>今天也照顾好自己的身体。</p>
+          </div>
+          <div class="avatar">M</div>
+        </div>
+
+        <div class="datestrip rise" style="animation-delay:.05s">
+          <div class="dcell"><div class="wd">一</div><div class="dn num">10</div><div class="dot"></div></div>
+          <div class="dcell sel"><div class="wd">二</div><div class="dn num">11</div><div class="dot"></div></div>
+          <div class="dcell"><div class="wd">三</div><div class="dn num">12</div><div class="dot"></div></div>
+          <div class="dcell"><div class="wd">四</div><div class="dn num">13</div><div class="dot"></div></div>
+          <div class="dcell"><div class="wd">五</div><div class="dn num">14</div><div class="dot"></div></div>
+        </div>
+
+        <div class="card hero rise" style="animation-delay:.1s">
+          <div class="hero-top">
+            <span class="chip confirmed">教练已确认</span>
+            <span class="dayof">第 <b class="num">8</b><span class="num">/30</span> 天</span>
+          </div>
+          <div class="hero-mid">
+            <div style="flex:1">
+              <div class="eyebrow">今日主题</div>
+              <h2>下肢力量日</h2>
+              <div class="metachips"><span class="num">45 分钟</span><span class="num">约 1700 kcal</span></div>
+            </div>
+            <div class="ring" id="ring">
+              <svg width="74" height="74" viewBox="0 0 74 74">
+                <circle cx="37" cy="37" r="32" fill="none" stroke="var(--line)" stroke-width="7"/>
+                <circle class="arc" id="arc" cx="37" cy="37" r="32" fill="none" stroke="var(--train)" stroke-width="7"
+                  stroke-linecap="round" stroke-dasharray="201" stroke-dashoffset="201"/>
+              </svg>
+              <div class="ring-txt"><b class="num" id="ringPct">0%</b><span id="ringLb">还没开始</span></div>
+            </div>
+          </div>
+          <div class="quote">动作不用赶，今天把每次下蹲都做稳。</div>
+        </div>
+
+        <div class="warmup rise" style="animation-delay:.15s">
+          <div class="ic">
+            <svg viewBox="0 0 32 32">
+              <g class="walk-bean" style="transform-box:fill-box; transform-origin:center bottom">
+                <rect x="11" y="12" width="10" height="13" rx="5" fill="#4F9D6E"/>
+                <circle cx="16" cy="8" r="5" fill="#E9A97F" stroke="#C9814F" stroke-width="1.1"/>
+                <circle cx="14.3" cy="8" r="1" fill="#3B2E28"/><circle cx="17.9" cy="8" r="1" fill="#3B2E28"/>
+                <path d="M15 10.4q1.2 1 2.4 0" stroke="#3B2E28" stroke-width="1" fill="none" stroke-linecap="round"/>
+                <ellipse cx="11.8" cy="9.6" rx="1.5" ry="1" fill="#FF9E8A" opacity=".5"/>
+                <ellipse cx="20.3" cy="9.6" rx="1.5" ry="1" fill="#FF9E8A" opacity=".5"/>
+              </g>
+              <ellipse cx="13" cy="26" rx="3" ry="1.7" fill="#C9814F"/>
+              <ellipse cx="19.5" cy="26" rx="3" ry="1.7" fill="#C9814F"/>
+            </svg>
+          </div>
+          <div><div class="t">先热身 8 分钟</div><div class="s">快走 5 分钟 + 动态髋部活动</div></div>
+        </div>
+
+        <div class="sec-head rise" style="animation-delay:.2s"><span class="eyebrow">Training</span><h3>今天练什么</h3><span class="count">3 个动作</span></div>
+        <div class="exlist rise" style="animation-delay:.22s">
+
+          <div class="exrow open" data-ex>
+            <span class="exidx num">01</span>
+            <div class="exdemo-tile">
+              <svg viewBox="0 0 64 64">
+                <ellipse cx="32" cy="57" rx="15" ry="2.6" fill="#E0D3BC"/>
+                <ellipse cx="24" cy="54" rx="5.5" ry="2.8" fill="#C9814F"/>
+                <ellipse cx="40" cy="54" rx="5.5" ry="2.8" fill="#C9814F"/>
+                <g class="sq-legs">
+                  <rect x="21" y="38" width="6.5" height="16" rx="3.2" fill="#E9A97F"/>
+                  <rect x="36.5" y="38" width="6.5" height="16" rx="3.2" fill="#E9A97F"/>
+                </g>
+                <g class="sq-upper">
+                  <rect x="19" y="23" width="26" height="19" rx="9.5" fill="#D85C28"/>
+                  <circle cx="32" cy="15" r="8.4" fill="#E9A97F" stroke="#C9814F" stroke-width="1.4"/>
+                  <circle cx="28.6" cy="15" r="1.3" fill="#3B2E28"/><circle cx="35.4" cy="15" r="1.3" fill="#3B2E28"/>
+                  <path d="M30.3 18.2q1.7 1.5 3.4 0" stroke="#3B2E28" stroke-width="1.3" fill="none" stroke-linecap="round"/>
+                  <ellipse cx="25.2" cy="17" rx="2.2" ry="1.5" fill="#FF9E8A" opacity=".5"/>
+                  <ellipse cx="38.8" cy="17" rx="2.2" ry="1.5" fill="#FF9E8A" opacity=".5"/>
+                  <rect x="25" y="28" width="14" height="5" rx="2.5" fill="#4A3F38"/>
+                  <circle cx="24" cy="30.5" r="3.6" fill="#4A3F38"/>
+                  <circle cx="40" cy="30.5" r="3.6" fill="#4A3F38"/>
+                </g>
+              </svg>
+            </div>
+            <div class="exb">
+              <div class="n">高脚杯深蹲</div>
+              <div class="s"><span class="num">4</span> 组 × <span class="num">12</span> 次</div>
+              <div class="cue">组间休息 75 秒</div>
+            </div>
+            <div class="chk cat-train" data-chk></div>
+          </div>
+          <div class="exdetail"><div class="exdetail-clip"><div class="exdetail-in">
+            <div class="exdetail-head"><span class="lb">动作要领</span><span class="steps-n">5 步</span></div>
+            <div class="tagrow"><span>目标：股四头肌</span><span>器械：哑铃</span></div>
+            <div class="steplist">
+              <div class="step"><b>1</b>双脚分开与肩同宽站立，双手握住哑铃垂直放在胸前。</div>
+              <div class="step"><b>2</b>保持胸部挺直，核心收紧，向后推臀部并弯曲膝盖，把身体降低至蹲姿。</div>
+              <div class="step"><b>3</b>继续降低，直到大腿与地面平行，或者尽可能低。</div>
+              <div class="step"><b>4</b>在底部停顿片刻，然后推动脚后跟回到起始位置。</div>
+              <div class="step"><b>5</b>重复所需的次数。</div>
+            </div>
+            <div class="safenote">按自己的舒适范围完成；出现疼痛时先停下，并联系教练。</div>
+          </div></div></div>
+
+          <div class="exrow" data-ex>
+            <span class="exidx num">02</span>
+            <div class="exdemo-tile">
+              <svg viewBox="0 0 64 64">
+                <ellipse cx="32" cy="57" rx="16" ry="2.6" fill="#E0D3BC"/>
+                <rect x="38" y="36" width="6.5" height="18" rx="3.2" fill="#E9A97F"/>
+                <ellipse cx="41" cy="54" rx="5.5" ry="2.8" fill="#C9814F"/>
+                <g transform="rotate(-10 32 30)">
+                  <rect x="15" y="24" width="30" height="15" rx="7.5" fill="#D85C28"/>
+                  <circle cx="15" cy="25" r="8" fill="#E9A97F" stroke="#C9814F" stroke-width="1.4"/>
+                  <circle cx="11.8" cy="25.4" r="1.3" fill="#3B2E28"/><circle cx="18.2" cy="25.4" r="1.3" fill="#3B2E28"/>
+                  <path d="M13.5 28.5q1.7 1.5 3.4 0" stroke="#3B2E28" stroke-width="1.3" fill="none" stroke-linecap="round"/>
+                  <ellipse cx="8.6" cy="27.4" rx="2.1" ry="1.4" fill="#FF9E8A" opacity=".5"/>
+                  <ellipse cx="21.6" cy="27.4" rx="2.1" ry="1.4" fill="#FF9E8A" opacity=".5"/>
+                </g>
+                <g class="row-arm">
+                  <rect x="28" y="38" width="5" height="11" rx="2.5" fill="#E9A97F"/>
+                  <rect x="24" y="47" width="13" height="4.6" rx="2.3" fill="#4A3F38"/>
+                  <circle cx="23" cy="49.3" r="3.3" fill="#4A3F38"/>
+                  <circle cx="38" cy="49.3" r="3.3" fill="#4A3F38"/>
+                </g>
+              </svg>
+            </div>
+            <div class="exb">
+              <div class="n">单臂哑铃划船</div>
+              <div class="s"><span class="num">4</span> 组 × <span class="num">10</span> 次 / 侧</div>
+              <div class="cue">背部收紧，慢慢放下</div>
+            </div>
+            <div class="chk cat-train" data-chk></div>
+          </div>
+          <div class="exdetail"><div class="exdetail-clip"><div class="exdetail-in">
+            <div class="exdetail-head"><span class="lb">动作要领</span><span class="steps-n">3 步</span></div>
+            <div class="tagrow"><span>目标：背阔肌</span><span>器械：哑铃</span></div>
+            <div class="steplist">
+              <div class="step"><b>1</b>屈髋前倾，一手扶稳支撑，另一手持哑铃自然下垂。</div>
+              <div class="step"><b>2</b>先收紧肩胛骨，再把哑铃拉向腰侧，肘部贴近身体。</div>
+              <div class="step"><b>3</b>顶端停顿，缓慢放下，换边重复。</div>
+            </div>
+            <div class="safenote">腰部保持中立，不要靠甩动借力。</div>
+          </div></div></div>
+
+          <div class="exrow" data-ex>
+            <span class="exidx num">03</span>
+            <div class="exdemo-tile">
+              <svg viewBox="0 0 64 64">
+                <rect x="5" y="50" width="54" height="4.5" rx="2.2" fill="#E0D3BC"/>
+                <circle cx="14" cy="42" r="8" fill="#E9A97F" stroke="#C9814F" stroke-width="1.4"/>
+                <circle cx="11.6" cy="40.4" r="1.3" fill="#3B2E28"/><circle cx="18" cy="40.4" r="1.3" fill="#3B2E28"/>
+                <path d="M13.3 43.6q1.7 1.5 3.4 0" stroke="#3B2E28" stroke-width="1.3" fill="none" stroke-linecap="round"/>
+                <ellipse cx="8" cy="43" rx="2.1" ry="1.4" fill="#FF9E8A" opacity=".5"/>
+                <ellipse cx="21.4" cy="43" rx="2.1" ry="1.4" fill="#FF9E8A" opacity=".5"/>
+                <rect x="42" y="36" width="6.5" height="14" rx="3.2" fill="#E9A97F"/>
+                <ellipse cx="45" cy="50" rx="5.5" ry="2.6" fill="#C9814F"/>
+                <g class="br-hip">
+                  <path d="M20 46 Q33 32 45 40" stroke="#D85C28" stroke-width="13" fill="none" stroke-linecap="round"/>
+                </g>
+              </svg>
+            </div>
+            <div class="exb">
+              <div class="n">臀桥</div>
+              <div class="s"><span class="num">3</span> 组 × <span class="num">15</span> 次</div>
+              <div class="cue">顶端停留 2 秒</div>
+            </div>
+            <div class="chk cat-train" data-chk></div>
+          </div>
+          <div class="exdetail"><div class="exdetail-clip"><div class="exdetail-in">
+            <div class="exdetail-head"><span class="lb">动作要领</span><span class="steps-n">3 步</span></div>
+            <div class="tagrow"><span>目标：臀大肌</span><span>器械：地垫</span></div>
+            <div class="steplist">
+              <div class="step"><b>1</b>仰卧屈膝，双脚踩地与髋同宽。</div>
+              <div class="step"><b>2</b>收紧臀部把髋部推高，肩到膝呈一条直线。</div>
+              <div class="step"><b>3</b>顶端停留 2 秒，缓慢下放，不完全触地再重复。</div>
+            </div>
+            <div class="safenote">膝盖与脚尖同向；若腰部不适，立即停止并联系教练。</div>
+          </div></div></div>
+        </div>
+
+        <div class="safetybar">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M12 4.5 21 19.5H3z" fill="#A9720A" opacity=".18"/><path d="M12 4.5 21 19.5H3z" stroke="#A9720A" stroke-width="2" stroke-linejoin="round"/><path d="M12 10v4" stroke="#A9720A" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="16.8" r="1.1" fill="#A9720A"/></svg>
+          膝盖保持与脚尖方向一致；若膝部不适，立即停止并联系教练。
+        </div>
+        <div class="credit">动作演示 · 轻练原创角色</div>
+
+        <div class="sec-head"><span class="eyebrow">Meals</span><h3>今天吃什么</h3><span class="count num">约 1700 kcal</span></div>
+
+        <div class="meal" data-meal>
+          <div class="meal-head">
+            <div><div class="meal-time num">07:30</div><div class="meal-name">早餐</div></div>
+            <div class="pill on" data-pill><div class="pill-badge"><svg viewBox="0 0 24 24"><path d="M5 12.5 10 17.5 19 7"/></svg></div><span class="lb">已吃完</span></div>
+          </div>
+          <div class="foods">
+            <div class="food">
+              <svg viewBox="0 0 48 48"><ellipse cx="20" cy="30" rx="15" ry="11" fill="#FFF8EC" stroke="#E7D5BC" stroke-width="1.6"/><ellipse cx="33" cy="23" rx="12" ry="9" fill="#FFFDF6" stroke="#E7D5BC" stroke-width="1.6"/><circle cx="33" cy="23" r="5.5" fill="#FFC94D"/><circle cx="31.2" cy="21.6" r="1.6" fill="#FFE9A8"/><circle cx="17" cy="30" r="1.3" fill="#3B2E28"/><circle cx="24" cy="30" r="1.3" fill="#3B2E28"/><path d="M18.8 33.4q1.7 1.5 3.4 0" stroke="#3B2E28" stroke-width="1.3" fill="none" stroke-linecap="round"/><ellipse cx="13.5" cy="32.4" rx="2.2" ry="1.5" fill="#FF9E8A" opacity=".5"/><ellipse cx="27.5" cy="32.4" rx="2.2" ry="1.5" fill="#FF9E8A" opacity=".5"/></svg>
+              <div class="fn">水煮蛋</div><div class="fg">100g</div><div class="fk">140 kcal</div>
+            </div>
+            <div class="food">
+              <svg viewBox="0 0 48 48"><path d="M13 18h22l-2.6 21a3 3 0 0 1-3 2.6H18.6a3 3 0 0 1-3-2.6z" fill="#FFFDF7" stroke="#E7D5BC" stroke-width="1.6"/><path d="M11.5 14.5h25a2 2 0 0 1 2 2v1.5h-29V16.5a2 2 0 0 1 2-2z" fill="#DDF3E8" stroke="#9FD9C0" stroke-width="1.6"/><path d="M20 9c2-3 6-3 8 0 2.4 3.6-1 6-4 5.4" fill="#FFE0E6" stroke="#E9647C" stroke-width="1.5"/><circle cx="20.5" cy="27" r="1.3" fill="#3B2E28"/><circle cx="27.5" cy="27" r="1.3" fill="#3B2E28"/><path d="M22.3 30.4q1.7 1.5 3.4 0" stroke="#3B2E28" stroke-width="1.3" fill="none" stroke-linecap="round"/><ellipse cx="17" cy="29.4" rx="2.2" ry="1.5" fill="#FF9E8A" opacity=".5"/><ellipse cx="31" cy="29.4" rx="2.2" ry="1.5" fill="#FF9E8A" opacity=".5"/></svg>
+              <div class="fn">无糖酸奶</div><div class="fg">150g</div><div class="fk">95 kcal</div>
+            </div>
+            <div class="food">
+              <svg viewBox="0 0 48 48"><path d="M10 20c0-6 6-10 14-10s14 4 14 10c0 2.6-2 3.4-3.4 3.4H35v13a3 3 0 0 1-3 3H16a3 3 0 0 1-3-3v-13h.4C12 23.4 10 22.6 10 20z" fill="#F6C97A" stroke="#D9A24F" stroke-width="1.6"/><path d="M16.5 26h15v9h-15z" fill="#FFEAC4"/><circle cx="20.5" cy="29.5" r="1.3" fill="#3B2E28"/><circle cx="27.5" cy="29.5" r="1.3" fill="#3B2E28"/><path d="M22.3 32.9q1.7 1.5 3.4 0" stroke="#3B2E28" stroke-width="1.3" fill="none" stroke-linecap="round"/><ellipse cx="17.2" cy="31.9" rx="2" ry="1.4" fill="#FF9E8A" opacity=".5"/><ellipse cx="30.8" cy="31.9" rx="2" ry="1.4" fill="#FF9E8A" opacity=".5"/></svg>
+              <div class="fn">全麦吐司</div><div class="fg">73g</div><div class="fk">180 kcal</div>
+            </div>
+          </div>
+          <div class="mealsum"><span class="lb">本餐合计</span><span class="vv num">418 kcal</span></div>
+        </div>
+
+        <div class="meal" data-meal>
+          <div class="meal-head">
+            <div><div class="meal-time num">12:00</div><div class="meal-name">午餐</div></div>
+            <div class="pill" data-pill><div class="pill-badge"><svg viewBox="0 0 24 24"><path d="M5 12.5 10 17.5 19 7"/></svg></div><span class="lb">完成打卡</span></div>
+          </div>
+          <div class="foods">
+            <div class="food">
+              <svg viewBox="0 0 48 48"><path d="M11 27c0-8 6-13 13-13s13 5 13 13-6 11-13 11S11 35 11 27z" fill="#F3D3B6" stroke="#CFA687" stroke-width="1.6"/><path d="M14 21.5h20M13.5 27h21M15 32.5h18" stroke="#D79A68" stroke-width="1.8" stroke-linecap="round"/><circle cx="20.5" cy="25" r="1.3" fill="#3B2E28"/><circle cx="27.5" cy="25" r="1.3" fill="#3B2E28"/><path d="M22.3 28.4q1.7 1.5 3.4 0" stroke="#3B2E28" stroke-width="1.3" fill="none" stroke-linecap="round"/><ellipse cx="17" cy="27.4" rx="2.2" ry="1.5" fill="#FF9E8A" opacity=".5"/><ellipse cx="31" cy="27.4" rx="2.2" ry="1.5" fill="#FF9E8A" opacity=".5"/></svg>
+              <div class="fn">香煎鸡胸</div><div class="fg">150g</div><div class="fk">248 kcal</div>
+            </div>
+            <div class="food">
+              <svg viewBox="0 0 48 48"><path d="M13 24c0-6 5-9 11-9s11 3 11 9z" fill="#E8D3AE" stroke="#C8AC84" stroke-width="1.5"/><path d="M8 25h32c0 8-6 14-16 14S8 33 8 25z" fill="#FFFDF7" stroke="#E7D5BC" stroke-width="1.6"/><circle cx="20.5" cy="31" r="1.3" fill="#3B2E28"/><circle cx="27.5" cy="31" r="1.3" fill="#3B2E28"/><path d="M22.3 34.4q1.7 1.5 3.4 0" stroke="#3B2E28" stroke-width="1.3" fill="none" stroke-linecap="round"/><ellipse cx="17" cy="33.4" rx="2.2" ry="1.5" fill="#FF9E8A" opacity=".5"/><ellipse cx="31" cy="33.4" rx="2.2" ry="1.5" fill="#FF9E8A" opacity=".5"/></svg>
+              <div class="fn">糙米饭</div><div class="fg">120g</div><div class="fk">139 kcal</div>
+            </div>
+            <div class="food">
+              <svg viewBox="0 0 48 48"><path d="M15 20a6 6 0 0 1 4-9 7 7 0 0 1 11-2 6 6 0 0 1 3 11z" fill="#6FC5A0" stroke="#4A9E7C" stroke-width="1.6"/><path d="M14 19h20a3 3 0 0 1 3 3c0 6-5 9-13 9s-13-3-13-9a3 3 0 0 1 3-3z" fill="#8ED8B6" stroke="#4A9E7C" stroke-width="1.6"/><circle cx="20.5" cy="24" r="1.3" fill="#26483A"/><circle cx="27.5" cy="24" r="1.3" fill="#26483A"/><path d="M22.3 27.4q1.7 1.5 3.4 0" stroke="#26483A" stroke-width="1.3" fill="none" stroke-linecap="round"/><ellipse cx="17" cy="26.4" rx="2.2" ry="1.5" fill="#FF9E8A" opacity=".45"/><ellipse cx="31" cy="26.4" rx="2.2" ry="1.5" fill="#FF9E8A" opacity=".45"/></svg>
+              <div class="fn">西兰花</div><div class="fg">200g</div><div class="fk">68 kcal</div>
+            </div>
+          </div>
+          <div class="mealsum"><span class="lb">本餐合计</span><span class="vv num">455 kcal</span></div>
+        </div>
+
+        <div class="meal" data-meal>
+          <div class="meal-head">
+            <div><div class="meal-time num">15:30</div><div class="meal-name">下午加餐</div></div>
+            <div class="pill" data-pill><div class="pill-badge"><svg viewBox="0 0 24 24"><path d="M5 12.5 10 17.5 19 7"/></svg></div><span class="lb">完成打卡</span></div>
+          </div>
+          <div class="foods">
+            <div class="food">
+              <svg viewBox="0 0 48 48"><path d="M16 8c-3 8-3 20 4 28 5 6 13 6 17 1 3-3.6 2-8-2-9-6-1.6-13-7-14-18-.3-2.6-3.6-4.6-5-2z" fill="#F6DE6E" stroke="#D9BE3E" stroke-width="1.6"/><path d="M15 9c-1.6.4-2.6 2-2 3.6" stroke="#8A6A1A" stroke-width="1.6" stroke-linecap="round" fill="none"/><circle cx="27" cy="29" r="1.3" fill="#5C4A12"/><circle cx="34" cy="30" r="1.3" fill="#5C4A12"/><path d="M28.8 32.6q1.7 1.4 3.4-.2" stroke="#5C4A12" stroke-width="1.3" fill="none" stroke-linecap="round"/><ellipse cx="23.6" cy="31.6" rx="2.1" ry="1.4" fill="#FF9E8A" opacity=".5"/><ellipse cx="37.4" cy="32.6" rx="2.1" ry="1.4" fill="#FF9E8A" opacity=".5"/></svg>
+              <div class="fn">香蕉</div><div class="fg">120g</div><div class="fk">107 kcal</div>
+            </div>
+            <div class="food">
+              <svg viewBox="0 0 48 48"><path d="M16 19h16l-1.4 20a2.6 2.6 0 0 1-2.6 2.4h-8a2.6 2.6 0 0 1-2.6-2.4z" fill="#EAF4FA" stroke="#BFDCEA" stroke-width="1.6"/><path d="M15.6 16h16.8l-.4 3H16z" fill="#D8EBF3" stroke="#BFDCEA" stroke-width="1.6"/><path d="M17 25h14" stroke="#CFE6F0" stroke-width="1.6"/><circle cx="20.5" cy="30" r="1.3" fill="#3B2E28"/><circle cx="27.5" cy="30" r="1.3" fill="#3B2E28"/><path d="M22.3 33.4q1.7 1.5 3.4 0" stroke="#3B2E28" stroke-width="1.3" fill="none" stroke-linecap="round"/><ellipse cx="17.6" cy="32.4" rx="1.9" ry="1.3" fill="#FF9E8A" opacity=".5"/><ellipse cx="30.4" cy="32.4" rx="1.9" ry="1.3" fill="#FF9E8A" opacity=".5"/></svg>
+              <div class="fn">低脂牛奶</div><div class="fg">250ml</div><div class="fk">103 kcal</div>
+            </div>
+            <div class="food">
+              <svg viewBox="0 0 48 48"><ellipse cx="17" cy="31" rx="8" ry="11" transform="rotate(-18 17 31)" fill="#E6C296" stroke="#C39D6C" stroke-width="1.5"/><ellipse cx="31" cy="26" rx="8" ry="11" transform="rotate(14 31 26)" fill="#F0D2A8" stroke="#C39D6C" stroke-width="1.5"/><circle cx="27.8" cy="24.5" r="1.3" fill="#3B2E28"/><circle cx="34.6" cy="25.4" r="1.3" fill="#3B2E28"/><path d="M29.4 28q1.7 1.4 3.4-.3" stroke="#3B2E28" stroke-width="1.3" fill="none" stroke-linecap="round"/><ellipse cx="24.4" cy="27" rx="2" ry="1.4" fill="#FF9E8A" opacity=".5"/><ellipse cx="37.8" cy="28" rx="2" ry="1.4" fill="#FF9E8A" opacity=".5"/></svg>
+              <div class="fn">巴旦木</div><div class="fg">15g</div><div class="fk">87 kcal</div>
+            </div>
+          </div>
+          <div class="mealsum"><span class="lb">本餐合计</span><span class="vv num">297 kcal</span></div>
+        </div>
+
+        <div class="meal" data-meal>
+          <div class="meal-head">
+            <div><div class="meal-time num">18:30</div><div class="meal-name">晚餐</div></div>
+            <div class="pill" data-pill><div class="pill-badge"><svg viewBox="0 0 24 24"><path d="M5 12.5 10 17.5 19 7"/></svg></div><span class="lb">完成打卡</span></div>
+          </div>
+          <div class="foods">
+            <div class="food">
+              <svg viewBox="0 0 48 48"><path d="M9 30c4-10 12-16 24-16 4 0 6 2 6 5 0 9-9 17-21 17-6 0-10-2-9-6z" fill="#FFA98A" stroke="#E07A5C" stroke-width="1.6"/><path d="M13 27c6-6 13-9 21-10M15 32c6-5 13-8 21-9" stroke="#FFD7C6" stroke-width="2.4" stroke-linecap="round"/><circle cx="28.5" cy="21" r="1.3" fill="#3B2E28"/><circle cx="35.3" cy="22" r="1.3" fill="#3B2E28"/><path d="M30.1 24.4q1.7 1.4 3.4-.3" stroke="#3B2E28" stroke-width="1.3" fill="none" stroke-linecap="round"/><ellipse cx="25.1" cy="23.4" rx="2.1" ry="1.4" fill="#FF6F5E" opacity=".4"/><ellipse cx="38.5" cy="24.4" rx="2.1" ry="1.4" fill="#FF6F5E" opacity=".4"/></svg>
+              <div class="fn">三文鱼</div><div class="fg">160g</div><div class="fk">288 kcal</div>
+            </div>
+            <div class="food">
+              <svg viewBox="0 0 48 48"><path d="M8 30c0-8 8-16 18-16 8 0 14 4 14 10 0 8-9 14-19 14-8 0-13-3-13-8z" fill="#E08B5C" stroke="#B96A3F" stroke-width="1.6"/><path d="M14 25c3-3 8-5 12-5" stroke="#F5C39C" stroke-width="2" stroke-linecap="round"/><circle cx="20.5" cy="30" r="1.3" fill="#3B2E28"/><circle cx="27.5" cy="30" r="1.3" fill="#3B2E28"/><path d="M22.3 33.4q1.7 1.5 3.4 0" stroke="#3B2E28" stroke-width="1.3" fill="none" stroke-linecap="round"/><ellipse cx="17" cy="32.4" rx="2.2" ry="1.5" fill="#FF6F5E" opacity=".35"/><ellipse cx="31" cy="32.4" rx="2.2" ry="1.5" fill="#FF6F5E" opacity=".35"/></svg>
+              <div class="fn">蒸红薯</div><div class="fg">180g</div><div class="fk">155 kcal</div>
+            </div>
+            <div class="food">
+              <svg viewBox="0 0 48 48"><path d="M24 10c7 2 9 9 6.5 14.5-1.2 2.6-4.2 3.4-6.5 1.4-2.3 2-5.3 1.2-6.5-1.4C15 19 17 12 24 10z" fill="#6FC5A0" stroke="#4A9E7C" stroke-width="1.6"/><path d="M24 10c4.4 3.4 5.4 9 3.6 14M24 10c-4.4 3.4-5.4 9-3.6 14" stroke="#4A9E7C" stroke-width="1.2" fill="none"/><path d="M16 26c5.4 3 10.6 3 16 0" stroke="#4A9E7C" stroke-width="1.6" fill="none" stroke-linecap="round"/><circle cx="21.2" cy="18.5" r="1.2" fill="#26483A"/><circle cx="26.8" cy="18.5" r="1.2" fill="#26483A"/><path d="M22.6 21.4q1.4 1.3 2.8 0" stroke="#26483A" stroke-width="1.2" fill="none" stroke-linecap="round"/><ellipse cx="18.2" cy="20.6" rx="1.9" ry="1.3" fill="#FF9E8A" opacity=".45"/><ellipse cx="29.8" cy="20.6" rx="1.9" ry="1.3" fill="#FF9E8A" opacity=".45"/></svg>
+              <div class="fn">菠菜</div><div class="fg">120g</div><div class="fk">28 kcal</div>
+            </div>
+          </div>
+          <div class="mealsum"><span class="lb">本餐合计</span><span class="vv num">471 kcal</span></div>
+        </div>
+
+        <div class="tabbar">
+          <div class="tab on">
+            <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="5" fill="currentColor"/><g stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M18.7 5.3l-1.4 1.4M6.7 17.3l-1.4 1.4"/></g></svg>
+            今天
+          </div>
+          <div class="tab">
+            <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="4" stroke="currentColor" stroke-width="2"/><path d="M3 10h18" stroke="currentColor" stroke-width="2"/><circle cx="8.5" cy="14.8" r="1.4" fill="currentColor"/><circle cx="13" cy="14.8" r="1.4" fill="currentColor"/></svg>
+            计划
+          </div>
+          <div class="tab">
+            <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8.5" r="4" stroke="currentColor" stroke-width="2"/><path d="M4.5 20c1-4 4-6 7.5-6s6.5 2 7.5 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            我的
+          </div>
+        </div>
+      </div></div>
+    </div>
+
+    <div class="frame-col">
+      <div class="frame-label">月计划</div>
+      <div class="phone"><div class="screen" id="screen2">
+        <div class="topbar">
+          <div class="mark">轻</div>
+          <div class="wordmark">轻练</div>
+          <button class="topbtn num">30 天计划</button>
+        </div>
+        <div class="greet rise" style="padding-bottom:8px">
+          <div>
+            <div class="eyebrow">AUGUST · 2026</div>
+            <h1 style="font-size:19px">一步一步，把这个月走完。</h1>
+            <p>教练已为你安排好未来 30 天。</p>
+          </div>
+        </div>
+
+        <div class="statrow rise" style="animation-delay:.05s">
+          <div><div class="lb">次 / 周训练</div><div class="vv">3</div></div>
+          <div><div class="lb">个餐次 / 天</div><div class="vv">4</div></div>
+          <div style="margin-left:auto"><span class="chip confirmed">教练已确认</span></div>
+        </div>
+
+        <div class="sec-head rise" style="animation-delay:.1s"><span class="eyebrow">Calendar</span><h3>选择一天</h3><span class="count">第 2 周</span></div>
+        <div class="calgrid rise" style="animation-delay:.12s">
+          <div class="wd">日</div><div class="wd">一</div><div class="wd">二</div><div class="wd">三</div><div class="wd">四</div><div class="wd">五</div><div class="wd">六</div>
+          <div class="calcell rest"><span class="dn num">4</span><span class="dot"></span></div>
+          <div class="calcell"><span class="dn num">5</span><span class="dot"></span></div>
+          <div class="calcell rest"><span class="dn num">6</span><span class="dot"></span></div>
+          <div class="calcell"><span class="dn num">7</span><span class="dot"></span></div>
+          <div class="calcell sel"><span class="dn num">8</span><span class="dot"></span></div>
+          <div class="calcell rest"><span class="dn num">9</span><span class="dot"></span></div>
+          <div class="calcell"><span class="dn num">10</span><span class="dot"></span></div>
+          <div class="calcell rest"><span class="dn num">11</span><span class="dot"></span></div>
+          <div class="calcell"><span class="dn num">12</span><span class="dot"></span></div>
+          <div class="calcell rest"><span class="dn num">13</span><span class="dot"></span></div>
+          <div class="calcell"><span class="dn num">14</span><span class="dot"></span></div>
+          <div class="calcell rest"><span class="dn num">15</span><span class="dot"></span></div>
+          <div class="calcell"><span class="dn num">16</span><span class="dot"></span></div>
+          <div class="calcell rest"><span class="dn num">17</span><span class="dot"></span></div>
+        </div>
+
+        <div class="daypreview rise" style="animation-delay:.16s">
+          <div class="dp-head"><span class="tag num">DAY 08</span><span class="chip confirmed">训练日</span></div>
+          <div style="font-size:15px;font-weight:700">8月11日 · 星期二</div>
+          <div style="font-size:11.5px;color:var(--ink-3);margin:3px 0 6px">下肢力量日 · 训练 + 拉伸 · 约 <span class="num">1700</span> kcal</div>
+          <div class="miniex"><span class="exidx num">01</span>高脚杯深蹲<span class="num">4 × 12</span></div>
+          <div class="miniex"><span class="exidx num">02</span>单臂哑铃划船<span class="num">4 × 10</span></div>
+          <div class="miniex"><span class="exidx num">03</span>臀桥<span class="num">3 × 15</span></div>
+          <div class="cta">回到今天，开始执行
+            <svg viewBox="0 0 24 24" fill="none"><path d="M4 12h15M13 6l6 6-6 6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+        </div>
+
+        <div class="tabbar">
+          <div class="tab">
+            <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="5" fill="currentColor"/><g stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M18.7 5.3l-1.4 1.4M6.7 17.3l-1.4 1.4"/></g></svg>
+            今天
+          </div>
+          <div class="tab on">
+            <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="4" stroke="currentColor" stroke-width="2"/><path d="M3 10h18" stroke="currentColor" stroke-width="2"/><circle cx="8.5" cy="14.8" r="1.4" fill="currentColor"/><circle cx="13" cy="14.8" r="1.4" fill="currentColor"/></svg>
+            计划
+          </div>
+          <div class="tab">
+            <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8.5" r="4" stroke="currentColor" stroke-width="2"/><path d="M4.5 20c1-4 4-6 7.5-6s6.5 2 7.5 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            我的
+          </div>
+        </div>
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var CIRC = 201, arc = document.getElementById('arc'),
+      pctEl = document.getElementById('ringPct'), lbEl = document.getElementById('ringLb'),
+      ring = document.getElementById('ring');
+
+  function label(p){
+    if(p === 0) return '还没开始';
+    if(p === 100) return '全部完成';
+    if(p < 34) return '开始了';
+    if(p < 67) return '进行中';
+    return '快完成了';
+  }
+
+  function refresh(){
+    var items = document.querySelectorAll('#screen1 [data-chk], #screen1 [data-pill]');
+    var done = document.querySelectorAll('#screen1 [data-chk].on, #screen1 [data-pill].on');
+    var p = Math.round(done.length / items.length * 100);
+    arc.style.strokeDashoffset = CIRC * (1 - p / 100);
+    pctEl.textContent = p + '%';
+    lbEl.textContent = label(p);
+    ring.classList.toggle('full', p === 100);
+  }
+
+  document.querySelectorAll('[data-chk]').forEach(function(el){
+    el.innerHTML = '<svg viewBox="0 0 24 24"><path d="M5 12.5 10 17.5 19 7"/></svg>';
+    el.addEventListener('click', function(e){
+      e.stopPropagation();
+      el.classList.toggle('on');
+      if(el.classList.contains('on')){
+        el.classList.remove('pulse');
+        void el.offsetWidth;
+        el.classList.add('pulse');
+      }
+      refresh();
+    });
+  });
+
+  document.querySelectorAll('[data-ex]').forEach(function(row){
+    row.addEventListener('click', function(){ row.classList.toggle('open'); });
+  });
+
+  document.querySelectorAll('[data-pill]').forEach(function(pill){
+    pill.addEventListener('click', function(){
+      var on = pill.classList.toggle('on');
+      pill.querySelector('.lb').textContent = on ? '已吃完' : '完成打卡';
+      if(on){
+        pill.closest('[data-meal]').querySelectorAll('.food').forEach(function(f, i){
+          f.classList.remove('cheer');
+          void f.offsetWidth;
+          setTimeout(function(){ f.classList.add('cheer'); }, i * 70);
+        });
+      }
+      refresh();
+    });
+  });
+
+  document.querySelectorAll('.datestrip').forEach(function(strip){
+    strip.querySelectorAll('.dcell').forEach(function(c){
+      c.addEventListener('click', function(){
+        strip.querySelectorAll('.dcell').forEach(function(x){ x.classList.remove('sel'); });
+        c.classList.add('sel');
+      });
+    });
+  });
+
+  document.querySelectorAll('.calgrid').forEach(function(grid){
+    grid.querySelectorAll('.calcell').forEach(function(c){
+      c.addEventListener('click', function(){
+        grid.querySelectorAll('.calcell').forEach(function(x){ x.classList.remove('sel'); });
+        c.classList.add('sel');
+      });
+    });
+  });
+
+  setTimeout(refresh, 350);
+})();
+</script>

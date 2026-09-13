@@ -24,29 +24,33 @@ test("renders the complete approved daily plan mockup", async () => {
   const html = await response.text();
   assert.match(html, /<title>轻练 · 今日计划<\/title>/);
   assert.match(html, /教练已确认/);
-  assert.match(html, /第 8 \/ 30 天/);
+  assert.match(html, /class="dayof">第[\s\S]*>8<\/b>[\s\S]*\/30[\s\S]*天/);
+  assert.match(html, /已完成 1 \/ 7 项/);
+  assert.match(html, /class="progress-ring"/);
+  assert.match(html, /开始了/);
   assert.match(html, /今天练什么/);
   assert.match(html, /高脚杯深蹲/);
-  assert.match(html, /exercise-preview\/dumbbell-goblet-squat\.gif/);
-  assert.match(html, /exercise-preview\/single-arm-dumbbell-row\.gif/);
-  assert.match(html, /exercise-preview\/low-glute-bridge\.gif/);
-  assert.match(html, /动作 GIF：© Gym visual/);
+  assert.match(html, /sq-legs/);
+  assert.match(html, /row-arm/);
+  assert.match(html, /br-hip/);
+  assert.match(html, /动作演示 · 轻练原创角色/);
   assert.match(html, /动作要领/);
   assert.match(html, /目标：(?:<!-- -->)?股四头肌/);
   assert.match(html, /器械：(?:<!-- -->)?哑铃 \+ 上斜凳/);
   assert.match(html, /双脚分开与肩同宽站立/);
-  assert.match(html, /设置一个 45 度角的上斜凳/);
+  assert.match(html, /设置一个[\s\S]*45[\s\S]*度角的上斜凳/);
   assert.match(html, /平躺，膝盖弯曲/);
-  assert.match(html, /<details class="exercise-details" open(?:="")?>/);
+  assert.match(html, /class="exdetail"/);
+  assert.match(html, /aria-expanded="true"/);
   assert.match(html, /今天吃什么/);
   assert.match(html, /水煮蛋/);
   assert.match(html, /144<!-- --> kcal/);
-  assert.match(html, /food-face/);
-  assert.match(html, /check-glyph/);
-  assert.match(html, /今天注意什么/);
+  assert.match(html, /food-illustration/);
+  assert.match(html, /check-mark/);
+  assert.match(html, /class="safetybar"/);
   assert.match(html, /href="\/plan"/);
   assert.match(html, /href="\/me"/);
-  assert.match(html, /不构成个人健康建议/);
+  assert.doesNotMatch(html, /food-sprite|exercise-preview\/.*\.gif|Gym visual|⚠️|▦|↗|→/);
   assert.doesNotMatch(html, /codex-preview|Building your site|react-loading-skeleton/);
 });
 
@@ -55,18 +59,18 @@ test("ships the original food illustration sheet and removes the starter preview
   await assert.rejects(access(new URL("app/_sites-preview/SkeletonPreview.tsx", projectRoot)));
 });
 
-test("renders the private exercise GIF preview with real media references", async () => {
+test("renders the private exercise character preview with real motion references", async () => {
   const response = await render("/exercise-preview");
   assert.equal(response.status, 200);
   const html = await response.text();
-  assert.match(html, /轻练 · 动作 GIF 预览/);
+  assert.match(html, /轻练 · 动作角色预览/);
   assert.match(html, /高脚杯深蹲/);
   assert.match(html, /单臂哑铃划船/);
   assert.match(html, /臀桥/);
-  assert.match(html, /exercise-preview\/single-arm-dumbbell-row\.gif/);
-  assert.match(html, /exercise-preview\/low-glute-bridge\.gif/);
-  assert.match(html, /exercise-preview\/dumbbell-goblet-squat\.gif/);
-  assert.match(html, /© Gym visual/);
+  assert.match(html, /sq-legs/);
+  assert.match(html, /row-arm/);
+  assert.match(html, /br-hip/);
+  assert.doesNotMatch(html, /exercise-preview\/.*\.gif|Gym visual|↗|◎/);
 });
 
 test("renders the 30-day plan tab with selectable day details", async () => {
