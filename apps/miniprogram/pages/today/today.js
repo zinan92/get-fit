@@ -47,12 +47,14 @@ Page({
     this.load();
   },
 
+  // Centered on the day being shown (so arriving from the calendar keeps a highlighted cell);
+  // the real today is labelled 今 wherever it falls.
   buildStrip(selected) {
     const today = this.data.today;
     return [-2, -1, 0, 1, 2].map(offset => {
-      const date = dates.addDays(today, offset);
+      const date = dates.addDays(selected, offset);
       const p = dates.parts(date);
-      return { date, weekday: offset === 0 ? '今' : p.weekday, day: p.day, selected: date === selected };
+      return { date, weekday: date === today ? '今' : p.weekday, day: p.day, selected: date === selected };
     });
   },
 
