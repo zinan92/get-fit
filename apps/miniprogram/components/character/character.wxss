@@ -1,0 +1,18 @@
+.character { position: relative; }
+.layer { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
+
+/* Same loops as the web, expressed against the full character box (64-unit viewBox). */
+.sq-legs { animation: sqLegs 2.6s cubic-bezier(.4, 0, .2, 1) infinite; }
+.sq-upper { animation: sqUp 2.6s cubic-bezier(.4, 0, .2, 1) infinite; }
+@keyframes sqLegs { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(.52); } }
+@keyframes sqUp { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(12.5%); } }
+.row-arm { animation: rowArm 2.2s cubic-bezier(.4, 0, .2, 1) infinite; }
+@keyframes rowArm { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-14.06%); } }
+.br-hip { animation: brHip 2.6s cubic-bezier(.4, 0, .2, 1) infinite; }
+@keyframes brHip { 0%, 100% { transform: translateY(0) scaleY(1); } 50% { transform: translateY(7.8%) scaleY(.72); } }
+.walk-bean { animation: walkBob 1.5s cubic-bezier(.4, 0, .2, 1) infinite; }
+@keyframes walkBob { 0%, 100% { transform: translateY(0) rotate(-4deg); } 50% { transform: translateY(-6.25%) rotate(4deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .sq-legs, .sq-upper, .row-arm, .br-hip, .walk-bean { animation: none; }
+}

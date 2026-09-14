@@ -1,5 +1,5 @@
 <view class="page">
-  <view wx:if="{{devMode}}" class="dev-banner">本地 DevTools 模式 · 不使用微信 AppID</view>
+  <topbar />
   <view class="card hero">
     <view class="eyebrow">轻练 ONBOARDING</view>
     <view class="title">先了解你，<br/>再安排今天。</view>
@@ -7,7 +7,7 @@
   </view>
   <view class="card" wx:if="{{step === 0}}">
     <view class="section-title">输入邀请口令</view>
-    <input placeholder="粘贴教练发来的口令" value="{{inviteToken}}" bindinput="onToken" />
+    <input class="form-input" placeholder="粘贴教练发来的口令" value="{{inviteToken}}" bindinput="onToken" />
     <button class="button" bindtap="acceptInvite">接受邀请</button>
   </view>
   <view class="card" wx:if="{{step === 1}}">
@@ -24,8 +24,8 @@
     <view class="section-title">你的基础情况</view>
     <picker range="{{targets}}" bindchange="onTarget"><view class="field">目标：{{targets[targetIndex]}}</view></picker>
     <picker range="{{experiences}}" bindchange="onExperience"><view class="field">训练经验：{{experiences[experienceIndex]}}</view></picker>
-    <input type="number" placeholder="身高 cm" value="{{heightCm}}" bindinput="onHeight" />
-    <input type="number" placeholder="体重 kg" value="{{weightKg}}" bindinput="onWeight" />
+    <input class="form-input" type="number" placeholder="身高 cm" value="{{heightCm}}" bindinput="onHeight" />
+    <input class="form-input" type="number" placeholder="体重 kg" value="{{weightKg}}" bindinput="onWeight" />
     <view class="muted">如有孕期、急性疼痛、严重慢病或饮食障碍，请先直接联系教练。</view>
     <button class="button" bindtap="saveProfile">提交给教练确认</button>
   </view>

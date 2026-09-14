@@ -1,5 +1,57 @@
 <view class="page">
-  <view class="card hero"><view class="eyebrow">YOUR RHYTHM</view><view class="title">{{month}}<br/>每天向前一点点。</view><view class="muted">点开任意一天，查看训练、餐食和提醒。</view></view>
-  <view class="card" wx:if="{{!loading && days.length}}"><view class="calendar-grid"><block wx:for="{{days}}" wx:key="date"><button class="day-cell {{item.hasTraining ? 'training' : 'rest'}}" data-date="{{item.date}}" bindtap="openDay"><text>{{item.dayNumber}}</text><small>{{item.hasTraining ? '练' : '休'}}</small></button></block></view></view>
-  <view class="card" wx:elif="{{!loading}}"><view class="section-title">计划还在确认</view><view class="muted">教练发布后，这里会出现完整的 30 天日历。</view></view>
+  <topbar><view slot="right" class="toplabel num">30 天计划</view></topbar>
+  <view wx:if="{{preview}}" class="preview-banner">本地预览数据 · 未连接云开发</view>
+
+  <block wx:if="{{status === 'ready'}}">
+    <view class="greet rise">
+      <view class="eyebrow num">{{eyebrow}}</view>
+      <view class="h1">一步一步，把这个月走完。</view>
+      <view class="sub">教练已为你安排好未来 30 天。</view>
+    </view>
+
+    <view class="statrow rise" style="animation-delay: .05s">
+      <view><view class="lb">次 / 周训练</view><view class="vv num">{{trainingPerWeek}}</view></view>
+      <view><view class="lb">个餐次 / 天</view><view class="vv num">{{mealsPerDay}}</view></view>
+      <view class="stat-confirmed"><view class="chip confirmed"><view class="dot"></view>教练已确认</view></view>
+    </view>
+
+    <view class="sec-head rise" style="animation-delay: .1s">
+      <text class="eyebrow">Calendar</text>
+      <text class="h3">选择一天</text>
+      <text class="count">{{weekLabel}}</text>
+    </view>
+
+    <view class="calgrid rise" style="animation-delay: .12s">
+      <text wx:for="{{['日', '一', '二', '三', '四', '五', '六']}}" wx:key="*this" class="wd">{{item}}</text>
+      <view wx:for="{{cells}}" wx:key="key" class="calcell {{item.blank ? 'blank' : ''}} {{item.rest ? 'rest' : ''}} {{selected && selected.date === item.date ? 'sel' : ''}} {{item.isToday ? 'today' : ''}}" data-date="{{item.date}}" bindtap="pick" aria-label="{{item.blank ? '' : '第' + item.dayIndex + '天 ' + item.title}}">
+        <block wx:if="{{!item.blank}}">
+          <text class="dn num">{{item.dayNumber}}</text>
+          <view class="dot"></view>
+        </block>
+      </view>
+    </view>
+
+    <view wx:if="{{selected}}" class="daypreview rise" style="animation-delay: .16s">
+      <view class="dp-head"><text class="tag num">{{selected.tag}}</text><view class="chip confirmed"><view class="dot"></view>{{selected.rest ? '恢复日' : '训练日'}}</view></view>
+      <view class="dp-title">{{selected.heading}}</view>
+      <view class="dp-meta">{{selected.title}}<block wx:if="{{detail}}"> · 约 <text class="num">{{detail.kcal}}</text> kcal</block></view>
+      <view wx:if="{{detail && detail.exercises.length}}" class="mini-exercises">
+        <view wx:for="{{detail.exercises}}" wx:key="key" class="miniex"><text class="exidx num">{{item.index}}</text><text>{{item.name}}</text><text class="sets num">{{item.sets}}</text></view>
+      </view>
+      <view wx:elif="{{detail}}" class="recovery-note"><image class="rn-ic" src="/assets/icons/sun.svg" /><text>{{detail.note || '今天让身体恢复一下。'}}</text></view>
+      <view class="cta" bindtap="goToDay"><text>查看这一天的安排</text><image class="cta-ic" src="/assets/icons/arrow.svg" /></view>
+    </view>
+  </block>
+
+  <view wx:elif="{{status === 'empty'}}" class="state-card rise">
+    <character catalog-id="ex-walk" size="{{120}}" />
+    <view class="t">计划还在路上</view>
+    <view class="s">教练确认后，30 天的安排会出现在这里。</view>
+  </view>
+
+  <view wx:elif="{{status === 'error'}}" class="state-card rise">
+    <view class="t">暂时没连上</view>
+    <view class="s">网络不太稳定，稍后再试一下。</view>
+    <view class="retry" bindtap="retry">重新加载</view>
+  </view>
 </view>

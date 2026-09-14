@@ -1,0 +1,6 @@
+<view class="nav">
+  <view wx:for="{{items}}" wx:key="path" class="item {{selected === index ? 'active' : ''}}" data-index="{{index}}" bindtap="go">
+    <image class="icon" src="/assets/icons/nav-{{item.icon}}-{{selected === index ? 'on' : 'off'}}.svg" />
+    <text>{{item.text}}</text>
+  </view>
+</view>

@@ -1,13 +1,26 @@
-# 轻练微信小程序客户端
+# 轻练微信小程序
 
-这是原生微信小程序客户端的 V1 代码表面。它只调用 `/api`，不保存任何模型/CLI 凭证，也不接触教练后台接口。
+客户端（今天 / 计划 / 我的）与后续的教练模式都在这个小程序里。视觉唯一真相源是 `design/fit-plan-v3.html`。
 
-开发者工具中把 `apiBaseUrl` 配成已批准的客户 API origin；不要填教练私有 Sites 地址。本地联调时可使用 `http://localhost:3000` 并在 Worker 的 `DEV_MODE=true` 下使用开发登录。
+## 数据与身份
 
-如果暂时没有微信 AppID，可以在本地 DevTools 配置中把 `devMode` 改为 `true`，并保持 `apiBaseUrl` 为 `http://localhost...`。onboarding 会用邀请返回的客户 ID 生成 `openid-local-sandbox:<client.id>`，调用同一个 `/api/wx/auth/login`；这只在本地地址和显式开发开关同时满足时生效。提交、导出或部署小程序前必须恢复为 `devMode: false`。线上 API 不接受 `devOpenid`。
+- 所有数据都经 `wx.cloud.callFunction({ name: 'api' })` 进入云函数（源码 `server/cloudfunction/entry.ts`，打包 `npm run build:cloudfunction`）。
+- 身份只来自平台注入的 OPENID；小程序不保存 token、不传 clientId，也不使用 `wx.request`。
+- 仓库里的 `project.config.json` 固定为 `touristappid`。真实 AppID 只写在本机 `project.private.config.json`（已 gitignore）。
 
-进入流程：邀请 → 微信登录 → 健康/第三方模型/提醒说明 → 建档 → 等待教练发布 → 今日/30 天日历 → 训练打卡/身体反馈 → 删除申请。
+## 本地预览
 
-小程序可以不在计划卡片上突出“AI”字样，但同意页会说明自动化工具和第三方模型处理；用户永远只看到教练确认后的发布版本。提醒需要用户单独点击微信订阅授权，未授权不会发送。
+没有真实 AppID 时（DevTools 游客模式），小程序自动使用 `utils/preview-data.js`：一份由真实 API 代码生成的演示计划，页面顶部会显示「本地预览数据」。能在手机上运行的构建都带真实 AppID，不会进入预览模式。
 
-首位客户沙盒、真机和七天试用步骤见 [`docs/runbooks/fit-plan-first-client-pilot.md`](../../docs/runbooks/fit-plan-first-client-pilot.md)。
+## 角色与图标
+
+`assets/characters`、`assets/icons`、`styles/numerals.wxss`、`utils/characters.js`、`utils/preview-data.js` 都由 `npm run build:miniprogram-assets` 从 `packages/illustrations` 生成，不要手改；`npm test` 会检查它们没有漂移。
+
+动作角色拆成多层图片叠放，动的那层用 WXSS 循环动画，支点与网页版 SVG 分组一致。
+
+## 截图
+
+```bash
+/Applications/wechatwebdevtools.app/Contents/MacOS/cli auto --project apps/miniprogram --auto-port 9420
+node scripts/capture-miniprogram.mjs outputs/miniprogram
+```

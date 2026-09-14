@@ -1,40 +1,93 @@
 import assert from "node:assert/strict";
-import { access, readFile } from "node:fs/promises";
+import { execFileSync } from "node:child_process";
+import { readdir, readFile } from "node:fs/promises";
+import path from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
-test("mini-program customer API uses an explicit customer origin placeholder", async () => {
-  const source = await readFile(new URL("../apps/miniprogram/app.js", import.meta.url), "utf8");
-  assert.match(source, /YOUR_CUSTOMER_API_ORIGIN/);
-  assert.doesNotMatch(source, /fit-plan-mockup\.parkzz\.chatgpt\.site/);
-  assert.match(source, /devMode:\s*false/);
-  assert.match(source, /devOpenid:\s*['"]openid-local-sandbox['"]/);
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const app = path.join(root, "apps", "miniprogram");
+const read = (relative) => readFile(path.join(app, relative), "utf8");
+
+async function walk(dir) {
+  const entries = await readdir(dir, { withFileTypes: true });
+  const files = await Promise.all(entries.map((entry) => entry.isDirectory() ? walk(path.join(dir, entry.name)) : [path.join(dir, entry.name)]));
+  return files.flat();
+}
+
+const sourceFiles = async (extensions) => (await walk(app)).filter((file) => extensions.some((extension) => file.endsWith(extension)));
+
+test("all data access goes through the api cloud function, never wx.request or an API origin", async () => {
+  const api = await read("utils/api.js");
+  assert.match(api, /wx\.cloud\.callFunction\(\{\s*name: 'api'/);
+  for (const file of await sourceFiles([".js", ".json", ".wxml"])) {
+    const text = await readFile(file, "utf8");
+    assert.doesNotMatch(text, /wx\.request\(|apiBaseUrl|YOUR_CUSTOMER_API_ORIGIN|sessionToken|devOpenid|chatgpt\.site/, path.relative(app, file));
+  }
 });
 
-test("mini-program local login is explicitly scoped to localhost and the invited client", async () => {
-  const source = await readFile(new URL("../apps/miniprogram/pages/onboarding/onboarding.js", import.meta.url), "utf8");
-  const wxml = await readFile(new URL("../apps/miniprogram/pages/onboarding/onboarding.wxml", import.meta.url), "utf8");
-  assert.match(source, /devMode === true/);
-  assert.match(source, /http:\/\/localhost/);
-  assert.match(source, /devClientId: accepted\.client\.id/);
-  assert.match(source, /devOpenid: `\$\{app\.globalData\.devOpenid\}:\$\{accepted\.client\.id\}`/);
-  assert.match(source, /wx\.login/);
-  assert.match(wxml, /本地 DevTools 模式/);
+test("preview data is only reachable without a real AppID", async () => {
+  const preview = await read("utils/preview.js");
+  assert.match(preview, /appId === '' \|\| appId === 'touristappid'/);
+  const config = JSON.parse(await read("project.config.json"));
+  assert.equal(config.appid, "touristappid");
+  const gitignore = await readFile(path.join(root, ".gitignore"), "utf8");
+  assert.match(gitignore, /\/apps\/miniprogram\/project\.private\.config\.json/);
+  assert.match(await read("app.js"), /preview = isPreview\(\)/);
 });
 
-test("mini-program today page projects rich exercise and meal details", async () => {
-  const wxml = await readFile(new URL("../apps/miniprogram/pages/today/today.wxml", import.meta.url), "utf8");
-  const js = await readFile(new URL("../apps/miniprogram/pages/today/today.js", import.meta.url), "utf8");
-  assert.match(wxml, /item\.mediaPath/);
-  assert.match(wxml, /item\.steps/);
-  assert.match(wxml, /item\.mealKcal/);
-  assert.match(wxml, /food-face/);
-  assert.match(wxml, /toggleMeal/);
-  assert.match(wxml, /item\.mediaAttribution/);
-  assert.match(wxml, /binderror="onMediaError"/);
-  assert.match(js, /result\.checkins/);
-  assert.match(js, /toggleExerciseDetails/);
-  assert.match(js, /onMediaError/);
-  await access(new URL("../apps/miniprogram/assets/exercises/dumbbell-goblet-squat.gif", import.meta.url));
-  await access(new URL("../apps/miniprogram/assets/exercises/single-arm-dumbbell-row.gif", import.meta.url));
-  await access(new URL("../apps/miniprogram/assets/exercises/low-glute-bridge.gif", import.meta.url));
+test("today page follows v3: training before meals, per-food kcal, meal and day totals", async () => {
+  const wxml = await read("pages/today/today.wxml");
+  const training = wxml.indexOf("今天练什么");
+  const meals = wxml.indexOf("今天吃什么");
+  assert.ok(training > 0 && meals > training, "training section precedes meals");
+  assert.match(wxml, /food\.kcal\}\} kcal/);
+  assert.match(wxml, /meal\.kcal\}\} kcal/);
+  assert.match(wxml, /day\.dailyKcal/);
+  assert.match(wxml, /教练已确认/);
+  assert.match(wxml, /<character catalog-id="\{\{item\.id\}\}"/);
+  assert.doesNotMatch(wxml, /mediaPath|\.gif/);
+});
+
+test("check-ins start tilted and snap upright, with reduced motion respected", async () => {
+  const wxss = await read("app.wxss");
+  assert.match(wxss, /\.check-button \{[^}]*transform: rotate\(-9deg\)/);
+  assert.match(wxss, /\.check-button\.on \{[^}]*transform: rotate\(0deg\) scale\(1\.08\)/);
+  assert.match(wxss, /prefers-reduced-motion: reduce/);
+  const page = await read("pages/today/today.wxss");
+  assert.match(page, /\.pill-badge \{[^}]*rotate\(-9deg\)/);
+  assert.match(await read("components/character/character.wxss"), /prefers-reduced-motion: reduce/);
+});
+
+test("every catalog exercise and food has a character", async () => {
+  const catalogs = await readFile(path.join(root, "packages", "catalogs", "src", "index.ts"), "utf8");
+  const characters = await read("utils/characters.js");
+  const exerciseIds = [...catalogs.matchAll(/id: "(ex-[\w-]+)"/g)].map((match) => match[1]);
+  const foodIds = [...catalogs.matchAll(/id: "(food-[\w-]+)"/g)].map((match) => match[1]);
+  assert.ok(exerciseIds.length >= 4 && foodIds.length >= 12);
+  for (const id of [...exerciseIds, ...foodIds]) assert.match(characters, new RegExp(`"${id}"`), id);
+  for (const file of (await walk(path.join(app, "assets"))).filter((item) => item.endsWith(".svg"))) {
+    const svg = await readFile(file, "utf8");
+    assert.match(svg, /^<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg"/, path.relative(app, file));
+    assert.doesNotMatch(svg, /<style|\d%|currentColor/, `${path.relative(app, file)} must render inside <image>`);
+  }
+});
+
+test("styles use only the v3 palette and pages carry no emoji, arrows or generation vocabulary", async () => {
+  const palette = new Set(["#F3EEE3", "#FFFFFF", "#FBF6EA", "#2E2A24", "#6B6255", "#A79C8B", "#E6DDC9", "#D8CBAE", "#D85C28", "#FBE4D3", "#4F9D6E", "#E4F1E6", "#A9720A", "#F7ECD3", "#7A5205", "#FFF", "#fff"]);
+  for (const file of await sourceFiles([".wxss", ".wxml"])) {
+    if (file.endsWith("numerals.wxss")) continue;
+    const text = await readFile(file, "utf8");
+    for (const [color] of text.matchAll(/#[0-9A-Fa-f]{3,6}\b/g)) assert.ok(palette.has(color) || palette.has(color.toUpperCase()), `${path.relative(app, file)} uses off-palette ${color}`);
+  }
+  const clientFacing = (await sourceFiles([".wxml", ".js"])).filter((file) => !file.includes(`${path.sep}onboarding${path.sep}`) && !file.endsWith("preview-data.js"));
+  for (const file of clientFacing) {
+    const text = await readFile(file, "utf8");
+    assert.doesNotMatch(text, /\p{Extended_Pictographic}|[→↗▦]/u, `${path.relative(app, file)} has decorative characters`);
+    assert.doesNotMatch(text, /AI|模型|草案|provider|prompt|Codex|codex/, `${path.relative(app, file)} exposes generation vocabulary`);
+  }
+});
+
+test("generated mini-program assets match packages/illustrations", () => {
+  execFileSync(process.execPath, ["--import", "tsx", path.join(root, "scripts", "build-miniprogram-assets.ts"), "--check"], { cwd: root, stdio: "pipe" });
 });

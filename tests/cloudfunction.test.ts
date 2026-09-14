@@ -182,12 +182,17 @@ test("a write that loses a race is retried on fresh state instead of overwriting
   assert.ok(!ids.includes("dinner"), "the losing write is not silently applied");
 });
 
-test("opened days survive audit truncation and duplicate opens", async () => {
+test("opened days count real days the app was opened, survive audit truncation and ignore browsing", async (t) => {
   const backend = cloudbaseSnapshotBackend(fakeCloudbase().db);
   const call = harness(backend);
   const { clientId } = await onboard(call, "openid-a", "客户甲");
+  t.mock.timers.enable({ apis: ["Date"], now: new Date("2026-09-15T01:00:00Z") });
   await call("openid-a", "/api/plan/today?date=2026-09-15");
   await call("openid-a", "/api/plan/today?date=2026-09-15");
+  // Browsing other plan dates on the same real day is not another opened day.
+  await call("openid-a", "/api/plan/today?date=2026-09-20");
+  await call("openid-a", "/api/plan/today?date=2026-09-21");
+  t.mock.timers.setTime(new Date("2026-09-16T01:00:00Z").getTime());
   await call("openid-a", "/api/plan/today?date=2026-09-16");
   // Flood the audit log well past the 500-entry snapshot window.
   for (let index = 0; index < 30; index += 1) await call("openid-a", "/api/me");
@@ -197,6 +202,7 @@ test("opened days survive audit truncation and duplicate opens", async () => {
   await saveSnapshot(store, backend, KEY, revision);
 
   const summary = await call(COACH_OPENID, `/api/coach/clients/${clientId}/summary?days=7`);
+  t.mock.timers.reset();
   assert.equal(summary.statusCode, 200);
   assert.equal(summary.body.summary.openedDays, 2);
 });

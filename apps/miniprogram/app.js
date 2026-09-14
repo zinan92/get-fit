@@ -1,16 +1,14 @@
+const { isPreview } = require('./utils/preview');
+
 App({
   globalData: {
-    // Configure this to the approved customer API origin before importing into DevTools.
-    // The private coach Sites URL is intentionally not a customer endpoint.
-    apiBaseUrl: 'https://YOUR_CUSTOMER_API_ORIGIN',
-    reminderTemplateId: 'YOUR_TEMPLATE_ID',
-    // Local-only escape hatch while a WeChat AppID is unavailable. Keep this
-    // false for every exported or production configuration.
-    devMode: false,
-    devOpenid: 'openid-local-sandbox',
-    sessionToken: ''
+    // Set when the project runs without a real AppID (DevTools tourist mode). Such a build can
+    // never be uploaded as a 体验版, so preview data cannot reach a real client.
+    preview: false,
+    reminderTemplateId: 'YOUR_TEMPLATE_ID'
   },
   onLaunch() {
-    this.globalData.sessionToken = wx.getStorageSync('fit_plan_session') || '';
+    this.globalData.preview = isPreview();
+    if (!this.globalData.preview && wx.cloud) wx.cloud.init({ env: wx.cloud.DYNAMIC_CURRENT_ENV, traceUser: false });
   }
 });

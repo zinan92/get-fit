@@ -42,6 +42,15 @@
 - 「打开天数」改为一等数据 `openedDays`（每客户每本地日期一条），教练摘要和日历只读它，不再依赖只保留 500 条的审计日志。
 - D1 路径仍是无条件覆盖写，只服务 Sites 演示，不在试点数据链路上；多客户前再统一。
 
+## 2026-09-14 · 小程序今天/计划页落地 v3（#12）
+
+- 角色插画的唯一源改为 `packages/illustrations`：网页把分层合成为一个 SVG（与原字符串逐字节一致），小程序每层一张图片叠放，动的层用 WXSS 循环，支点按网页 `fill-box` 分组换算成整框百分比。
+- 小程序资源（角色、图标、数字字体、查表模块、预览数据）由 `scripts/build-miniprogram-assets.ts` 生成并提交；`npm test` 检查漂移。
+- 数字字体用 Fredoka SemiBold 的数字子集（约 4 KB，SIL OFL），以 base64 写进 WXSS，不依赖网络域名。
+- 预览数据由真实 API 代码跑一份演示计划生成，只在没有真实 AppID 时启用（DevTools 游客模式 AppID 为空或 `touristappid`），页面显示「本地预览数据」。
+- 「打开天数」改记请求当天的真实日期，不再记客户翻看的计划日期——日期条和日历翻看未来日期会虚增七天验收指标。
+- 与设计源的有意偏差：计划数据没有餐次时间和热身安排，因此不显示（不编造）；恢复日没有动作时显示恢复日卡片。
+
 ## Gotchas
 
 - 热量必须绑定份量；只有食物名称的热量数字没有可信含义。
@@ -56,3 +65,6 @@
 - 本机 Homebrew `node@22` 缺 simdjson 动态库无法启动；运行时兼容性不能靠本机多版本验证，要以部署后健康检查回报为准。
 - 云函数冲突重试会重跑整个 handler：handler 里对外的副作用（发消息、调外部 API）必须能容忍「执行了但没落库」，或放到落库成功之后。
 - 平台模式下没有 OPENID 的调用（例如本机 CLI 直接 invoke 云函数）什么身份都不是；操作员生成流程（#15）需要单独设计授权，不能靠放宽教练判定。
+- DevTools 游客模式下 `wx.getAccountInfoSync().miniProgram.appId` 是空字符串，不是 `touristappid`；两者都要当作预览模式。
+- `miniprogram-automator` 0.12 在稳定版 DevTools 上 `Tool.getInfo` 不返回 SDKVersion，`connect` 会崩；需像 xingqiu 一样改写 `checkVersion` 读 `systemInfo()`。
+- `<image>` 里的 SVG 不继承 CSS 颜色，`currentColor` 图标必须在生成时替换成具体色值；动画分组也必须拆层，SVG 内部的 class 动画不生效。
