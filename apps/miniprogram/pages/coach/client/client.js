@@ -9,7 +9,7 @@ function labels(list, values) {
 }
 
 Page({
-  data: { preview: false, status: 'loading', clientId: '', item: null, stageView: null, profile: null, facts: [], flags: [], summary: null, alerts: [], startDate: '', busy: false },
+  data: { preview: false, status: 'loading', clientId: '', item: null, stageView: null, profile: null, facts: [], flags: [], summary: null, alerts: [], startDate: '', busy: false, course: null, renewal: false, note: '', noteDraft: '', archived: false },
 
   onLoad(query) {
     this.setData({ preview: getApp().globalData.preview, clientId: query.id, startDate: dates.addDays(dates.today(), 1) });
@@ -36,7 +36,13 @@ Page({
         { k: '需要先沟通', v: labels(OPTIONS.risk, profile.riskFlags) + (profile.ageBand === 'under_18' ? '、未满 18 岁' : ''), tone: item && item.manualReview ? 'warn' : '' }
       ] : [];
       const summary = item && item.stage === 'published' ? (await request(`/api/coach/clients/${id}/summary?days=7`)).summary : null;
+      const course = item && item.course ? { ...item.course, percent: Math.round(item.course.dayNumber / item.course.totalDays * 100) } : null;
+      // The next period is offered in the last five days, or once this one has ended, unless one is already set up.
+      const renewal = Boolean(item && item.stage === 'published' && course && !course.nextStartDate && item.attention.some(entry => entry.kind === 'ending' || entry.kind === 'ended'));
+      const today = overview.today || dates.today();
+      const startDate = renewal ? [dates.addDays(course.endDate, 1), today].sort()[1] : this.data.startDate;
       this.setData({
+        course, renewal, startDate, note: item ? item.note : '', noteDraft: item ? item.note : '', archived: Boolean(item && item.archived),
         status: 'ready', item, stageView: coach.stage(item ? item.stage : ''), profile, facts, flags, summary,
         alerts: alerts.alerts.filter(alert => alert.clientId === id && alert.status === 'open')
       });
@@ -64,6 +70,29 @@ Page({
       this.load();
     } catch (error) { wx.showToast({ title: '没发起成功', icon: 'none' }); }
     finally { this.setData({ busy: false }); }
+  },
+
+  onNote(e) { this.setData({ noteDraft: e.detail.value }); },
+
+  async saveNote() {
+    try {
+      const result = await request(`/api/coach/clients/${this.data.clientId}`, { method: 'PATCH', data: { note: this.data.noteDraft } });
+      this.setData({ note: result.note, noteDraft: result.note });
+      wx.showToast({ title: '记下了', icon: 'none' });
+    } catch (error) { wx.showToast({ title: '没保存成功', icon: 'none' }); }
+  },
+
+  async toggleArchive() {
+    const archived = !this.data.archived;
+    if (archived) {
+      const result = await wx.showModal({ title: '结课归档', content: 'TA 会移到「已归档」，不再出现在待处理里。TA 的计划和记录都保留，随时可以移回来。', confirmText: '归档' });
+      if (!result.confirm) return;
+    }
+    try {
+      await request(`/api/coach/clients/${this.data.clientId}`, { method: 'PATCH', data: { archived } });
+      this.setData({ archived });
+      wx.showToast({ title: archived ? '已归档' : '已移回列表', icon: 'none' });
+    } catch (error) { wx.showToast({ title: '没改成功', icon: 'none' }); }
   },
 
   openDraft() { wx.navigateTo({ url: `/pages/coach/preview/preview?draftId=${this.data.item.draft.id}` }); },

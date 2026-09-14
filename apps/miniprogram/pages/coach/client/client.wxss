@@ -23,3 +23,21 @@
 .warnings { margin-top: 20rpx; padding: 20rpx 24rpx; border-radius: 24rpx; background: var(--warn-soft); }
 .w-title { font-size: 23rpx; font-weight: 700; color: #7A5205; margin-bottom: 6rpx; }
 .w-row { font-size: 23rpx; color: var(--ink-2); line-height: 1.6; }
+.course-top { display: flex; justify-content: space-between; align-items: baseline; }
+.course-top .t .num { font-size: 40rpx; color: var(--train); }
+.course-left { font-size: 24rpx; color: var(--ink-2); }
+.bar { margin-top: 14rpx; height: 16rpx; border-radius: 999rpx; background: var(--surface-2); border: 2rpx solid var(--line); overflow: hidden; }
+.bar-in { height: 100%; border-radius: 999rpx; background: var(--train); transition: width .6s var(--ease); }
+.course-dates { margin-top: 10rpx; font-size: 21rpx; color: var(--ink-3); font-weight: 500; }
+.att { display: inline-block; margin: 14rpx 12rpx 0 0; padding: 8rpx 18rpx; border-radius: 999rpx; font-size: 22rpx; font-weight: 700; }
+.att.quiet { background: var(--warn-soft); color: #7A5205; }
+.att.ending, .att.ended { background: var(--train-soft); color: var(--train); }
+.att.next { background: var(--diet-soft); color: var(--diet); }
+.renew { margin-top: 26rpx; padding: 24rpx; border-radius: 30rpx; background: var(--surface-2); border: 2rpx solid var(--line); }
+.renew .date-pick { background: var(--surface); }
+.metrics-title { margin-top: 30rpx; }
+.note-card .label { font-size: 25rpx; font-weight: 700; margin-bottom: 14rpx; }
+.note-card .private { font-size: 20rpx; font-weight: 500; color: var(--ink-3); margin-left: 10rpx; }
+.note { width: 100%; min-height: 110rpx; padding: 18rpx 22rpx; border-radius: 24rpx; background: var(--surface-2); border: 2rpx solid var(--line); font-size: 26rpx; line-height: 1.55; box-sizing: border-box; }
+.note-save { margin-top: 16rpx; display: inline-block; padding: 12rpx 30rpx; border-radius: 999rpx; background: var(--ink); color: #fff; font-size: 24rpx; font-weight: 700; }
+.archive-link { margin: 12rpx 0 40rpx; text-align: center; font-size: 24rpx; color: var(--ink-3); }

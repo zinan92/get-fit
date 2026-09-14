@@ -136,6 +136,23 @@ try {
     if (meal) { const { top } = await meal.offset(); await mini.pageScrollTo(Math.max(0, top - 160)); }
     await shot("32-coach-edit-meals");
   }
+  // Member management: filters, a member near the end of a period, the archived list.
+  page = await mini.reLaunch("/pages/coach/home/home");
+  await wait(1600);
+  const list = await page.$(".finder");
+  if (list) { const { top } = await list.offset(); await mini.pageScrollTo(Math.max(0, top - 200)); }
+  await shot("33-coach-members");
+  await page.callMethod("pickFilter", { currentTarget: { dataset: { key: "ending" } } });
+  await shot("34-coach-members-ending");
+  const members = await page.data("clients");
+  const ending = members.find((item) => item.attention.some((entry) => entry.kind === "ending"));
+  if (ending) {
+    page = await mini.navigateTo(`/pages/coach/client/client?id=${ending.id}`);
+    await wait(1800);
+    await shot("35-coach-member-renewal");
+    await mini.pageScrollTo(900);
+    await shot("36-coach-member-note");
+  }
   console.log(logs.slice(-20).join("\n"));
 } finally {
   mini.disconnect();

@@ -153,6 +153,8 @@ export async function handleApi(context: ApiContext): Promise<Response> {
     if (alertsAckMatch && method === "POST") return acknowledgeAlert(context, alertsAckMatch[1], reqId);
     if (path === "coach/alerts" && method === "GET") return listAlerts(context);
     if (path === "coach/overview" && method === "GET") return coachOverview(context);
+    const clientManageMatch = path.match(/^coach\/clients\/([^/]+)$/);
+    if (clientManageMatch && method === "PATCH") return manageClient(context, clientManageMatch[1], reqId);
     if (path === "operator/jobs" && method === "GET") return operatorJobs(context);
     const operatorInputMatch = path.match(/^operator\/jobs\/([^/]+)\/input$/);
     if (operatorInputMatch && method === "GET") return codexInput(context, operatorInputMatch[1], requireOperator);
@@ -593,9 +595,27 @@ function operatorJobs(context: ApiContext): Response {
   return json({ jobs });
 }
 
+/** The published plan period a client is in today, or the latest one when none covers today. */
+function courseView(store: ApiContext["store"], clientId: string, today: string) {
+  const plans = [...store.plans.values()].filter((plan) => plan.clientId === clientId && plan.status !== "archived").sort((a, b) => b.versionNo - a.versionNo);
+  if (!plans.length) return null;
+  const covering = plans.find((plan) => plan.payload.startDate <= today && addCalendarDays(plan.payload.startDate, plan.payload.days.length - 1) >= today);
+  const plan = covering ?? plans[0];
+  const startDate = plan.payload.startDate;
+  const endDate = addCalendarDays(startDate, plan.payload.days.length - 1);
+  const dayNumber = today < startDate ? 0 : Math.min(plan.payload.days.length, daysBetween(startDate, today) + 1);
+  const nextPlan = plans.find((candidate) => candidate.payload.startDate > endDate) ?? null;
+  return { startDate, endDate, totalDays: plan.payload.days.length, dayNumber, daysLeft: Math.max(0, daysBetween(today, endDate)), nextStartDate: nextPlan?.payload.startDate ?? null };
+}
+
+function daysBetween(from: string, to: string): number {
+  return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
+}
+
 /** Everything the coach home screen needs in one call: each client's stage and what is waiting on the coach. */
 function coachOverview(context: ApiContext): Response {
   const auth = requireCoach(context); if (auth !== true) return auth;
+  const today = localToday();
   const clients = [...context.store.clients.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map((client) => {
     const profile = context.store.profiles.get(client.id) ?? null;
     const jobs = [...context.store.jobs.values()].filter((job) => job.clientId === client.id).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
@@ -611,6 +631,16 @@ function coachOverview(context: ApiContext): Response {
     else if (plan) stage = "published";
     else if (client.status === "active") stage = "confirmed";
     else stage = hasManualRisk(profile) ? "needs_conversation" : "profile_submitted";
+    const course = courseView(context.store, client.id, today);
+    const opened = [...context.store.openedDays.values()].filter((item) => item.clientId === client.id).map((item) => item.localDate).sort();
+    const lastOpenedDate = opened.at(-1) ?? null;
+    // Quiet days only count once the plan has started: nobody is behind on a plan that begins next week.
+    const quietSince = course && course.dayNumber > 0 ? (lastOpenedDate && lastOpenedDate >= course.startDate ? lastOpenedDate : addCalendarDays(course.startDate, -1)) : null;
+    const quietDays = quietSince ? daysBetween(quietSince, today) : 0;
+    const attention: Array<{ kind: string; text: string }> = [];
+    if (course && course.dayNumber > 0 && today <= course.endDate && quietDays >= 2) attention.push({ kind: "quiet", text: lastOpenedDate && lastOpenedDate >= course.startDate ? `${quietDays} 天没打开` : "开始后还没打开过" });
+    if (course && !course.nextStartDate && today > course.endDate) attention.push({ kind: "ended", text: "这一期已结束" });
+    else if (course && !course.nextStartDate && course.dayNumber > 0 && course.daysLeft <= 5) attention.push({ kind: "ending", text: course.daysLeft === 0 ? "今天是最后一天" : `还剩 ${course.daysLeft} 天` });
     return {
       client: clientView(client),
       stage,
@@ -619,9 +649,31 @@ function coachOverview(context: ApiContext): Response {
       job: latestJob ? { id: latestJob.id, status: latestJob.status, startDate: latestJob.startDate } : null,
       draft: draft ? { id: draft.id, status: draft.status, startDate: draft.payload.startDate, warnings: draft.validation.warnings } : null,
       plan: plan ? { id: plan.id, versionNo: plan.versionNo, effectiveFrom: plan.effectiveFrom } : null,
+      course,
+      lastOpenedDate,
+      attention,
+      note: client.coachNote ?? "",
+      archived: Boolean(client.archivedAt),
     };
   });
-  return json({ clients, openAlerts: clients.reduce((sum, item) => sum + item.openAlerts, 0) });
+  return json({ today, clients, openAlerts: clients.reduce((sum, item) => sum + item.openAlerts, 0) });
+}
+
+/** The coach's own bookkeeping on a client: a private note and whether they sit in the active list. */
+async function manageClient(context: ApiContext, clientId: string, reqId: string): Promise<Response> {
+  const auth = requireCoach(context); if (auth !== true) return auth;
+  const client = context.store.clients.get(clientId); if (!client) return error("NOT_FOUND", "Client not found", 404);
+  const input = await body(context.request);
+  if (input.note !== undefined) {
+    if (typeof input.note !== "string" || input.note.length > 500) return error("INVALID_INPUT", "note must be text up to 500 characters", 400);
+    client.coachNote = input.note.trim();
+  }
+  if (input.archived !== undefined) {
+    if (typeof input.archived !== "boolean") return error("INVALID_INPUT", "archived must be true or false", 400);
+    client.archivedAt = input.archived ? (client.archivedAt ?? nowIso()) : null;
+  }
+  audit(context.store, "client.managed", { requestId: reqId, clientId, actor: "coach", archived: Boolean(client.archivedAt), noteChanged: input.note !== undefined });
+  return json({ client: clientView(client), note: client.coachNote ?? "", archived: Boolean(client.archivedAt) });
 }
 
 /** What the coach may swap into this draft: the validator's own filters, so the editor never offers a move it would refuse. */

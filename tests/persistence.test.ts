@@ -23,7 +23,7 @@ function fakeDb() {
 test("D1 adapter encrypts the single-coach snapshot and hydrates it", async () => {
   const db = fakeDb();
   const first = createMemoryStore();
-  first.clients.set("client_1", { id: "client_1", displayName: "小满", status: "active", createdAt: new Date().toISOString() });
+  first.clients.set("client_1", { id: "client_1", displayName: "小满", status: "active", createdAt: new Date().toISOString(), coachNote: "周三不方便", archivedAt: "2026-09-14T00:00:00.000Z" });
   first.sessions.set("session_1", { kind: "client", subjectId: "client_1", expiresAt: Date.now() + 60_000 });
   first.audit.push({ id: "audit-client", action: "profile.saved", clientId: "client_1" });
   first.deletionRequests.set("deletion_1", { id: "deletion_1", clientId: "client_1", requestedAt: new Date().toISOString(), purgeAt: new Date(Date.now() + 60_000).toISOString(), receiptHash: "hash", status: "requested" });
@@ -35,6 +35,9 @@ test("D1 adapter encrypts the single-coach snapshot and hydrates it", async () =
   const second = createMemoryStore();
   await hydrateStore(second, db, "unit-test-encryption-key");
   assert.equal(second.clients.get("client_1")?.displayName, "小满");
+  assert.equal(second.clients.get("client_1")?.coachNote, "周三不方便");
+  assert.equal(second.clients.get("client_1")?.archivedAt, "2026-09-14T00:00:00.000Z");
+  assert.equal(row?.ciphertext.includes("周三不方便"), false);
   assert.equal(second.sessions.get("session_1")?.subjectId, "client_1");
   assert.equal(second.profiles.get("client_1")?.weightKg, 65);
   await purgeClient(second, "client_1");

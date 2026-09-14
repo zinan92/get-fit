@@ -19,6 +19,18 @@
 .who { flex: 1; min-width: 0; }
 .who .n { font-size: 29rpx; font-weight: 700; }
 .warn-text { font-size: 22rpx; color: var(--warn); margin-top: 4rpx; }
+.hint { font-size: 22rpx; color: var(--ink-3); margin-top: 4rpx; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hint.warn { color: var(--warn); }
+.hint.train { color: var(--train); }
+.client-row.archived .avatar { background: var(--surface-2); color: var(--ink-3); }
+.finder { margin: 0 32rpx 16rpx; }
+.search { height: 76rpx; padding: 0 28rpx; border-radius: 999rpx; background: var(--surface); border: 2rpx solid var(--line); font-size: 26rpx; }
+.filters { white-space: nowrap; padding: 0 24rpx 20rpx; }
+.filter { display: inline-flex; align-items: center; gap: 8rpx; margin: 0 8rpx; padding: 12rpx 24rpx; border-radius: 999rpx; background: var(--surface); border: 2rpx solid var(--line); font-size: 24rpx; color: var(--ink-2); }
+.filter .fc { font-size: 20rpx; color: var(--ink-3); }
+.filter.on { background: var(--ink); border-color: var(--ink); color: #fff; font-weight: 700; }
+.filter.on .fc { color: #D8CBAE; }
+.list-empty { margin: 0 32rpx; padding: 40rpx; text-align: center; font-size: 25rpx; color: var(--ink-3); background: var(--surface); border: 2rpx dashed var(--line-2); border-radius: 40rpx; }
 .stage { font-size: 22rpx; font-weight: 700; padding: 8rpx 18rpx; border-radius: 999rpx; white-space: nowrap; }
 .stage.muted { background: var(--surface-2); color: var(--ink-3); border: 2rpx solid var(--line); }
 .stage.action { background: var(--train-soft); color: var(--train); }

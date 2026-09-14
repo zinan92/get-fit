@@ -77,6 +77,13 @@ export function previewPlan(): PlanPayload {
 }
 
 export async function buildPreviewDataset() {
+  // The server reads Date.now for "today"; pin it so the committed dataset does not drift with the calendar.
+  const realNow = Date.now;
+  Date.now = () => Date.parse(`${PREVIEW_TODAY}T01:00:00.000Z`);
+  try { return await buildDataset(); } finally { Date.now = realNow; }
+}
+
+async function buildDataset() {
   const store = createMemoryStore();
   const identity = async (openid: string, isCoach = false): Promise<PlatformIdentity> => ({ openid, openidHash: await sha256(openid), isCoach });
   const coach = await identity(COACH, true);
@@ -132,11 +139,35 @@ export async function buildPreviewDataset() {
   const pendingDraft = await call(coach, "/api/codex-fallback/import", "POST", { token: draftToken.token, payload: secondPlan });
   const reviewClientId = await addClient("小林", "preview-client-review", { target: "general_fitness", allergyFlags: ["peanut"], equipment: [] });
 
+  // Members further along, so the workbench shows quiet days, a period ending and an archived member.
+  const publishFrom = async (id: string, startDate: string) => {
+    await call(coach, `/api/coach/clients/${id}/profile/confirm`, "POST");
+    const periodJob = await call(coach, `/api/coach/clients/${id}/plan-generations`, "POST", { startDate });
+    const periodToken = await call(coach, `/api/coach/generation-jobs/${periodJob.job.id}/codex-fallback-token`, "POST");
+    const payload = previewPlan();
+    payload.startDate = startDate;
+    payload.days = payload.days.map((day, index) => ({ ...day, localDate: addDays(startDate, index) }));
+    const periodDraft = await call(coach, "/api/codex-fallback/import", "POST", { token: periodToken.token, payload });
+    await call(coach, `/api/coach/plan-drafts/${periodDraft.draft.id}/publish`, "POST", { changeReason: "preview" });
+  };
+  const openOn = async (openid: string, date: string) => {
+    const pinned = Date.now;
+    Date.now = () => Date.parse(`${date}T01:00:00.000Z`);
+    try { await call(await identity(openid), `/api/plan/today?date=${date}`); } finally { Date.now = pinned; }
+  };
+  const quietClientId = await addClient("大卫", "preview-client-quiet", { target: "fat_loss", weightKg: 82, equipment: ["dumbbell"] });
+  await publishFrom(quietClientId, "2026-08-17");
+  await openOn("preview-client-quiet", "2026-09-09");
+  const archivedClientId = await addClient("老周", "preview-client-archived", { target: "general_fitness", equipment: ["dumbbell"] });
+  await publishFrom(archivedClientId, "2026-07-20");
+  await call(coach, `/api/coach/clients/${archivedClientId}`, "PATCH", { archived: true, note: "8 月底结课，说 10 月再回来" });
+  await call(coach, `/api/coach/clients/${clientId}`, "PATCH", { note: "想在婚礼前瘦 4 公斤；周三晚上加班" });
+
   const coachData = {
     overview: await call(coach, "/api/coach/overview"),
     alerts: await call(coach, "/api/coach/alerts"),
-    profiles: Object.fromEntries(await Promise.all([clientId, draftClientId, reviewClientId].map(async (id) => [id, await call(coach, `/api/coach/clients/${id}/profile`)]))),
-    summaries: { [clientId]: await call(coach, `/api/coach/clients/${clientId}/summary?days=7`) },
+    profiles: Object.fromEntries(await Promise.all([clientId, draftClientId, reviewClientId, quietClientId, archivedClientId].map(async (id) => [id, await call(coach, `/api/coach/clients/${id}/profile`)]))),
+    summaries: Object.fromEntries(await Promise.all([clientId, quietClientId, archivedClientId].map(async (id) => [id, await call(coach, `/api/coach/clients/${id}/summary?days=7`)]))),
     draft: (await call(coach, `/api/coach/plan-drafts/${pendingDraft.draft.id}`)).draft,
     draftOptions: await call(coach, `/api/coach/plan-drafts/${pendingDraft.draft.id}/options`),
     draftDays: Object.fromEntries(await Promise.all(secondPlan.days.map(async (day) => [day.localDate, await call(coach, `/api/coach/plan-drafts/${pendingDraft.draft.id}/preview?date=${day.localDate}`)]))),

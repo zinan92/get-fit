@@ -2,7 +2,7 @@ const { request } = require('../../../utils/api');
 const coach = require('../../../utils/coach');
 
 Page({
-  data: { preview: false, status: 'loading', clients: [], alerts: [], waiting: 0, inviteName: '', invite: null, busy: false },
+  data: { preview: false, status: 'loading', clients: [], visible: [], filters: [], filter: 'all', query: '', alerts: [], waiting: 0, inviteName: '', invite: null, busy: false },
 
   onLoad() { this.setData({ preview: getApp().globalData.preview }); },
   onShow() { this.load(); },
@@ -10,20 +10,32 @@ Page({
   async load() {
     try {
       const [overview, alerts] = await Promise.all([request('/api/coach/overview'), request('/api/coach/alerts')]);
-      const clients = overview.clients.map(item => ({ ...item, id: item.client.id, stageView: coach.stage(item.stage), initial: item.client.displayName.slice(0, 1) }));
+      const clients = overview.clients.map(item => coach.memberRow(item));
       const openAlerts = alerts.alerts.filter(alert => alert.status === 'open');
-      const waiting = clients.filter(item => item.stageView.tone === 'action').length + openAlerts.length;
+      const waiting = clients.filter(item => !item.archived && item.stageView.tone === 'action').length + openAlerts.length;
       this.setData({ status: 'ready', clients, alerts: openAlerts, waiting });
+      this.applyFilter();
     } catch (error) {
       this.setData({ status: error && error.error && error.error.code === 'COACH_AUTH_REQUIRED' ? 'denied' : 'error' });
     }
   },
 
+  applyFilter() {
+    const { clients, filter, query } = this.data;
+    const filters = coach.FILTERS.map(item => ({ ...item, count: clients.filter(row => coach.inFilter(row, item.key)).length }));
+    const needle = query.trim();
+    const visible = clients.filter(row => coach.inFilter(row, filter) && (!needle || row.client.displayName.includes(needle)));
+    this.setData({ filters, visible });
+  },
+
+  pickFilter(e) { this.setData({ filter: e.currentTarget.dataset.key }); this.applyFilter(); },
+  onQuery(e) { this.setData({ query: e.detail.value }); this.applyFilter(); },
+
   onInviteName(e) { this.setData({ inviteName: e.detail.value }); },
 
   async createInvite() {
     const name = this.data.inviteName.trim();
-    if (!name) { wx.showToast({ title: '先写客户的称呼', icon: 'none' }); return; }
+    if (!name) { wx.showToast({ title: '先写会员的称呼', icon: 'none' }); return; }
     this.setData({ busy: true });
     try {
       const result = await request('/api/coach/invitations', { method: 'POST', data: { displayName: name } });
