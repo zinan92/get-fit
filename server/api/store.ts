@@ -20,6 +20,7 @@ export function createMemoryStore(): Store {
     fallbackTokens: new Map(),
     subscriptions: new Map(),
     delivery: new Map(),
+    openedDays: new Map(),
     audit: [],
   };
 }
@@ -76,4 +77,9 @@ export function planDayId(planId: string, localDate: string): string {
 
 export function checkinKey(clientId: string, itemId: string, localDate: string): string {
   return `${clientId}:${localDate}:${itemId}`;
+}
+
+export function recordOpenedDay(store: Store, clientId: string, localDate: string): void {
+  const key = `${clientId}:${localDate}`;
+  if (!store.openedDays.has(key)) store.openedDays.set(key, { clientId, localDate, firstOpenedAt: nowIso() });
 }

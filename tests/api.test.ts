@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { handleApi } from "../server/api/handlers";
-import { createMemoryStore } from "../server/api/store";
+import { createMemoryStore, recordOpenedDay } from "../server/api/store";
 import { PLAN_SCHEMA_VERSION, PLAN_TIMEZONE, type PlanPayload } from "../packages/plan-schema/src/index";
 
 const env = { DEV_MODE: "true" };
@@ -295,11 +295,9 @@ test("coach summary reports unique opened days, check-ins and pain alerts", asyn
   summaryStore.clients.set(clientId, { id: clientId, displayName: "摘要客户", status: "active", createdAt: new Date().toISOString() });
   const publishedAt = new Date().toISOString();
   summaryStore.plans.set("summary-plan", { id: "summary-plan", clientId, versionNo: 1, effectiveFrom: "2026-08-12", effectiveTo: null, payload: plan("2026-08-12"), status: "published", approvedAt: publishedAt, changeReason: null });
-  summaryStore.audit.push(
-    { id: "view-1", action: "client.today_viewed", clientId, localDate: "2026-08-12" },
-    { id: "view-2", action: "client.today_viewed", clientId, localDate: "2026-08-12" },
-    { id: "view-3", action: "client.today_viewed", clientId, localDate: "2026-08-13" },
-  );
+  recordOpenedDay(summaryStore, clientId, "2026-08-12");
+  recordOpenedDay(summaryStore, clientId, "2026-08-12");
+  recordOpenedDay(summaryStore, clientId, "2026-08-13");
   summaryStore.checkins.set("checkin-1", { clientId, planDayId: "summary-plan:2026-08-12", localDate: "2026-08-12", itemId: "ex-walk", itemType: "exercise", status: "completed", completedAt: publishedAt });
   summaryStore.checkins.set("checkin-2", { clientId, planDayId: "summary-plan:2026-08-12", localDate: "2026-08-12", itemId: "breakfast", itemType: "meal", status: "completed", completedAt: publishedAt });
   summaryStore.alerts.set("alert-1", { id: "alert-1", clientId, localDate: "2026-08-13", type: "pain", status: "open", createdAt: publishedAt, acknowledgedAt: null });
@@ -390,10 +388,8 @@ test("coach summary uses a continuous calendar window instead of active-date cou
   const gapCtx = { waitUntil() {}, passThroughOnException() {} } as ExecutionContext;
   const clientId = "gap-client";
   gapStore.clients.set(clientId, { id: clientId, displayName: "间隔客户", status: "active", createdAt: new Date().toISOString() });
-  gapStore.audit.push(
-    { id: "gap-old", action: "client.today_viewed", clientId, localDate: "2026-08-12" },
-    { id: "gap-new", action: "client.today_viewed", clientId, localDate: "2026-08-20" },
-  );
+  recordOpenedDay(gapStore, clientId, "2026-08-12");
+  recordOpenedDay(gapStore, clientId, "2026-08-20");
   gapStore.checkins.set("gap-checkin", { clientId, planDayId: "plan:2026-08-12", localDate: "2026-08-12", itemId: "ex-walk", itemType: "exercise", status: "completed", completedAt: new Date().toISOString() });
   gapStore.sessions.set("gap-coach-session", { kind: "coach", subjectId: "coach_single", expiresAt: Date.now() + 60_000 });
   const response = await handleApi({ request: new Request("http://localhost/api/coach/clients/gap-client/summary?days=7", { headers: { authorization: "Bearer gap-coach-session" } }), env, store: gapStore, ctx: gapCtx });

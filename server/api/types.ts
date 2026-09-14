@@ -195,7 +195,26 @@ export type Store = {
   fallbackTokens: Map<string, FallbackTokenRecord>;
   subscriptions: Map<string, SubscriptionRecord>;
   delivery: Map<string, DeliveryLogRecord>;
+  openedDays: Map<string, OpenedDayRecord>;
   audit: Array<Record<string, unknown>>;
+};
+
+/** One row per client per local date the client opened "today"; pilot metrics read this, not the truncated audit log. */
+export type OpenedDayRecord = {
+  clientId: string;
+  localDate: string;
+  firstOpenedAt: string;
+};
+
+/**
+ * Identity asserted by the hosting platform (WeChat CloudBase injects the
+ * caller's OPENID). When present it is the only identity source: bearer
+ * sessions, coach tokens and request-supplied ids are ignored.
+ */
+export type PlatformIdentity = {
+  openid: string;
+  openidHash: string;
+  isCoach: boolean;
 };
 
 export type ApiContext = {
@@ -203,6 +222,7 @@ export type ApiContext = {
   env: ApiEnv;
   store: Store;
   ctx: ExecutionContext;
+  platform?: PlatformIdentity;
 };
 
 export type JsonRecord = Record<string, unknown>;
