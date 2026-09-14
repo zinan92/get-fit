@@ -52,6 +52,7 @@ function respond(path, method, body) {
     const first = Object.keys(data.coach.draftDays)[0];
     return reply(data.coach.draftDays[params.date || first] || data.coach.draftDays[first]);
   }
+  if (method === 'PATCH' && /^\/api\/coach\/clients\/[^/]+$/.test(pathname)) return reply({ note: body.note !== undefined ? body.note : '', archived: Boolean(body.archived) });
   if (method === 'POST' && pathname === '/api/coach/invitations') return reply({ invitation: { token: 'preview-invite-code', client: { displayName: body.displayName } } });
   if (method === 'POST' && /^\/api\/coach\//.test(pathname)) return reply({ ok: true });
   // Onboarding can be walked through in DevTools with ?preview=onboarding.

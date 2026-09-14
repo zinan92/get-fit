@@ -13,4 +13,35 @@ const STAGES = {
 
 function stage(value) { return STAGES[value] || { label: value, tone: 'muted' }; }
 
-module.exports = { stage };
+const FILTERS = [
+  { key: 'all', label: '全部' },
+  { key: 'todo', label: '待我处理' },
+  { key: 'active', label: '执行中' },
+  { key: 'ending', label: '快结课' },
+  { key: 'archived', label: '已归档' }
+];
+
+// Archived members only appear under 已归档; every other filter is about the active list.
+function inFilter(row, key) {
+  if (key === 'archived') return row.archived;
+  if (row.archived) return false;
+  if (key === 'todo') return row.stageView.tone === 'action' || row.openAlerts > 0 || row.attention.some(item => item.kind === 'quiet');
+  if (key === 'active') return row.stage === 'published';
+  if (key === 'ending') return row.attention.some(item => item.kind === 'ending' || item.kind === 'ended');
+  return true;
+}
+
+/** One workbench row: the single most useful line under the member's name. */
+function memberRow(item) {
+  const attention = item.attention || [];
+  let hint = '';
+  let hintTone = '';
+  if (item.openAlerts) { hint = '有未处理的身体提醒'; hintTone = 'warn'; }
+  else if (attention.length) { hint = attention.map(entry => entry.text).join(' · '); hintTone = attention[0].kind === 'quiet' ? 'warn' : 'train'; }
+  else if (item.course && item.course.dayNumber > 0) hint = `第 ${item.course.dayNumber}/${item.course.totalDays} 天`;
+  else if (item.course && item.course.dayNumber === 0) hint = `${item.course.startDate.slice(5).replace('-', '月')}日开始`;
+  if (item.note) hint = hint ? `${hint}  ·  ${item.note}` : item.note;
+  return { ...item, id: item.client.id, stageView: stage(item.stage), initial: item.client.displayName.slice(0, 1), attention, hint, hintTone };
+}
+
+module.exports = { stage, FILTERS, inFilter, memberRow };

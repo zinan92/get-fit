@@ -21,24 +21,31 @@
     </view>
 
     <view class="section">
-      <view class="sec-head"><text class="h3">我的客户</text><text class="count num">{{clients.length}}</text></view>
-      <view class="list">
-        <view wx:for="{{clients}}" wx:key="id" class="client-row" data-id="{{item.client.id}}" bindtap="openClient">
+      <view class="sec-head"><text class="h3">我的会员</text><text class="count num">{{clients.length}}</text></view>
+      <view class="finder">
+        <input class="search" placeholder="搜称呼" value="{{query}}" bindinput="onQuery" confirm-type="search" />
+      </view>
+      <scroll-view class="filters" scroll-x enhanced show-scrollbar="{{false}}">
+        <view wx:for="{{filters}}" wx:key="key" class="filter {{filter === item.key ? 'on' : ''}}" data-key="{{item.key}}" bindtap="pickFilter">{{item.label}}<text wx:if="{{item.count}}" class="num fc">{{item.count}}</text></view>
+      </scroll-view>
+      <view wx:if="{{visible.length}}" class="list">
+        <view wx:for="{{visible}}" wx:key="id" class="client-row {{item.archived ? 'archived' : ''}}" data-id="{{item.client.id}}" bindtap="openClient">
           <view class="avatar">{{item.initial}}</view>
           <view class="who">
             <view class="n">{{item.client.displayName}}</view>
-            <view wx:if="{{item.openAlerts}}" class="s warn-text">有未处理的身体提醒</view>
+            <view wx:if="{{item.hint}}" class="hint {{item.hintTone}}">{{item.hint}}</view>
           </view>
-          <view class="stage {{item.stageView.tone}}">{{item.stageView.label}}</view>
+          <view class="stage {{item.stageView.tone}}">{{item.archived ? '已归档' : item.stageView.label}}</view>
         </view>
       </view>
+      <view wx:else class="list-empty">{{query ? '没有叫这个的会员' : filter === 'todo' ? '都处理好了，喝口水吧' : '这里暂时没有会员'}}</view>
     </view>
 
     <view class="section">
-      <view class="sec-head"><text class="h3">邀请新客户</text></view>
+      <view class="sec-head"><text class="h3">邀请新会员</text></view>
       <view class="card invite">
         <block wx:if="{{!invite}}">
-          <input class="field" placeholder="客户的称呼，比如 小满" value="{{inviteName}}" bindinput="onInviteName" />
+          <input class="field" placeholder="会员的称呼，比如 小满" value="{{inviteName}}" bindinput="onInviteName" />
           <view class="primary" bindtap="createInvite">{{busy ? '正在生成…' : '生成邀请'}}</view>
         </block>
         <block wx:else>

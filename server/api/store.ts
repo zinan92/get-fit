@@ -56,8 +56,9 @@ function uuid(): string {
   throw new Error("Web Crypto random UUID is unavailable");
 }
 
+/** Reads Date.now so every server timestamp follows one clock (the preview builder pins it). */
 export function nowIso(): string {
-  return new Date().toISOString();
+  return new Date(Date.now()).toISOString();
 }
 
 export function audit(store: Store, action: string, metadata: Record<string, unknown> = {}): void {

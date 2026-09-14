@@ -457,3 +457,55 @@ test("a rejected coach edit explains itself in Chinese and saves nothing", async
   assert.equal(saved.response.status, 200);
   assert.equal(draftStore.drafts.get("edit-draft")?.payload.days[2].exercises[0].catalogId, "ex-glute-bridge");
 });
+
+function shanghaiDate(offsetDays: number): string {
+  return new Date(Date.now() + 8 * 60 * 60 * 1000 + offsetDays * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
+test("member management: course progress, quiet days, private note, archive and the next period", async () => {
+  const memberStore = createMemoryStore();
+  const memberCtx = { waitUntil() {}, passThroughOnException() {} } as ExecutionContext;
+  const coachCall = async (path: string, init: RequestInit = {}) => {
+    const response = await handleApi({ request: new Request(`http://localhost${path}`, { ...init, headers: { "x-coach-token": "dev-coach", "content-type": "application/json" } }), env, store: memberStore, ctx: memberCtx });
+    return { response, payload: await response.json() as Record<string, any> }; // eslint-disable-line @typescript-eslint/no-explicit-any
+  };
+  const now = new Date().toISOString();
+  const clientId = "member-client";
+  const start = shanghaiDate(-26);
+  memberStore.clients.set(clientId, { id: clientId, displayName: "老会员", status: "active", createdAt: now });
+  memberStore.profiles.set(clientId, { target: "general_fitness", ageBand: "25_34", heightCm: 170, weightKg: 65, trainingExperience: "beginner", sessionsPerWeek: 3, minutesPerSession: 45, equipment: [], injuryFlags: [], allergyFlags: [], dietaryPreferences: [], riskFlags: [], timezone: "Asia/Shanghai" });
+  memberStore.consents.set(clientId, new Set(["health_processing", "third_party_model"]));
+  memberStore.plans.set("member-plan", { id: "member-plan", clientId, versionNo: 1, effectiveFrom: start, effectiveTo: null, payload: plan(start), status: "published", approvedAt: now, changeReason: null });
+  recordOpenedDay(memberStore, clientId, shanghaiDate(-3));
+
+  let overview = await coachCall("/api/coach/overview");
+  let row = overview.payload.clients[0];
+  assert.equal(row.course.dayNumber, 27);
+  assert.equal(row.course.daysLeft, 3);
+  assert.deepEqual(row.attention.map((item: { text: string }) => item.text), ["3 天没打开", "还剩 3 天"]);
+
+  const noted = await coachCall(`/api/coach/clients/${clientId}`, { method: "PATCH", body: JSON.stringify({ note: "膝盖旧伤，周三晚上不方便" }) });
+  assert.equal(noted.response.status, 200);
+  overview = await coachCall("/api/coach/overview");
+  assert.equal(overview.payload.clients[0].note, "膝盖旧伤，周三晚上不方便");
+  assert.equal(JSON.stringify(overview.payload.clients[0].client).includes("膝盖旧伤"), false, "clientView never carries the note");
+
+  // Next period starts the day after this one ends; once published, the ending notice goes away.
+  const nextStart = shanghaiDate(4);
+  const generation = await coachCall(`/api/coach/clients/${clientId}/plan-generations`, { method: "POST", body: JSON.stringify({ startDate: nextStart }) });
+  assert.equal(generation.response.status, 202);
+  const jobId = generation.payload.job.id;
+  const token = await coachCall(`/api/coach/generation-jobs/${jobId}/codex-fallback-token`, { method: "POST" });
+  const imported = await coachCall("/api/codex-fallback/import", { method: "POST", body: JSON.stringify({ token: token.payload.token, payload: plan(nextStart) }) });
+  const published = await coachCall(`/api/coach/plan-drafts/${imported.payload.draft.id}/publish`, { method: "POST", body: JSON.stringify({}) });
+  assert.equal(published.response.status, 201);
+  row = (await coachCall("/api/coach/overview")).payload.clients[0];
+  assert.equal(row.course.dayNumber, 27, "still in the current period");
+  assert.equal(row.course.nextStartDate, nextStart);
+  assert.deepEqual(row.attention.map((item: { kind: string }) => item.kind), ["quiet"]);
+
+  await coachCall(`/api/coach/clients/${clientId}`, { method: "PATCH", body: JSON.stringify({ archived: true }) });
+  assert.equal((await coachCall("/api/coach/overview")).payload.clients[0].archived, true);
+  const invalid = await coachCall(`/api/coach/clients/${clientId}`, { method: "PATCH", body: JSON.stringify({ archived: "yes" }) });
+  assert.equal(invalid.response.status, 400);
+});

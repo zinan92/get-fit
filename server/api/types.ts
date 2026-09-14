@@ -50,6 +50,10 @@ export type ClientRecord = {
   displayName: string;
   status: ClientStatus;
   createdAt: string;
+  /** The coach's private note; never part of any client-facing response. */
+  coachNote?: string;
+  /** Hidden from the coach's active list; the client's own data and access are unchanged. */
+  archivedAt?: string | null;
 };
 
 export type InvitationRecord = {
