@@ -62,6 +62,46 @@ try {
   console.log("after goToDay", page.path, await page.data("date"), JSON.stringify((await page.data("strip")).map((cell) => `${cell.weekday}${cell.day}${cell.selected ? "*" : ""}`)));
   await mini.pageScrollTo(0);
   await shot("06-today-from-calendar");
+  // Today: tell the coach how the body feels (pain path).
+  page = await mini.switchTab("/pages/today/today");
+  await wait(1500);
+  for (const [field, value] of [["pain", "present"], ["energy", "low"], ["hunger", "normal"]]) {
+    const option = await page.$(`.feel-opt[data-field="${field}"][data-value="${value}"]`);
+    if (option) await option.tap();
+  }
+  const feelingCard = await page.$(".feeling");
+  if (feelingCard) { const { top } = await feelingCard.offset(); await mini.pageScrollTo(Math.max(0, top - 120)); }
+  await shot("07-feeling-picked");
+  const send = await page.$(".feel-send");
+  if (send) await send.tap();
+  await wait(700);
+  await shot("08-feeling-pain");
+
+  // Onboarding walk-through with preview responses.
+  page = await mini.reLaunch("/pages/onboarding/onboarding?preview=onboarding&invite=demo-invite");
+  await wait(1500);
+  await shot("09-onboarding-invite");
+  await (await page.$(".primary")).tap();
+  await wait(1200);
+  const consentCards = await page.$$(".consent-card");
+  await consentCards[0].tap();
+  await wait(300);
+  await shot("10-onboarding-consent");
+  await consentCards[1].tap();
+  await (await page.$(".primary")).tap();
+  await wait(1200);
+  await page.setData({ "form.heightCm": "163", "form.weightKg": "58" });
+  for (const selector of ['.chip-opt[data-field="equipment"][data-value="dumbbell"]', '.chip-opt[data-field="injury"][data-value="knee_discomfort"]', '.chip-opt[data-field="allergy"][data-value="tree_nut"]']) {
+    const chip = await page.$(selector);
+    if (chip) await chip.tap();
+  }
+  await shot("11-onboarding-profile-top");
+  await mini.pageScrollTo(900);
+  await shot("12-onboarding-profile-bottom");
+  await (await page.$(".primary")).tap();
+  await wait(1200);
+  await mini.pageScrollTo(0);
+  await shot("13-onboarding-done");
   console.log(logs.slice(-20).join("\n"));
 } finally {
   mini.disconnect();

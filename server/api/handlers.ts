@@ -1,4 +1,4 @@
-import { consentTypes, isConsentType, requiredConsents, requiresManualReview } from "../../packages/contracts/src/index";
+import { ageBands, consentTypes, isConsentType, requiredConsents, requiresManualReview } from "../../packages/contracts/src/index";
 import { exerciseCatalogById, foodCatalogById } from "../../packages/catalogs/src/index";
 import { PLAN_SCHEMA_VERSION, PLAN_TIMEZONE } from "../../packages/plan-schema/src/index";
 import { validateProviderPayload } from "./plan-validation";
@@ -38,7 +38,7 @@ function clientView(client: ClientRecord): JsonRecord {
 
 function parseProfile(input: JsonRecord): HealthProfile | null {
   const allowedTargets = new Set(["fat_loss", "muscle_gain", "general_fitness"]);
-  const allowedAge = new Set(["18_24", "25_34", "35_44", "45_54", "55_plus"]);
+  const allowedAge = new Set<string>(ageBands);
   const allowedExperience = new Set(["beginner", "intermediate", "advanced"]);
   const stringArray = (value: unknown) => Array.isArray(value) && value.every((item) => typeof item === "string" && item.length < 80) ? value as string[] : [];
   if (!allowedTargets.has(String(input.target)) || !allowedAge.has(String(input.ageBand)) || !allowedExperience.has(String(input.trainingExperience))) return null;
@@ -263,6 +263,7 @@ function clientMe(context: ApiContext): Response {
 
 async function saveProfile(context: ApiContext, reqId: string): Promise<Response> {
   const clientId = requireClient(context); if (clientId instanceof Response) return clientId;
+  if (!requiredConsents(context.store.consents.get(clientId) ?? new Set())) return error("CONSENT_REQUIRED", "Required consents must be accepted before the profile", 403);
   const profile = parseProfile(await body(context.request));
   if (!profile) return error("INVALID_INPUT", "Profile fields are invalid", 400);
   const client = context.store.clients.get(clientId); if (!client) return error("NOT_FOUND", "Client not found", 404);

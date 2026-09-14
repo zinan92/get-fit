@@ -35,7 +35,12 @@ function respond(path, method, body) {
     checkins[body.localDate] = { ...(checkins[body.localDate] || {}), [body.itemId]: body };
     return reply({ checkin: body });
   }
-  if (method === 'PUT' && pathname === '/api/wellness-feedback') return reply({ feedback: body, alert: null });
+  if (method === 'PUT' && pathname === '/api/wellness-feedback') return reply({ feedback: body, alert: body.pain === 'present' ? { type: 'pain', status: 'open' } : null });
+  // Onboarding can be walked through in DevTools with ?preview=onboarding.
+  if (method === 'POST' && pathname === '/api/invitations/accept') return reply({ client: data.me.client });
+  if (method === 'POST' && pathname === '/api/wx/auth/login') return reply({ client: data.me.client });
+  if (method === 'POST' && pathname === '/api/me/consents') return reply({ consents: body.types, modelReady: true });
+  if (method === 'PUT' && pathname === '/api/me/profile') return reply({ ok: true, status: 'pending_profile_review' });
   return Promise.reject({ error: { code: 'PREVIEW_UNSUPPORTED', message: '预览模式不支持这个操作' } });
 }
 

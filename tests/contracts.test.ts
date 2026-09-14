@@ -95,4 +95,6 @@ test("risk tiers: common discomfort and known allergens stay automatic, serious 
   for (const flag of ["acute_knee_pain", "acute_back_pain", "sprained_something"]) assert.equal(requiresManualReview({ ...base, injuryFlags: [flag] }), true, flag);
   for (const flag of ["minor", "pregnancy", "acute_pain", "chronic_disease", "eating_disorder", "pain", "anything"]) assert.equal(requiresManualReview({ ...base, riskFlags: [flag] }), true, flag);
   assert.equal(requiresManualReview({ ...base, allergyFlags: ["sesame"] }), true);
+  assert.equal(requiresManualReview({ ...base, ageBand: "under_18" }), true);
+  assert.equal(requiresManualReview({ ...base, ageBand: "25_34" }), false);
 });

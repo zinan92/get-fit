@@ -98,6 +98,24 @@
       </view>
     </view>
 
+    <view class="card feeling rise">
+      <block wx:if="{{!feelingSent}}">
+        <view class="feeling-head"><character catalog-id="ex-walk" size="{{72}}" /><view><view class="t">今天身体感觉怎么样</view><view class="s">点一下就好，教练会看到</view></view></view>
+        <view class="feeling-row" wx:for="{{['pain', 'energy', 'hunger']}}" wx:for-item="field" wx:key="*this">
+          <view wx:for="{{feelingOptions[field]}}" wx:key="value" class="feel-opt {{feeling[field] === item.value ? 'on' : ''}} {{item.value === 'present' ? 'pain' : ''}}" data-field="{{field}}" data-value="{{item.value}}" bindtap="pickFeeling">{{item.label}}</view>
+        </view>
+        <view class="feel-send" bindtap="sendFeeling">告诉教练</view>
+      </block>
+      <view wx:elif="{{feelingSent === 'pain'}}" class="feeling-result pain">
+        <image class="safety-ic" src="/assets/icons/warning.svg" />
+        <view><view class="t">先停下让你疼的动作</view><view class="s">教练已经收到提醒，会来问问你的情况。不要硬撑，也不用自己换动作。</view></view>
+      </view>
+      <view wx:else class="feeling-result">
+        <character catalog-id="ex-jumping-jack" size="{{72}}" />
+        <view><view class="t">收到，教练会看到</view><view class="s">明天也记得告诉我感觉怎么样。</view></view>
+      </view>
+    </view>
+
     <view class="sec-head meals-head">
       <text class="eyebrow">Meals</text>
       <text class="h3">今天吃什么</text>

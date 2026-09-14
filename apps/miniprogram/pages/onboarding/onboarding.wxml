@@ -1,32 +1,111 @@
-<view class="page">
+<view class="page onboarding">
   <topbar />
-  <view class="card hero">
-    <view class="eyebrow">轻练 ONBOARDING</view>
-    <view class="title">先了解你，<br/>再安排今天。</view>
-    <view class="muted">资料只用于教练确认和生成你的训练与饮食计划。</view>
+  <view wx:if="{{preview}}" class="preview-banner">本地预览数据 · 未连接云开发</view>
+
+  <view wx:if="{{step !== 'loading' && step !== 'done'}}" class="progress rise">
+    <view class="bar {{step === 'invite' || step === 'consent' || step === 'profile' ? 'on' : ''}}"></view>
+    <view class="bar {{step === 'consent' || step === 'profile' ? 'on' : ''}}"></view>
+    <view class="bar {{step === 'profile' ? 'on' : ''}}"></view>
   </view>
-  <view class="card" wx:if="{{step === 0}}">
-    <view class="section-title">输入邀请口令</view>
-    <input class="form-input" placeholder="粘贴教练发来的口令" value="{{inviteToken}}" bindinput="onToken" />
-    <button class="button" bindtap="acceptInvite">接受邀请</button>
+
+  <view wx:if="{{step === 'invite'}}" class="rise">
+    <view class="hello">
+      <view class="hello-tile"><character catalog-id="ex-walk" size="{{150}}" /></view>
+      <view class="h1">你好，欢迎来到轻练</view>
+      <view class="sub">教练会根据你的情况，安排好接下来 30 天每天练什么、吃什么。</view>
+    </view>
+    <view class="card">
+      <view class="label">教练给你的邀请口令</view>
+      <input class="field" placeholder="粘贴口令" value="{{inviteToken}}" bindinput="onToken" />
+      <view class="primary {{inviteToken ? '' : 'disabled'}}" bindtap="acceptInvite">{{busy ? '正在确认…' : '开始'}}</view>
+    </view>
   </view>
-  <view class="card" wx:if="{{step === 1}}">
-    <view class="section-title">同意必要说明</view>
-    <view class="muted">轻练会使用自动化工具辅助生成，草案必须经过教练审核。你可以随时撤回同意或申请删除资料。</view>
-    <checkbox-group bindchange="onConsentChange">
-      <label class="consent"><checkbox value="health_processing" /> 我同意处理必要的健康与饮食资料</label>
-      <label class="consent"><checkbox value="third_party_model" /> 我同意将去身份化资料交给第三方模型辅助生成</label>
-      <label class="consent"><checkbox value="subscription_message" /> 我同意接收每日计划提醒（可单独关闭）</label>
-    </checkbox-group>
-    <button class="button" bindtap="saveConsents">继续</button>
+
+  <view wx:elif="{{step === 'consent'}}" class="rise">
+    <view class="section-intro">
+      <view class="h1">先说清楚你的资料怎么用</view>
+      <view class="sub">每一项单独确认，之后在「我的」里随时可以申请删除。</view>
+    </view>
+    <view class="consent-card {{consents.health_processing ? 'on' : ''}}" data-type="health_processing" bindtap="toggleConsent" aria-role="checkbox" aria-checked="{{consents.health_processing}}">
+      <view class="tick"><view class="check-mark small"></view></view>
+      <view class="consent-copy">
+        <view class="t">处理身高、体重和身体情况 <text class="need">必需</text></view>
+        <view class="s">只用来给你排训练和饮食，只有你的教练能看到。</view>
+      </view>
+    </view>
+    <view class="consent-card {{consents.third_party_model ? 'on' : ''}}" data-type="third_party_model" bindtap="toggleConsent" aria-role="checkbox" aria-checked="{{consents.third_party_model}}">
+      <view class="tick"><view class="check-mark small"></view></view>
+      <view class="consent-copy">
+        <view class="t">用自动化工具辅助起草计划 <text class="need">必需</text></view>
+        <view class="s">去掉姓名和微信身份后交给第三方模型起草，教练逐项检查确认后你才会看到。</view>
+      </view>
+    </view>
+    <view class="consent-card {{consents.subscription_message ? 'on' : ''}}" data-type="subscription_message" bindtap="toggleConsent" aria-role="checkbox" aria-checked="{{consents.subscription_message}}">
+      <view class="tick"><view class="check-mark small"></view></view>
+      <view class="consent-copy">
+        <view class="t">每天提醒我今天的安排 <text class="optional">可选</text></view>
+        <view class="s">不选也能正常使用，以后可以再打开。</view>
+      </view>
+    </view>
+    <view class="primary sticky {{consents.health_processing && consents.third_party_model ? '' : 'disabled'}}" bindtap="saveConsents">{{busy ? '正在保存…' : '继续'}}</view>
   </view>
-  <view class="card" wx:if="{{step === 2}}">
-    <view class="section-title">你的基础情况</view>
-    <picker range="{{targets}}" bindchange="onTarget"><view class="field">目标：{{targets[targetIndex]}}</view></picker>
-    <picker range="{{experiences}}" bindchange="onExperience"><view class="field">训练经验：{{experiences[experienceIndex]}}</view></picker>
-    <input class="form-input" type="number" placeholder="身高 cm" value="{{heightCm}}" bindinput="onHeight" />
-    <input class="form-input" type="number" placeholder="体重 kg" value="{{weightKg}}" bindinput="onWeight" />
-    <view class="muted">如有孕期、急性疼痛、严重慢病或饮食障碍，请先直接联系教练。</view>
-    <button class="button" bindtap="saveProfile">提交给教练确认</button>
+
+  <view wx:elif="{{step === 'profile'}}" class="rise">
+    <view class="section-intro">
+      <view class="h1">说说你的情况</view>
+      <view class="sub">大概就好，教练会再和你确认。</view>
+    </view>
+
+    <view class="card group">
+      <view class="label">这个月最想做到</view>
+      <view class="chips"><view wx:for="{{view.target}}" wx:key="value" class="chip-opt {{item.on ? 'on' : ''}}" data-field="target" data-value="{{item.value}}" bindtap="pickOne">{{item.label}}</view></view>
+      <view class="label">年龄</view>
+      <view class="chips"><view wx:for="{{view.ageBand}}" wx:key="value" class="chip-opt {{item.on ? 'on' : ''}}" data-field="ageBand" data-value="{{item.value}}" bindtap="pickOne">{{item.label}}</view></view>
+      <view class="row2">
+        <view class="half"><view class="label">身高</view><view class="unit-field"><input class="field num" type="digit" placeholder="165" value="{{form.heightCm}}" data-field="heightCm" bindinput="onNumber" /><text>cm</text></view></view>
+        <view class="half"><view class="label">体重</view><view class="unit-field"><input class="field num" type="digit" placeholder="60" value="{{form.weightKg}}" data-field="weightKg" bindinput="onNumber" /><text>kg</text></view></view>
+      </view>
+    </view>
+
+    <view class="card group">
+      <view class="label">训练经验</view>
+      <view class="chips"><view wx:for="{{view.trainingExperience}}" wx:key="value" class="chip-opt {{item.on ? 'on' : ''}}" data-field="trainingExperience" data-value="{{item.value}}" bindtap="pickOne">{{item.label}}</view></view>
+      <view class="label">每周能练几次</view>
+      <view class="stepper">
+        <view class="step-btn" data-delta="-1" bindtap="stepSessions">−</view>
+        <text class="num big">{{form.sessionsPerWeek}}</text><text class="unit">次</text>
+        <view class="step-btn" data-delta="1" bindtap="stepSessions">+</view>
+      </view>
+      <view class="label">每次大概多久</view>
+      <view class="chips"><view wx:for="{{view.minutes}}" wx:key="value" class="chip-opt {{item.on ? 'on' : ''}}" data-field="minutesPerSession" data-value="{{item.value}}" bindtap="pickOne">{{item.label}}</view></view>
+      <view class="label">手边有的器械 <text class="hint">都没有就不选</text></view>
+      <view class="chips"><view wx:for="{{view.equipment}}" wx:key="value" class="chip-opt {{item.on ? 'on' : ''}}" data-field="equipment" data-value="{{item.value}}" bindtap="pickMany">{{item.label}}</view></view>
+    </view>
+
+    <view class="card group">
+      <view class="label">哪里偶尔有点不舒服 <text class="hint">会避开相关动作</text></view>
+      <view class="chips"><view wx:for="{{view.injury}}" wx:key="value" class="chip-opt {{item.on ? 'on' : ''}}" data-field="injury" data-value="{{item.value}}" bindtap="pickMany">{{item.label}}</view></view>
+      <view class="label">过敏或不能吃的 <text class="hint">不会出现在饮食里</text></view>
+      <view class="chips"><view wx:for="{{view.allergy}}" wx:key="value" class="chip-opt diet {{item.on ? 'on' : ''}}" data-field="allergy" data-value="{{item.value}}" bindtap="pickMany">{{item.label}}</view></view>
+      <view class="label">以下情况有的话告诉教练 <text class="hint">教练会先和你聊</text></view>
+      <view class="chips"><view wx:for="{{view.risk}}" wx:key="value" class="chip-opt warn {{item.on ? 'on' : ''}}" data-field="risk" data-value="{{item.value}}" bindtap="pickMany">{{item.label}}</view></view>
+    </view>
+
+    <view class="primary sticky" bindtap="saveProfile">{{busy ? '正在提交…' : '交给教练'}}</view>
+  </view>
+
+  <view wx:elif="{{step === 'done'}}" class="rise">
+    <view class="hello">
+      <view class="hello-tile"><character catalog-id="ex-jumping-jack" size="{{150}}" /></view>
+      <view class="h1">资料交给教练了</view>
+      <view wx:if="{{manualReview}}" class="sub">你提到的情况教练会先和你沟通，确认安全后再安排计划。</view>
+      <view wx:else class="sub">教练确认后，你的 30 天计划会出现在「今天」里。</view>
+    </view>
+    <view class="card next">
+      <view class="next-row"><text class="n num">1</text><text>教练查看你的资料</text></view>
+      <view class="next-row"><text class="n num">2</text><text>教练为你安排 30 天训练和饮食</text></view>
+      <view class="next-row"><text class="n num">3</text><text>每天打开看今天练什么、吃什么，做完点一下</text></view>
+    </view>
+    <view class="secondary" bindtap="goToday">先去看看</view>
   </view>
 </view>
