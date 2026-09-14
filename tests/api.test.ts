@@ -553,3 +553,62 @@ test("weekly card counts this Monday-to-Sunday around today, with a streak and t
     Date.now = realNow;
   }
 });
+
+test("adjusting a published plan takes over from the chosen day without touching earlier days or the next period", async () => {
+  const realNow = Date.now;
+  Date.now = () => Date.parse("2026-09-16T02:00:00.000Z");
+  try {
+    const revStore = createMemoryStore();
+    const revCtx = { waitUntil() {}, passThroughOnException() {} } as ExecutionContext;
+    const clientId = "rev-client";
+    revStore.clients.set(clientId, { id: clientId, displayName: "调整客户", status: "active", createdAt: "2026-09-01T00:00:00.000Z" });
+    revStore.profiles.set(clientId, { target: "general_fitness", ageBand: "25_34", heightCm: 170, weightKg: 65, trainingExperience: "beginner", sessionsPerWeek: 3, minutesPerSession: 45, equipment: [], injuryFlags: ["knee_discomfort"], allergyFlags: [], dietaryPreferences: [], riskFlags: [], timezone: "Asia/Shanghai" });
+    revStore.sessions.set("rev-token", { kind: "client", subjectId: clientId, expiresAt: Date.now() + 60_000 });
+    revStore.plans.set("period-1", { id: "period-1", clientId, versionNo: 1, effectiveFrom: "2026-09-01", effectiveTo: "2026-10-01", payload: plan("2026-09-01"), status: "superseded", approvedAt: "2026-08-31T00:00:00.000Z", changeReason: null });
+    const nextPeriod = plan("2026-10-01"); nextPeriod.days[0].title = "第二期第一天";
+    revStore.plans.set("period-2", { id: "period-2", clientId, versionNo: 2, effectiveFrom: "2026-10-01", effectiveTo: null, payload: nextPeriod, status: "published", approvedAt: "2026-09-10T00:00:00.000Z", changeReason: null });
+    revStore.checkins.set(`${clientId}:2026-09-16:ex-walk`, { clientId, planDayId: "period-1:2026-09-16", localDate: "2026-09-16", itemId: "ex-walk", itemType: "exercise", status: "completed", completedAt: null });
+    const coach = async (path: string, init: RequestInit = {}) => {
+      const response = await handleApi({ request: new Request(`http://localhost${path}`, { ...init, headers: { "x-coach-token": "dev-coach", "content-type": "application/json" } }), env, store: revStore, ctx: revCtx });
+      return { response, payload: await response.json() as Record<string, any> }; // eslint-disable-line @typescript-eslint/no-explicit-any
+    };
+    const today = async (date: string) => {
+      const response = await handleApi({ request: new Request(`http://localhost/api/plan/today?date=${date}`, { headers: { authorization: "Bearer rev-token" } }), env, store: revStore, ctx: revCtx });
+      return await response.json() as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+    };
+
+    assert.equal((await coach(`/api/coach/clients/${clientId}/plan-revisions`, { method: "POST", body: JSON.stringify({ effectiveFrom: "2026-09-16" }) })).response.status, 409, "not today");
+    const started = await coach(`/api/coach/clients/${clientId}/plan-revisions`, { method: "POST", body: JSON.stringify({ effectiveFrom: "2026-09-18" }) });
+    assert.equal(started.response.status, 201);
+    const draftId = started.payload.draft.id;
+    assert.equal((await coach(`/api/coach/clients/${clientId}/plan-revisions`, { method: "POST", body: JSON.stringify({ effectiveFrom: "2026-09-20" }) })).response.status, 409, "one adjustment at a time");
+
+    const preview = await coach(`/api/coach/plan-drafts/${draftId}/preview`);
+    assert.equal(preview.payload.date, "2026-09-18");
+    assert.equal(preview.payload.draft.dates[0], "2026-09-18");
+
+    const draft = (await coach(`/api/coach/plan-drafts/${draftId}`)).payload.draft;
+    const earlier = structuredClone(draft.payload); earlier.days[2].title = "改了过去";
+    const refused = await coach(`/api/coach/plan-drafts/${draftId}`, { method: "PATCH", body: JSON.stringify({ payload: earlier }) });
+    assert.equal(refused.response.status, 422);
+    assert.deepEqual(refused.payload.error.details.messages, ["2026-09-18 之前的日子客户已经在用，不能改"]);
+    const adjusted = structuredClone(draft.payload);
+    for (const day of adjusted.days) if (day.localDate >= "2026-09-18") { day.title = "膝盖友好版"; day.exercises = [{ catalogId: "ex-glute-bridge", sets: 3, reps: 12, restSeconds: 45, cues: [] }]; }
+    assert.equal((await coach(`/api/coach/plan-drafts/${draftId}`, { method: "PATCH", body: JSON.stringify({ payload: adjusted }) })).response.status, 200);
+    const overview = (await coach("/api/coach/overview")).payload.clients[0];
+    assert.equal(overview.stage, "draft_ready");
+    assert.equal(overview.draft.revision.effectiveFrom, "2026-09-18");
+
+    assert.equal((await coach(`/api/coach/plan-drafts/${draftId}/publish`, { method: "POST", body: JSON.stringify({}) })).response.status, 201);
+    assert.notEqual((await today("2026-09-17")).plan.day.title, "膝盖友好版");
+    assert.deepEqual((await today("2026-09-16")).checkins, [{ itemId: "ex-walk", itemType: "exercise", status: "completed" }], "today's check-in still belongs to today's plan");
+    assert.equal((await today("2026-09-18")).plan.day.title, "膝盖友好版");
+    assert.equal((await today("2026-09-30")).plan.day.title, "膝盖友好版");
+    assert.equal((await today("2026-10-01")).plan.day.title, "第二期第一天", "the next period is untouched");
+    const after = (await coach("/api/coach/overview")).payload.clients[0];
+    assert.equal(after.stage, "published");
+    assert.equal(after.course.nextStartDate, "2026-10-01");
+  } finally {
+    Date.now = realNow;
+  }
+});

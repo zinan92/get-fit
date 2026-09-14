@@ -152,6 +152,13 @@ try {
     await shot("35-coach-member-renewal");
     await mini.pageScrollTo(900);
     await shot("36-coach-member-note");
+    const adjust = await page.$(".adjust");
+    if (adjust) { const { top } = await adjust.offset(); await mini.pageScrollTo(Math.max(0, top - 220)); await shot("39-coach-adjust-entry"); }
+    await page.callMethod("startAdjust");
+    await wait(2200);
+    page = await mini.currentPage();
+    await mini.pageScrollTo(0);
+    await shot("40-coach-adjust-preview");
   }
   // Weekly card on the client's today page, and where the coach writes the line on it.
   page = await mini.reLaunch("/pages/today/today");
