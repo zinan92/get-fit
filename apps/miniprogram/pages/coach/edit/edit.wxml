@@ -1,0 +1,102 @@
+<view class="page coach-edit">
+  <topbar />
+  <view wx:if="{{preview}}" class="preview-banner">本地预览数据 · 未连接云开发</view>
+
+  <block wx:if="{{status === 'ready'}}">
+    <view class="head rise">
+      <view class="eyebrow">{{clientName}} · 第 <text class="num">{{dayIndex}}</text> 天</view>
+      <view class="h1">改这一天</view>
+      <view class="sub">保存时会按 TA 的身体情况、器械和过敏再检查一遍。</view>
+    </view>
+
+    <view class="card basics rise">
+      <view class="label">今日主题</view>
+      <input class="field" value="{{title}}" maxlength="80" bindinput="onTitle" placeholder="比如 下肢力量日" />
+      <view class="label">给 TA 的一句提醒</view>
+      <textarea class="field area" value="{{reminder}}" maxlength="160" auto-height bindinput="onReminder" placeholder="比如 动作不用赶，把每次下蹲做稳" />
+    </view>
+
+    <view class="sec-head">
+      <text class="eyebrow">Training</text>
+      <text class="h3">动作</text>
+      <text class="count"><text class="num">{{exercises.length}}</text> 个</text>
+    </view>
+    <view wx:if="{{!exercises.length}}" class="card empty-note">没有动作，这一天会显示为恢复日。</view>
+    <view wx:for="{{exercises}}" wx:key="key" class="card move {{item.allowed ? '' : 'flagged'}}">
+      <view class="move-top">
+        <view class="thumb"><character catalog-id="{{item.catalogId}}" size="{{104}}" /></view>
+        <view class="move-name">
+          <view class="n">{{item.name}}</view>
+          <view wx:if="{{!item.allowed}}" class="flag">不适合 TA，建议换掉</view>
+        </view>
+        <view class="mini-btn" data-index="{{item.index}}" bindtap="openMoveSheet">换</view>
+        <view class="mini-btn ghost" data-index="{{item.index}}" bindtap="removeMove">删</view>
+      </view>
+      <view class="steppers">
+        <view wx:if="{{item.unit !== 'minutes'}}" class="stepper">
+          <text class="k">组数</text>
+          <view class="ctl"><view class="pm" data-index="{{item.index}}" data-field="sets" data-delta="-1" bindtap="stepMove">−</view><text class="num v">{{item.sets}}</text><view class="pm" data-index="{{item.index}}" data-field="sets" data-delta="1" bindtap="stepMove">+</view></view>
+        </view>
+        <view class="stepper">
+          <text class="k">{{item.unitLabel === '次' ? '每组次数' : item.unitLabel === '秒' ? '每组秒数' : '分钟'}}</text>
+          <view class="ctl"><view class="pm" data-index="{{item.index}}" data-field="reps" data-delta="-1" bindtap="stepMove">−</view><text class="num v">{{item.reps}}</text><view class="pm" data-index="{{item.index}}" data-field="reps" data-delta="1" bindtap="stepMove">+</view></view>
+        </view>
+        <view wx:if="{{item.unit !== 'minutes'}}" class="stepper">
+          <text class="k">休息秒</text>
+          <view class="ctl"><view class="pm" data-index="{{item.index}}" data-field="restSeconds" data-delta="-1" bindtap="stepMove">−</view><text class="num v">{{item.restSeconds}}</text><view class="pm" data-index="{{item.index}}" data-field="restSeconds" data-delta="1" bindtap="stepMove">+</view></view>
+        </view>
+      </view>
+    </view>
+    <view class="add-row" bindtap="openMoveSheet">+ 加一个动作</view>
+
+    <view class="sec-head meals-head">
+      <text class="eyebrow">Meals</text>
+      <text class="h3">饮食</text>
+      <text class="count">约 <text class="num">{{dayKcal}}</text> kcal</text>
+    </view>
+    <view wx:for="{{meals}}" wx:key="key" wx:for-item="meal" class="card meal">
+      <view class="meal-head"><text class="t">{{meal.label}}</text><text class="kc">约 <text class="num">{{meal.kcal}}</text> kcal</text></view>
+      <view wx:for="{{meal.foods}}" wx:key="key" wx:for-item="food" class="food {{food.allowed ? '' : 'flagged'}}">
+        <image wx:if="{{food.image}}" class="food-img" src="{{food.image}}" mode="aspectFit" />
+        <view class="food-name">
+          <view class="n">{{food.name}}</view>
+          <view wx:if="{{!food.allowed}}" class="flag">TA 过敏或不能吃</view>
+          <view wx:else class="s"><text class="num">{{food.kcal}}</text> kcal</view>
+        </view>
+        <view class="ctl small"><view class="pm" data-meal="{{meal.mealIndex}}" data-food="{{food.foodIndex}}" data-delta="-1" bindtap="stepFood">−</view><text class="num v">{{food.grams}}<text class="u">{{food.unit}}</text></text><view class="pm" data-meal="{{meal.mealIndex}}" data-food="{{food.foodIndex}}" data-delta="1" bindtap="stepFood">+</view></view>
+        <view class="food-actions">
+          <text class="link" data-meal="{{meal.mealIndex}}" data-food="{{food.foodIndex}}" bindtap="openFoodSheet">换</text>
+          <text class="link muted-link {{meal.single ? 'off' : ''}}" data-meal="{{meal.mealIndex}}" data-food="{{food.foodIndex}}" bindtap="removeFood">删</text>
+        </view>
+      </view>
+      <view class="add-food" data-meal="{{meal.mealIndex}}" bindtap="openFoodSheet">+ 加一样</view>
+    </view>
+  </block>
+
+  <view wx:elif="{{status === 'error'}}" class="state-card rise">
+    <view class="t">暂时没连上</view>
+    <view class="retry" bindtap="load">重新加载</view>
+  </view>
+
+  <view wx:if="{{status === 'ready'}}" class="actions">
+    <view class="back" bindtap="cancel">取消</view>
+    <view class="publish {{dirty ? '' : 'idle'}}" bindtap="save">{{busy ? '正在检查…' : '保存这一天'}}</view>
+  </view>
+
+  <view wx:if="{{sheet}}" class="sheet-mask" bindtap="closeSheet">
+    <view class="sheet" catchtap="noop">
+      <view class="sheet-head"><text class="t">{{sheet.title}}</text><text class="x" bindtap="closeSheet">关闭</text></view>
+      <scroll-view class="groups" scroll-x enhanced show-scrollbar="{{false}}">
+        <view wx:for="{{sheetGroups}}" wx:key="key" class="group {{sheetGroup === item.key ? 'on' : ''}}" data-key="{{item.key}}" bindtap="pickGroup">{{item.label}}</view>
+      </scroll-view>
+      <scroll-view class="sheet-list" scroll-y>
+        <view wx:for="{{sheetItems}}" wx:key="id" class="opt" data-id="{{item.id}}" bindtap="choose">
+          <image wx:if="{{item.image}}" class="opt-img" src="{{item.image}}" mode="aspectFit" />
+          <view wx:else class="opt-thumb"><character catalog-id="{{item.id}}" size="{{80}}" /></view>
+          <view class="opt-copy"><view class="n">{{item.name}}</view><view class="s">{{item.sub}}</view></view>
+        </view>
+        <view wx:if="{{!sheetItems.length}}" class="opt-empty">这一类没有适合 TA 的</view>
+      </scroll-view>
+    </view>
+  </view>
+</view>

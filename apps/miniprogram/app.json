@@ -7,6 +7,7 @@
     "pages/coach/home/home",
     "pages/coach/client/client",
     "pages/coach/preview/preview",
+    "pages/coach/edit/edit",
     "pages/privacy/privacy"
   ],
   "window": {

@@ -80,3 +80,54 @@ export const planGenerationContract = {
   provider: "codex_cli",
   reviewRequired: true,
 } as const;
+
+/** Moves and foods this client's plan may use, filtered by the same rules the validator enforces. */
+export function allowedCatalog(profile: HealthProfile) {
+  const context = catalogContext(profile);
+  return {
+    exercises: exerciseCatalog.filter((item) => !context.blockedExerciseIds?.has(item.id)).map((item) => ({ id: item.id, name: item.name, pattern: item.pattern, level: item.level, unit: item.unit, equipment: item.equipment, target: item.target })),
+    foods: foodCatalog.filter((item) => !context.blockedFoodIds?.has(item.id)).map((item) => ({ id: item.id, name: item.name, category: item.category, kcalPer100g: item.kcalPer100g, unit: item.unit })),
+  };
+}
+
+const MEAL_NAMES: Record<string, string> = { breakfast: "早餐", lunch: "午餐", snack: "加餐", dinner: "晚餐" };
+
+/** Validator errors in words a coach can act on; anything unrecognised keeps its raw text. */
+export function explainPlanErrors(errors: string[], payload: unknown): string[] {
+  const days = (payload && typeof payload === "object" && Array.isArray((payload as PlanPayload).days) ? (payload as PlanPayload).days : []) as Array<Partial<PlanPayload["days"][number]>>;
+  const messages = errors.map((raw) => {
+    const match = raw.match(/^days\[(\d+)\](?:\.exercises\[(\d+)\])?(?:\.meals\[(\d+)\](?:\.foods\[(\d+)\])?)?(?:\.(\w+))?: (.*)$/);
+    if (!match) return raw.startsWith("days: missing") ? "30 天的日期不完整" : `计划格式有问题（${raw}）`;
+    const [, dayAt, exerciseAt, mealAt, foodAt, field, message] = match;
+    const day = days[Number(dayAt)];
+    const where = `第 ${day?.dayIndex ?? Number(dayAt) + 1} 天`;
+    if (exerciseAt !== undefined) {
+      const move = day?.exercises?.[Number(exerciseAt)];
+      const name = exerciseCatalogById.get(String(move?.catalogId))?.name ?? "这个动作";
+      if (message.startsWith("blocked")) return `${where}「${name}」不适合这位客户（身体情况或器械）`;
+      if (field === "sets") return `${where}「${name}」组数要在 1–10 之间`;
+      if (field === "reps") return `${where}「${name}」次数或时长要在 1–100 之间`;
+      if (field === "restSeconds") return `${where}「${name}」组间休息要在 0–600 秒之间`;
+      return `${where}「${name}」填写不完整`;
+    }
+    if (mealAt !== undefined) {
+      const meal = day?.meals?.[Number(mealAt)];
+      const mealName = MEAL_NAMES[String(meal?.mealType)] ?? "这一餐";
+      if (foodAt !== undefined) {
+        const food = foodCatalog.find((item) => item.id === meal?.foods?.[Number(foodAt)]?.foodCatalogId);
+        const name = food?.name ?? "这样食物";
+        if (message.startsWith("blocked")) return `${where}${mealName}「${name}」客户过敏或不能吃`;
+        if (field === "grams") return `${where}${mealName}「${name}」克数要在 1–2000 之间`;
+        return `${where}${mealName}「${name}」填写不完整`;
+      }
+      if (field === "foods") return `${where}${mealName}至少要有一样食物`;
+      return `${where}${mealName}填写不完整`;
+    }
+    if (message.includes("below safe")) return `${where}饮食总热量低于 800 kcal`;
+    if (message.includes("exceeds safe")) return `${where}饮食总热量超过 5000 kcal`;
+    if (field === "title") return `${where}标题不能超过 80 个字`;
+    if (field === "reminders") return `${where}每条提醒不能超过 160 个字`;
+    return `${where}填写不完整`;
+  });
+  return [...new Set(messages)];
+}

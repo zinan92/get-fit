@@ -414,3 +414,46 @@ test("publishing an existing plan rejects a backdated effective date", async () 
   const response = await handleApi({ request: new Request("http://localhost/api/coach/plan-drafts/backdate-draft/publish", { method: "POST", headers: { "x-coach-token": "dev-coach", "content-type": "application/json" }, body: JSON.stringify({ effectiveFrom: yesterday }) }), env, store: backdateStore, ctx: backdateCtx });
   assert.equal(response.status, 409);
 });
+
+function seedDraft(profileOverrides: Record<string, unknown> = {}) {
+  const draftStore = createMemoryStore();
+  const clientId = "edit-client";
+  const now = new Date().toISOString();
+  draftStore.clients.set(clientId, { id: clientId, displayName: "改计划客户", status: "active", createdAt: now });
+  draftStore.profiles.set(clientId, { target: "general_fitness", ageBand: "25_34", heightCm: 170, weightKg: 65, trainingExperience: "beginner", sessionsPerWeek: 3, minutesPerSession: 45, equipment: [], injuryFlags: ["knee_discomfort"], allergyFlags: ["peanut"], dietaryPreferences: [], riskFlags: [], timezone: "Asia/Shanghai", ...profileOverrides } as never);
+  draftStore.jobs.set("edit-job", { id: "edit-job", clientId, provider: "codex_cli", model: "codex-cli", schemaVersion: PLAN_SCHEMA_VERSION, status: "pending_review", errorCode: null, traceId: "trace", startDate: "2026-08-20", outputHash: null, createdAt: now, updatedAt: now, operator: "coach" });
+  draftStore.drafts.set("edit-draft", { id: "edit-draft", generationJobId: "edit-job", clientId, status: "pending_review", payload: plan("2026-08-20"), validation: { ok: true, warnings: [] }, createdAt: now, reviewedAt: null, rejectionReason: null });
+  const coachCall = async (path: string, init: RequestInit = {}) => {
+    const response = await handleApi({ request: new Request(`http://localhost${path}`, { ...init, headers: { "x-coach-token": "dev-coach", "content-type": "application/json" } }), env, store: draftStore, ctx: { waitUntil() {}, passThroughOnException() {} } as ExecutionContext });
+    return { response, payload: await response.json() as Record<string, any> }; // eslint-disable-line @typescript-eslint/no-explicit-any
+  };
+  return { draftStore, coachCall };
+}
+
+test("draft options only offer moves and foods the validator would accept for this client", async () => {
+  const { coachCall } = seedDraft();
+  const options = await coachCall("/api/coach/plan-drafts/edit-draft/options");
+  assert.equal(options.response.status, 200);
+  const exerciseIds = new Set(options.payload.exercises.map((item: { id: string }) => item.id));
+  const foodIds = new Set(options.payload.foods.map((item: { id: string }) => item.id));
+  assert.ok(!exerciseIds.has("ex-goblet-squat"), "needs a dumbbell and loads the knee");
+  assert.ok(exerciseIds.has("ex-glute-bridge"));
+  assert.ok(!foodIds.has("food-peanut") && foodIds.has("food-egg"));
+  assert.ok(options.payload.exercises.every((item: { name: string; unit: string }) => item.name && item.unit));
+});
+
+test("a rejected coach edit explains itself in Chinese and saves nothing", async () => {
+  const { draftStore, coachCall } = seedDraft();
+  const edited = plan("2026-08-20");
+  edited.days[2].exercises[0] = { catalogId: "ex-goblet-squat", sets: 3, reps: 12, restSeconds: 60, cues: [] };
+  edited.days[4].meals[0].foods[0] = { foodCatalogId: "food-egg", grams: 0 };
+  const rejected = await coachCall("/api/coach/plan-drafts/edit-draft", { method: "PATCH", body: JSON.stringify({ payload: edited }) });
+  assert.equal(rejected.response.status, 422);
+  assert.deepEqual(rejected.payload.error.details.messages, ["第 3 天「高脚杯深蹲」不适合这位客户（身体情况或器械）", "第 5 天早餐「水煮蛋」克数要在 1–2000 之间"]);
+  assert.equal(draftStore.drafts.get("edit-draft")?.payload.days[2].exercises[0].catalogId, "ex-walk");
+  const fixed = plan("2026-08-20");
+  fixed.days[2].exercises[0] = { catalogId: "ex-glute-bridge", sets: 3, reps: 12, restSeconds: 45, cues: [] };
+  const saved = await coachCall("/api/coach/plan-drafts/edit-draft", { method: "PATCH", body: JSON.stringify({ payload: fixed }) });
+  assert.equal(saved.response.status, 200);
+  assert.equal(draftStore.drafts.get("edit-draft")?.payload.days[2].exercises[0].catalogId, "ex-glute-bridge");
+});

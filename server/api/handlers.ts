@@ -1,7 +1,7 @@
 import { ageBands, consentTypes, isConsentType, requiredConsents, requiresManualReview } from "../../packages/contracts/src/index";
 import { exerciseCatalogById, foodCatalogById } from "../../packages/catalogs/src/index";
 import { PLAN_SCHEMA_VERSION, PLAN_TIMEZONE } from "../../packages/plan-schema/src/index";
-import { validateProviderPayload } from "./plan-validation";
+import { allowedCatalog, explainPlanErrors, validateProviderPayload } from "./plan-validation";
 import { body, error, issueSession, json, requireClient, requireCoach, requireOperator } from "./http";
 import { audit, checkinKey, id, nowIso, randomToken, recordOpenedDay, sha256 } from "./store";
 import { encryptSecret } from "./persistence";
@@ -158,6 +158,8 @@ export async function handleApi(context: ApiContext): Promise<Response> {
     if (operatorInputMatch && method === "GET") return codexInput(context, operatorInputMatch[1], requireOperator);
     const operatorTokenMatch = path.match(/^operator\/jobs\/([^/]+)\/import-token$/);
     if (operatorTokenMatch && method === "POST") return createFallbackToken(context, operatorTokenMatch[1], reqId, requireOperator);
+    const draftOptionsMatch = path.match(/^coach\/plan-drafts\/([^/]+)\/options$/);
+    if (draftOptionsMatch && method === "GET") return draftOptions(context, draftOptionsMatch[1]);
     const draftPreviewMatch = path.match(/^coach\/plan-drafts\/([^/]+)\/preview$/);
     if (draftPreviewMatch && method === "GET") return previewDraft(context, draftPreviewMatch[1]);
     if (path === "codex-fallback/import" && method === "POST") return importCodexFallback(context, reqId);
@@ -445,7 +447,7 @@ async function updateDraft(context: ApiContext, draftId: string, reqId: string):
   const validation = validateProviderPayload(profile, input.payload);
   if (!validation.ok) {
     audit(context.store, "draft.update_rejected", { requestId: reqId, draftId, clientId: draft.clientId, reason: validation.errors.slice(0, 5), actor: "coach" });
-    return error("VALIDATION_FAILED", "Edited draft failed the same plan safety validator", 422, { reasons: validation.errors.slice(0, 5) });
+    return error("VALIDATION_FAILED", "Edited draft failed the same plan safety validator", 422, { reasons: validation.errors.slice(0, 5), messages: explainPlanErrors(validation.errors, input.payload).slice(0, 5) });
   }
   draft.payload = validation.value;
   draft.validation = { ok: true, warnings: validation.warnings };
@@ -620,6 +622,14 @@ function coachOverview(context: ApiContext): Response {
     };
   });
   return json({ clients, openAlerts: clients.reduce((sum, item) => sum + item.openAlerts, 0) });
+}
+
+/** What the coach may swap into this draft: the validator's own filters, so the editor never offers a move it would refuse. */
+function draftOptions(context: ApiContext, draftId: string): Response {
+  const auth = requireCoach(context); if (auth !== true) return auth;
+  const draft = context.store.drafts.get(draftId); if (!draft) return error("DRAFT_NOT_FOUND", "Draft not found", 404);
+  const profile = context.store.profiles.get(draft.clientId); if (!profile) return error("PROFILE_INCOMPLETE", "Client profile is incomplete", 400);
+  return json(allowedCatalog(profile));
 }
 
 /** A draft day in exactly the shape the client's today screen receives, so the coach previews what the client will see. */

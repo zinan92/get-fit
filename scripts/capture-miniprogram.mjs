@@ -123,6 +123,19 @@ try {
   await shot("18-coach-draft-preview");
   const cells = await page.$$(".strip .dcell");
   if (cells[3]) { await cells[3].tap(); await wait(1500); await mini.pageScrollTo(700); await shot("19-coach-draft-day4"); }
+  // Day editor: bump sets, open the swap sheet, pick a food.
+  if (await page.$(".edit-btn")) {
+    page = await mini.navigateTo(`/pages/coach/edit/edit?draftId=${draftClient.draft.id}&date=${await page.data("date")}&name=${encodeURIComponent(draftClient.client.displayName)}`);
+    await wait(2000);
+    const plus = await page.$$(".stepper .pm");
+    if (plus[1]) await plus[1].tap();
+    await shot("30-coach-edit-top");
+    const swap = await page.$(".mini-btn");
+    if (swap) { await swap.tap(); await wait(900); await shot("31-coach-edit-swap-sheet"); await page.callMethod("closeSheet"); }
+    const meal = await page.$(".meal");
+    if (meal) { const { top } = await meal.offset(); await mini.pageScrollTo(Math.max(0, top - 160)); }
+    await shot("32-coach-edit-meals");
+  }
   console.log(logs.slice(-20).join("\n"));
 } finally {
   mini.disconnect();

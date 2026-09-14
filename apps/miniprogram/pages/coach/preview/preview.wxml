@@ -15,6 +15,10 @@
         <text class="wd">{{item.weekday}}</text>
       </view>
     </scroll-view>
+    <view wx:if="{{draft.status === 'pending_review'}}" class="edit-bar">
+      <text class="edit-hint">这一天哪里不合适，可以直接改</text>
+      <view class="edit-btn" bindtap="editDay">改这一天</view>
+    </view>
     <plan-day wx:if="{{day}}" day="{{day}}" done="{{emptyDone}}" readonly badge="草案预览 · 客户还看不到" />
   </block>
 

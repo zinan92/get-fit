@@ -14,3 +14,6 @@
 .actions { position: fixed; left: 0; right: 0; bottom: 0; display: flex; gap: 18rpx; padding: 20rpx 32rpx calc(24rpx + env(safe-area-inset-bottom)); background: rgba(243, 238, 227, .95); border-top: 2rpx solid var(--line); }
 .back { flex: 0 0 180rpx; height: 92rpx; border-radius: 999rpx; border: 3rpx solid var(--line-2); background: var(--surface); display: flex; align-items: center; justify-content: center; font-size: 28rpx; font-weight: 700; color: var(--ink-2); }
 .publish { flex: 1; height: 92rpx; border-radius: 999rpx; background: var(--train); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 29rpx; font-weight: 700; }
+.edit-bar { margin: -8rpx 32rpx 24rpx; padding: 16rpx 16rpx 16rpx 28rpx; border-radius: 999rpx; background: var(--surface); border: 2rpx solid var(--line); display: flex; align-items: center; gap: 16rpx; }
+.edit-hint { flex: 1; font-size: 24rpx; color: var(--ink-2); }
+.edit-btn { padding: 14rpx 30rpx; border-radius: 999rpx; background: var(--ink); color: #fff; font-size: 25rpx; font-weight: 700; }
