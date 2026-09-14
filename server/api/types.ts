@@ -215,6 +215,8 @@ export type PlatformIdentity = {
   openid: string;
   openidHash: string;
   isCoach: boolean;
+  /** The operator's local drafting tool, authenticated by its own key; never a WeChat user. */
+  operator?: boolean;
 };
 
 export type ApiContext = {

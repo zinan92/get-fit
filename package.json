@@ -9,13 +9,15 @@
     "dev": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext dev",
     "build": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext build",
     "start": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext start",
-    "test": "npm run build && node --test tests/rendered-html.test.mjs tests/cloudfunction-bundle.test.mjs tests/miniprogram-contract.test.mjs tests/pilot-preflight.test.mjs && node --import tsx --test tests/contracts.test.ts tests/api.test.ts tests/persistence.test.ts tests/plan-validation.test.ts tests/cloudfunction.test.ts",
+    "test": "npm run build && node --test tests/rendered-html.test.mjs tests/cloudfunction-bundle.test.mjs tests/miniprogram-contract.test.mjs tests/pilot-preflight.test.mjs tests/cloudbase-ops.test.mjs && node --import tsx --test tests/contracts.test.ts tests/api.test.ts tests/persistence.test.ts tests/plan-validation.test.ts tests/cloudfunction.test.ts tests/operator.test.ts",
     "codex:plan": "tsx scripts/codex-plan-fallback.ts",
     "build:cloudfunction": "node scripts/build-cloudfunction.mjs",
     "build:miniprogram-assets": "tsx scripts/build-miniprogram-assets.ts",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate",
-    "codex:fallback": "tsx scripts/codex-plan-fallback.ts"
+    "codex:fallback": "tsx scripts/codex-plan-fallback.ts",
+    "operator": "tsx scripts/operator-generate.ts",
+    "ops": "node scripts/cloudbase-ops.mjs"
   },
   "dependencies": {
     "drizzle-orm": "0.45.2",

@@ -94,16 +94,14 @@ actions tied to the current ChatGPT user. Leave public content anonymous.
 - `npm test`: build the starter and verify its rendered loading skeleton
 - `npm run db:generate`: generate Drizzle migrations after schema changes
 
-## Fit plan V1 loop
+## 轻练 · pilot architecture
 
-- `npm run dev` starts the coach web preview at `/coach`, the local customer sandbox at `/sandbox`, and the Worker API under `/api/*`.
-- When a WeChat AppID is unavailable, use `/sandbox` on localhost to exercise the real customer API with the explicitly scoped development identity; it is local-only and does not represent WeChat or production readiness.
-- Local `.dev.vars` may contain only throwaway values such as `DEV_MODE=true` and a local `DATA_ENCRYPTION_KEY`; it is ignored and must not contain a real provider key.
-- The native WeChat client is under `apps/miniprogram/`. Set its `apiBaseUrl` to the deployed Worker/Sites URL before importing it into the WeChat developer tool.
-- Production requires Worker secrets from [ENVIRONMENT-fit-plan.md](./ENVIRONMENT-fit-plan.md), applies the generated `drizzle/` migrations, and must keep the WeChat review, D1 recovery, and local Codex execution boundary open until verified.
-- The client receives only published coach-confirmed days. Food kcal is calculated from the curated catalog; drafts and provider identity stay in the coach/API boundary.
-- Plan generation uses the coach-operated local `npm run codex:plan` path: the Worker issues a short-lived one-time token and de-identified input, the local Codex CLI writes a plan, and the API applies the same schema/safety/kcal validator before review/publish. It never runs from the Worker and never exposes an unapproved draft to the client.
-- The client training cards embed three pinned 180×180 exercise GIFs with a text fallback; `/exercise-preview` shows the same media set for private review. Media attribution and separate Gym visual rights terms remain in force.
+- **Client and coach app**: the WeChat mini-program in `apps/miniprogram/` (today / plan / me for clients; coach workbench under 我的). Import that folder into WeChat DevTools; without a real AppID it runs on generated preview data.
+- **API**: the same domain code in `server/api/` runs as the CloudBase function `api` (`server/cloudfunction/entry.ts`, `npm run build:cloudfunction`). Identity is the platform OPENID; coaches are an allowlist; state is an encrypted CloudBase document with compare-and-set writes.
+- **Drafting**: the operator runs `npm run operator -- list | run <jobId>` locally (Codex CLI → same validator → one-time import). The coach reviews every day and publishes; clients only ever see published plans.
+- **Catalogs**: 49 exercises and 60 foods in `packages/catalogs` with sources (`packages/catalogs/NOTICE.md`); characters in `packages/illustrations`, generated into the mini-program by `npm run build:miniprogram-assets`.
+- **Operations**: `npm run ops -- init | add-coach <accountId> | deploy | health`; step-by-step launch in [docs/runbooks/fit-plan-first-client-pilot.md](docs/runbooks/fit-plan-first-client-pilot.md).
+- The vinext web app (`npm run dev`: `/`, `/plan`, `/coach`, `/sandbox`) remains the design and demo sandbox; it is not part of the pilot data path.
 
 ## Learn More
 

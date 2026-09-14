@@ -10,7 +10,9 @@ import type { ApiEnv, PlatformIdentity } from "../api/types";
 import { cloudbaseSnapshotBackend, type CloudbaseDatabase } from "./cloudbase-storage";
 
 export type CloudFunctionEvent = {
+  action?: unknown;
   path?: unknown;
+  operatorKey?: unknown;
   method?: unknown;
   headers?: unknown;
   body?: unknown;
@@ -74,13 +76,39 @@ function cloudbaseBackend(): SnapshotBackend {
   return defaultBackend;
 }
 
+/** Deployment check: runtime globals, storage readable with the configured key, and which settings are present (never their values). */
+async function health(storage: SnapshotBackend, encryptionKey: string | undefined, config: { coaches: number; operatorKey: boolean }): Promise<CloudFunctionResult> {
+  let storageStatus = "unchecked";
+  if (encryptionKey) {
+    try { await loadSnapshot(createMemoryStore(), storage, encryptionKey); storageStatus = "ok"; }
+    catch { storageStatus = "unreadable"; }
+  }
+  const capabilities = runtimeCapabilities();
+  const ok = storageStatus === "ok" && Object.values(capabilities).every(Boolean) && config.coaches > 0;
+  return {
+    statusCode: ok ? 200 : 503,
+    body: { ok, node: typeof process !== "undefined" ? process.versions.node : null, capabilities, storage: storageStatus, config: { encryptionKey: Boolean(encryptionKey), coaches: config.coaches, operatorKey: config.operatorKey } },
+  };
+}
+
+function sameHex(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let index = 0; index < a.length; index += 1) diff |= a.charCodeAt(index) ^ b.charCodeAt(index);
+  return diff === 0;
+}
+
 function failure(statusCode: number, code: string, message: string): CloudFunctionResult {
   return { statusCode, body: { error: { code, message } } };
 }
 
 export function createCloudFunction(options: CloudFunctionOptions) {
   const encryptionKey = options.env.DATA_ENCRYPTION_KEY;
-  const coachOpenids = new Set((options.env.COACH_OPENIDS ?? "").split(",").map((value) => value.trim()).filter(Boolean));
+  const operatorKeyHash = (options.env.OPERATOR_KEY_SHA256 ?? "").trim().toLowerCase();
+  const list = (value: string | undefined) => new Set((value ?? "").split(",").map((item) => item.trim()).filter(Boolean));
+  const coachOpenids = list(options.env.COACH_OPENIDS);
+  // Hashes let the coach be allowlisted from the account id shown in 我的, without anyone copying a raw OPENID.
+  const coachOpenidHashes = new Set([...list(options.env.COACH_OPENID_HASHES)].map((item) => item.toLowerCase()));
   // Handlers never see credentials that belong to other deployments: no dev fixtures, no Sites owner header,
   // no shared coach token, no WeChat code exchange.
   const env: ApiEnv = {
@@ -88,17 +116,25 @@ export function createCloudFunction(options: CloudFunctionOptions) {
     WECHAT_TEMPLATE_ID: options.env.WECHAT_TEMPLATE_ID,
   };
   const resolveOpenid = options.resolveOpenid ?? defaultResolveOpenid;
+  const backend = () => options.backend ?? cloudbaseBackend();
   const maxAttempts = Math.max(1, options.maxAttempts ?? 3);
 
   return async function main(event: CloudFunctionEvent, context?: unknown): Promise<CloudFunctionResult> {
     const path = typeof event?.path === "string" && event.path.startsWith("/api/") ? event.path : null;
     const method = typeof event?.method === "string" ? event.method.toUpperCase() : "GET";
-    if (!path || !METHODS.has(method)) return failure(400, "BAD_EVENT", "Event requires an /api/ path and a supported method");
-    if (!encryptionKey) return failure(503, "STORAGE_NOT_CONFIGURED", "Storage is temporarily unavailable");
+    if (event?.action !== "health" && (!path || !METHODS.has(method))) return failure(400, "BAD_EVENT", "Event requires an /api/ path and a supported method");
+    if (!encryptionKey && event?.action !== "health") return failure(503, "STORAGE_NOT_CONFIGURED", "Storage is temporarily unavailable");
 
     let openid = "";
     try { openid = resolveOpenid(context); } catch { openid = ""; }
-    const platform: PlatformIdentity = { openid, openidHash: openid ? await sha256(openid) : "", isCoach: Boolean(openid) && coachOpenids.has(openid) };
+    // The operator tool calls from the CLI with no WeChat identity and presents its own key.
+    const operator = !openid && Boolean(operatorKeyHash) && typeof event.operatorKey === "string" && sameHex(await sha256(event.operatorKey), operatorKeyHash);
+    const openidHash = openid ? await sha256(openid) : "";
+    const platform: PlatformIdentity = { openid, openidHash, isCoach: Boolean(openid) && (coachOpenids.has(openid) || coachOpenidHashes.has(openidHash)), operator };
+
+    if (event.action === "health") return health(backend(), encryptionKey, { coaches: coachOpenids.size + coachOpenidHashes.size, operatorKey: Boolean(operatorKeyHash) });
+    // Any WeChat caller may read their own account id (a hash of the OPENID) to be added to the coach list.
+    if (path === "/api/me/account-id" && method === "GET") return openid ? { statusCode: 200, body: { accountId: openidHash, isCoach: platform.isCoach } } : failure(401, "AUTH_REQUIRED", "WeChat identity is required");
 
     const headers: Record<string, string> = { "content-type": "application/json" };
     if (event.headers && typeof event.headers === "object") {
@@ -108,14 +144,14 @@ export function createCloudFunction(options: CloudFunctionOptions) {
     }
     const payload = method !== "GET" && event.body !== undefined ? JSON.stringify(event.body) : undefined;
 
-    let backend: SnapshotBackend;
-    try { backend = options.backend ?? cloudbaseBackend(); } catch { return failure(503, "STORAGE_UNAVAILABLE", "Storage is temporarily unavailable"); }
+    let storage: SnapshotBackend;
+    try { storage = backend(); } catch { return failure(503, "STORAGE_UNAVAILABLE", "Storage is temporarily unavailable"); }
 
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
       // Each attempt starts from freshly read state, so a retried request never builds on writes that lost the race.
       const store = createMemoryStore();
       let revision: number;
-      try { revision = await loadSnapshot(store, backend, encryptionKey); } catch { return failure(503, "STORAGE_UNAVAILABLE", "Storage is temporarily unavailable"); }
+      try { revision = await loadSnapshot(store, storage, encryptionKey!); } catch { return failure(503, "STORAGE_UNAVAILABLE", "Storage is temporarily unavailable"); }
       const pending: Promise<unknown>[] = [];
       const ctx = { waitUntil: (promise: Promise<unknown>) => { pending.push(promise); }, passThroughOnException() {} } as ExecutionContext;
       const request = new Request(`https://cloudfunction.invalid${path}`, { method, headers, body: payload });
@@ -123,7 +159,7 @@ export function createCloudFunction(options: CloudFunctionOptions) {
       // A cloud function instance may freeze after returning; finish deferred work first.
       await Promise.allSettled(pending);
       try {
-        await saveSnapshot(store, backend, encryptionKey, revision);
+        await saveSnapshot(store, storage, encryptionKey!, revision);
       } catch (caught) {
         if (caught instanceof StateConflictError) continue;
         return failure(503, "STORAGE_UNAVAILABLE", "Storage is temporarily unavailable");

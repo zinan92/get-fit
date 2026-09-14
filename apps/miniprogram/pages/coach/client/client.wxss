@@ -20,3 +20,6 @@
 .fact .v.diet { color: var(--diet); font-weight: 700; }
 .fact .v.warn { color: var(--warn); font-weight: 700; }
 .divider { height: 2rpx; background: var(--line); margin: 12rpx 0; }
+.warnings { margin-top: 20rpx; padding: 20rpx 24rpx; border-radius: 24rpx; background: var(--warn-soft); }
+.w-title { font-size: 23rpx; font-weight: 700; color: #7A5205; margin-bottom: 6rpx; }
+.w-row { font-size: 23rpx; color: var(--ink-2); line-height: 1.6; }
