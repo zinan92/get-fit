@@ -26,6 +26,13 @@
 - 试点期生成由操作员在 Mac mini 上运行（ADR 0002 修订）；教练在小程序内教练模式审阅和发布（ADR 0003 修订）。
 - 更正：此前"域名备案 + 主体资质是首客前置门"的判断是错的，已在规格中留痕。
 
+## 2026-09-14 · 云函数以打包产物承载同一份 API 源码（#9）
+
+- 云函数产物由 rolldown 从 `server/cloudfunction/entry.ts` 打包，领域逻辑与 Worker 共用 `server/api`、`packages/*`；不在 `cloudfunctions/` 下手写第二份。
+- 入口把 `callFunction` 事件适配为 `Request` 交给 `handleApi`，返回前等待所有 `waitUntil` 任务——云函数实例返回后可能被冻结。
+- 入口在构造环境时强制 `DEV_MODE: undefined`，与 Worker 的 dev 身份边界一致且更严：云函数永远不是本地沙盒。
+- 语法降级目标写死为 CloudBase 运行时 `node20.19`，不跟随本机 Node 版本。
+
 ## Gotchas
 
 - 热量必须绑定份量；只有食物名称的热量数字没有可信含义。
@@ -36,3 +43,5 @@
 - 生产环境永远不能设置 `DEV_MODE`；dev 身份的全部防线都压在这一个环境变量上。
 - `/sandbox` 页面里的 `window.location.hostname` 判断只是浏览器端提示，不是安全边界；真正的门在服务端 `DEV_MODE` 与邀请绑定校验。
 - 小程序备案与域名 ICP 备案是两道不同的门：前者只卡上架，不卡体验版；后者卡所有 `wx.request` 服务器域名，体验版真机同样校验（仅手机开调试模式时跳过，不能拿来给真实客户用）。云开发 `callFunction` 两道都不经过。
+- 打包产物目录 `dist-cloudfunctions/` 必须同时被 `.gitignore` 和 ESLint 忽略，否则 lint 会检查生成代码并报错。
+- 本机 Homebrew `node@22` 缺 simdjson 动态库无法启动；运行时兼容性不能靠本机多版本验证，要以部署后健康检查回报为准。
