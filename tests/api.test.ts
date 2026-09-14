@@ -292,7 +292,8 @@ test("coach session token authorizes subsequent coach operations", async () => {
   assert.equal(inviteResponse.status, 201);
 });
 
-test("coach summary reports unique opened days, check-ins and pain alerts", async () => {
+test("coach summary reports unique opened days, check-ins and pain alerts", async (t) => {
+  t.mock.method(Date, "now", () => Date.parse("2026-08-13T02:00:00.000Z"));
   const summaryStore = createMemoryStore();
   const summaryCtx = { waitUntil() {}, passThroughOnException() {} } as ExecutionContext;
   const clientId = "summary-client";
@@ -387,7 +388,9 @@ test("local development login binds the identity to the invited client", async (
   assert.equal(valid.response.status, 200);
 });
 
-test("coach summary uses a continuous calendar window instead of active-date count", async () => {
+test("coach summary counts the seven calendar days ending today, so a quiet week reads as quiet", async (t) => {
+  let now = "2026-08-20T02:00:00.000Z";
+  t.mock.method(Date, "now", () => Date.parse(now));
   const gapStore = createMemoryStore();
   const gapCtx = { waitUntil() {}, passThroughOnException() {} } as ExecutionContext;
   const clientId = "gap-client";
@@ -395,11 +398,17 @@ test("coach summary uses a continuous calendar window instead of active-date cou
   recordOpenedDay(gapStore, clientId, "2026-08-12");
   recordOpenedDay(gapStore, clientId, "2026-08-20");
   gapStore.checkins.set("gap-checkin", { clientId, planDayId: "plan:2026-08-12", localDate: "2026-08-12", itemId: "ex-walk", itemType: "exercise", status: "completed", completedAt: new Date().toISOString() });
-  gapStore.sessions.set("gap-coach-session", { kind: "coach", subjectId: "coach_single", expiresAt: Date.now() + 60_000 });
+  gapStore.sessions.set("gap-coach-session", { kind: "coach", subjectId: "coach_single", expiresAt: Date.parse("2027-01-01T00:00:00.000Z") });
   const response = await handleApi({ request: new Request("http://localhost/api/coach/clients/gap-client/summary?days=7", { headers: { authorization: "Bearer gap-coach-session" } }), env, store: gapStore, ctx: gapCtx });
   assert.equal(response.status, 200);
   const payload = await response.json() as Record<string, unknown>;
   assert.deepEqual(payload.summary, { openedDays: 1, trainingCheckins: 0, mealCheckins: 0, waterCheckins: 0, painAlerts: 0, feedbackDays: 0 });
+  now = "2026-08-25T02:00:00.000Z";
+  const later = await handleApi({ request: new Request("http://localhost/api/coach/clients/gap-client/summary?days=7", { headers: { authorization: "Bearer gap-coach-session" } }), env, store: gapStore, ctx: gapCtx });
+  assert.equal(((await later.json()) as { summary: { openedDays: number } }).summary.openedDays, 1, "08-20 is still inside 08-19..08-25");
+  now = "2026-08-28T02:00:00.000Z";
+  const quiet = await handleApi({ request: new Request("http://localhost/api/coach/clients/gap-client/summary?days=7", { headers: { authorization: "Bearer gap-coach-session" } }), env, store: gapStore, ctx: gapCtx });
+  assert.equal(((await quiet.json()) as { summary: { openedDays: number } }).summary.openedDays, 0, "no data in 08-22..08-28 is shown as zero, not as the last active week");
 });
 
 test("publishing an existing plan rejects a backdated effective date", async () => {
