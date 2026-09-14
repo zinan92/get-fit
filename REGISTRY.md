@@ -18,7 +18,7 @@
 - Web 客户三页为 v3 视觉；设计源 `design/fit-plan-v3.html`。
 - 原生小程序页面骨架（`apps/miniprogram/`），尚未采用 v3 视觉、仍用 `wx.request`，未部署。
 
-**验证**：`npm test` 12 渲染/云函数打包 + 21 API 全过，`tsc`、`lint`、`gitleaks` 通过。
+**验证**：`npm test` 13 渲染/云函数打包 + 21 API 全过，`tsc`、`lint`、`gitleaks` 通过。
 
 **状态**：代码闭环 `verified`；云函数真实运行时（Nodejs20.19）`unknown`，待 #11 健康检查；微信身份 / 云开发读写 / 首位客户验收 `partial/unknown`；上线合规评估 `blocked`（不挡体验版试点）。
 
