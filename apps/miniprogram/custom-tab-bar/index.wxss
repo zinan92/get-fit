@@ -1,0 +1,4 @@
+.nav { position: fixed; left: 0; right: 0; bottom: 0; display: flex; border-top: 2rpx solid #E6DDC9; background: rgba(243, 238, 227, .94); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); padding: 16rpx 0 calc(20rpx + env(safe-area-inset-bottom)); }
+.item { flex: 1; display: flex; flex-direction: column; align-items: center; font-size: 21rpx; color: #A79C8B; }
+.item.active { color: #D85C28; font-weight: 700; }
+.icon { width: 42rpx; height: 42rpx; margin-bottom: 6rpx; }

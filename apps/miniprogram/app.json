@@ -1,24 +1,31 @@
 {
   "pages": [
-    "pages/onboarding/onboarding",
     "pages/today/today",
     "pages/calendar/calendar",
-    "pages/profile/profile"
+    "pages/profile/profile",
+    "pages/onboarding/onboarding"
   ],
   "window": {
-    "navigationBarTitleText": "轻练",
-    "navigationBarBackgroundColor": "#fffdf8",
+    "navigationStyle": "custom",
     "navigationBarTextStyle": "black",
-    "backgroundColor": "#f8f3e9"
+    "backgroundColor": "#F3EEE3",
+    "backgroundTextStyle": "dark"
   },
   "tabBar": {
-    "color": "#aaa49a",
-    "selectedColor": "#d85c28",
-    "backgroundColor": "#fffdf8",
+    "custom": true,
+    "color": "#A79C8B",
+    "selectedColor": "#D85C28",
+    "backgroundColor": "#F3EEE3",
     "list": [
       { "pagePath": "pages/today/today", "text": "今天" },
-      { "pagePath": "pages/calendar/calendar", "text": "日历" },
+      { "pagePath": "pages/calendar/calendar", "text": "计划" },
       { "pagePath": "pages/profile/profile", "text": "我的" }
     ]
-  }
+  },
+  "usingComponents": {
+    "topbar": "/components/topbar/topbar",
+    "character": "/components/character/character"
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
 }

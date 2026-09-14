@@ -478,7 +478,8 @@ function clientToday(context: ApiContext, reqId: string): Response {
   const clientId = requireClient(context); if (clientId instanceof Response) return clientId;
   const url = new URL(context.request.url); const date = safeString(url.searchParams.get("date"), localToday());
   audit(context.store, "client.today_viewed", { requestId: reqId, clientId, localDate: date });
-  recordOpenedDay(context.store, clientId, date);
+  // An opened day is the day the client opened the app, not the plan date they browsed to.
+  recordOpenedDay(context.store, clientId, localToday());
   const plan = currentPlan(context.store, clientId, date);
   if (!plan) return json({ status: "waiting_for_coach", date, plan: null, checkins: [] });
   const day = plan.payload.days.find((item) => item.localDate === date) ?? null;

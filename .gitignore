@@ -42,3 +42,6 @@ yarn-error.log*
 /work/
 /tsconfig.tsbuildinfo
 /dist-cloudfunctions/
+
+# Mini-program: the real AppID lives only in the local private config
+/apps/miniprogram/project.private.config.json

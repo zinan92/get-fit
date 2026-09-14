@@ -1,0 +1,6 @@
+.topbar { position: fixed; top: 0; left: 0; right: 0; z-index: 20; padding-left: 32rpx; padding-bottom: 12rpx; background: rgba(243, 238, 227, .92); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+.row { display: flex; align-items: center; gap: 18rpx; }
+.brand { display: flex; align-items: center; gap: 18rpx; }
+.mark { width: 52rpx; height: 52rpx; border-radius: 18rpx; background: #D85C28; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 26rpx; font-weight: 700; }
+.wordmark { font-size: 31rpx; font-weight: 700; color: #2E2A24; }
+.right { margin-left: auto; display: flex; align-items: center; }

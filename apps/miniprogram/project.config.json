@@ -1,0 +1,18 @@
+{
+  "description": "轻练 · 客户与教练小程序",
+  "projectname": "qinglian",
+  "appid": "touristappid",
+  "compileType": "miniprogram",
+  "libVersion": "3.5.8",
+  "setting": {
+    "es6": true,
+    "enhance": true,
+    "postcss": true,
+    "minified": true,
+    "urlCheck": true,
+    "ignoreDevUnusedFiles": false,
+    "ignoreUploadUnusedFiles": true
+  },
+  "packOptions": { "ignore": [{ "type": "file", "value": "README.md" }] },
+  "condition": {}
+}

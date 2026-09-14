@@ -1,21 +1,20 @@
-const app = getApp();
+const preview = require('./preview');
 
+// Every call goes to the single `api` cloud function. Identity is the caller's WeChat OPENID,
+// injected by the platform; nothing here carries a token or a client id.
 function request(path, options = {}) {
+  const method = options.method || 'GET';
+  const body = options.data;
+  if (getApp().globalData.preview) return preview.respond(path, method, body);
   return new Promise((resolve, reject) => {
-    wx.request({
-      url: `${app.globalData.apiBaseUrl}${path}`,
-      method: options.method || 'GET',
-      data: options.data || {},
-      header: {
-        'content-type': 'application/json',
-        ...(app.globalData.sessionToken ? { Authorization: `Bearer ${app.globalData.sessionToken}` } : {}),
-        ...(options.header || {})
+    wx.cloud.callFunction({
+      name: 'api',
+      data: { path, method, body },
+      success: ({ result }) => {
+        if (result && result.statusCode >= 200 && result.statusCode < 300) resolve(result.body);
+        else reject((result && result.body) || { error: { code: 'CLOUD_FUNCTION_ERROR' } });
       },
-      success: (response) => {
-        if (response.statusCode >= 200 && response.statusCode < 300) resolve(response.data);
-        else reject(response.data || { error: { code: 'HTTP_ERROR' } });
-      },
-      fail: reject
+      fail: () => reject({ error: { code: 'NETWORK_ERROR', message: '网络不太稳定，稍后再试' } })
     });
   });
 }

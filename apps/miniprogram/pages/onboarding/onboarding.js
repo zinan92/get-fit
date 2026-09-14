@@ -2,14 +2,8 @@ const { request } = require('../../utils/api');
 
 Page({
   data: {
-    step: 0, inviteToken: '', consents: [], targetIndex: 0, experienceIndex: 0, devMode: false,
+    step: 0, inviteToken: '', consents: [], targetIndex: 0, experienceIndex: 0,
     targets: ['减脂', '增肌', '保持体能'], experiences: ['新手', '有训练经验', '进阶'], heightCm: '', weightKg: ''
-  },
-  onLoad() {
-    const app = getApp();
-    const apiOrigin = String(app.globalData.apiBaseUrl || '');
-    const localApi = apiOrigin.indexOf('http://localhost') === 0 || apiOrigin.indexOf('http://127.0.0.1') === 0;
-    this.setData({ devMode: app.globalData.devMode === true && localApi });
   },
   onToken(e) { this.setData({ inviteToken: e.detail.value }); },
   onConsentChange(e) { this.setData({ consents: e.detail.value }); },
@@ -19,15 +13,12 @@ Page({
   onWeight(e) { this.setData({ weightKg: e.detail.value }); },
   async acceptInvite() {
     try {
-      const accepted = await request('/api/invitations/accept', { method: 'POST', data: { token: this.data.inviteToken } });
-      const app = getApp();
-      const session = this.data.devMode
-        ? await request('/api/wx/auth/login', { method: 'POST', data: { devOpenid: `${app.globalData.devOpenid}:${accepted.client.id}`, devClientId: accepted.client.id, invitationToken: this.data.inviteToken } })
-        : await new Promise((resolve, reject) => wx.login({ success: async (login) => { try { resolve(await request('/api/wx/auth/login', { method: 'POST', data: { code: login.code, invitationToken: this.data.inviteToken } })); } catch (error) { reject(error); } }, fail: reject }));
-      app.globalData.sessionToken = session.sessionToken; wx.setStorageSync('fit_plan_session', session.sessionToken);
+      // The cloud function knows who is calling from the WeChat OPENID; the invitation only links that account.
+      await request('/api/invitations/accept', { method: 'POST', data: { token: this.data.inviteToken } });
+      await request('/api/wx/auth/login', { method: 'POST', data: { invitationToken: this.data.inviteToken } });
       this.setData({ step: 1 });
     }
-    catch (error) { wx.showToast({ title: error?.error?.message || '邀请无效', icon: 'none' }); }
+    catch (error) { wx.showToast({ title: '邀请口令无效或已被使用', icon: 'none' }); }
   },
   async saveConsents() {
     if (!this.data.consents.includes('health_processing') || !this.data.consents.includes('third_party_model')) return wx.showToast({ title: '请先同意两项说明', icon: 'none' });

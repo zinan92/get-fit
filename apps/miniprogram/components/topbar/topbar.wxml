@@ -1,0 +1,7 @@
+<view class="topbar" style="padding-top: {{top}}px; padding-right: {{right}}px;">
+  <view class="row" style="height: {{height}}px;">
+    <view class="brand"><view class="mark">轻</view><text class="wordmark">轻练</text></view>
+    <view class="right"><slot name="right"></slot></view>
+  </view>
+</view>
+<view style="height: {{top + height + 12}}px;"></view>

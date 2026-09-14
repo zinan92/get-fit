@@ -1,1 +1,15 @@
-<view class="page"><view class="card"><view class="eyebrow">MY DATA</view><view class="section-title">{{client.displayName || '我的数据'}}</view><view class="pill">{{client.status || '加载中'}}</view><view class="muted">轻练只在获得同意后处理必要资料。计划由教练确认后发布，自动化工具不会直接给你发布内容。</view></view><view class="card"><view class="section-title">已记录的同意</view><view class="muted" wx:for="{{consents}}" wx:key="*this">· {{item}}</view></view><view class="card"><button bindtap="requestDelete" class="danger">申请删除我的资料</button></view></view>
+<view class="page">
+  <topbar />
+  <view wx:if="{{preview}}" class="preview-banner">本地预览数据 · 未连接云开发</view>
+  <view class="card">
+    <view class="eyebrow">我的</view>
+    <view class="title">{{client.displayName || '我的资料'}}</view>
+    <view class="muted">轻练只在你同意后处理必要资料。你看到的计划都由教练确认后发布。</view>
+  </view>
+  <view class="card">
+    <view class="section-title">已记录的同意</view>
+    <view wx:if="{{!consents.length}}" class="muted">还没有记录。</view>
+    <view wx:for="{{consents}}" wx:key="*this" class="muted">· {{item}}</view>
+  </view>
+  <view class="card"><button bindtap="requestDelete" class="danger">申请删除我的资料</button></view>
+</view>
