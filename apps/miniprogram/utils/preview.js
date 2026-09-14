@@ -36,6 +36,18 @@ function respond(path, method, body) {
     return reply({ checkin: body });
   }
   if (method === 'PUT' && pathname === '/api/wellness-feedback') return reply({ feedback: body, alert: body.pain === 'present' ? { type: 'pain', status: 'open' } : null });
+  // Coach screens.
+  if (method === 'GET' && pathname === '/api/coach/overview') return reply(data.coach.overview);
+  if (method === 'GET' && pathname === '/api/coach/alerts') return reply(data.coach.alerts);
+  let match = pathname.match(/^\/api\/coach\/clients\/([^/]+)\/(profile|summary)$/);
+  if (method === 'GET' && match) return reply((match[2] === 'profile' ? data.coach.profiles : data.coach.summaries)[match[1]] || { summary: null });
+  match = pathname.match(/^\/api\/coach\/plan-drafts\/([^/]+)\/preview$/);
+  if (method === 'GET' && match) {
+    const first = Object.keys(data.coach.draftDays)[0];
+    return reply(data.coach.draftDays[params.date || first] || data.coach.draftDays[first]);
+  }
+  if (method === 'POST' && pathname === '/api/coach/invitations') return reply({ invitation: { token: 'preview-invite-code', client: { displayName: body.displayName } } });
+  if (method === 'POST' && /^\/api\/coach\//.test(pathname)) return reply({ ok: true });
   // Onboarding can be walked through in DevTools with ?preview=onboarding.
   if (method === 'POST' && pathname === '/api/invitations/accept') return reply({ client: data.me.client });
   if (method === 'POST' && pathname === '/api/wx/auth/login') return reply({ client: data.me.client });

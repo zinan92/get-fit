@@ -223,3 +223,46 @@ test("stored state never holds the OPENID in plaintext and missing key fails clo
   const throwing = createCloudFunction({ env: { DATA_ENCRYPTION_KEY: KEY }, backend, resolveOpenid: () => { throw new Error("no context"); } });
   assert.equal((await throwing({ path: "/api/me", method: "GET" })).statusCode, 401);
 });
+
+test("coach overview tracks each client's stage and the draft preview matches what the client later sees", async () => {
+  const call = harness(cloudbaseSnapshotBackend(fakeCloudbase().db));
+  const stageOf = async (clientId: string) => ((await call(COACH_OPENID, "/api/coach/overview")).body.clients as Body[]).find((item) => item.client.id === clientId)?.stage;
+
+  const invitation = await call(COACH_OPENID, "/api/coach/invitations", "POST", { displayName: "客户丙" });
+  const token = invitation.body.invitation.token;
+  const clientId = (await call("openid-c", "/api/invitations/accept", "POST", { token })).body.client.id;
+  await call("openid-c", "/api/wx/auth/login", "POST", { invitationToken: token });
+  assert.equal(await stageOf(clientId), "onboarding");
+  await call("openid-c", "/api/me/consents", "POST", { types: ["health_processing", "third_party_model"] });
+  assert.equal(await stageOf(clientId), "profile_pending");
+  await call("openid-c", "/api/me/profile", "PUT", { ...profile, injuryFlags: ["knee_discomfort"] });
+  assert.equal(await stageOf(clientId), "profile_submitted");
+  await call(COACH_OPENID, `/api/coach/clients/${clientId}/profile/confirm`, "POST");
+  assert.equal(await stageOf(clientId), "confirmed");
+  const job = await call(COACH_OPENID, `/api/coach/clients/${clientId}/plan-generations`, "POST", { startDate: "2026-09-15" });
+  assert.equal(await stageOf(clientId), "generating");
+  const importToken = await call(COACH_OPENID, `/api/coach/generation-jobs/${job.body.job.id}/codex-fallback-token`, "POST");
+  const draft = await call("", "/api/codex-fallback/import", "POST", { token: importToken.body.token, payload: plan("2026-09-15") });
+  assert.equal(await stageOf(clientId), "draft_ready");
+
+  const preview = await call(COACH_OPENID, `/api/coach/plan-drafts/${draft.body.draft.id}/preview?date=2026-09-16`);
+  assert.equal(preview.statusCode, 200);
+  assert.equal(preview.body.draft.clientName, "客户丙");
+  assert.equal(preview.body.draft.dates.length, 30);
+  assert.equal((await call("openid-c", `/api/coach/plan-drafts/${draft.body.draft.id}/preview`)).statusCode, 401, "clients never see drafts");
+  assert.equal((await call("openid-c", "/api/plan/today?date=2026-09-16")).body.status, "waiting_for_coach");
+
+  await call(COACH_OPENID, `/api/coach/plan-drafts/${draft.body.draft.id}/publish`, "POST", { changeReason: "first plan" });
+  assert.equal(await stageOf(clientId), "published");
+  const clientDay = await call("openid-c", "/api/plan/today?date=2026-09-16");
+  assert.deepEqual(clientDay.body.plan.day, preview.body.plan.day, "the preview is the same projection the client receives");
+
+  await call("openid-c", "/api/wellness-feedback", "PUT", { localDate: "2026-09-16", pain: "present", energy: "low", hunger: "normal" });
+  const overview = await call(COACH_OPENID, "/api/coach/overview");
+  assert.equal(overview.body.openAlerts, 1);
+  const alerts = await call(COACH_OPENID, "/api/coach/alerts");
+  assert.equal(alerts.body.alerts[0].clientName, "客户丙");
+  await call(COACH_OPENID, `/api/coach/alerts/${alerts.body.alerts[0].id}/ack`, "POST");
+  assert.equal((await call(COACH_OPENID, "/api/coach/overview")).body.openAlerts, 0);
+  assert.equal((await call("openid-c", "/api/coach/overview")).statusCode, 401);
+});

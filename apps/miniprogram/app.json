@@ -3,7 +3,10 @@
     "pages/today/today",
     "pages/calendar/calendar",
     "pages/profile/profile",
-    "pages/onboarding/onboarding"
+    "pages/onboarding/onboarding",
+    "pages/coach/home/home",
+    "pages/coach/client/client",
+    "pages/coach/preview/preview"
   ],
   "window": {
     "navigationStyle": "custom",
@@ -17,14 +20,24 @@
     "selectedColor": "#D85C28",
     "backgroundColor": "#F3EEE3",
     "list": [
-      { "pagePath": "pages/today/today", "text": "今天" },
-      { "pagePath": "pages/calendar/calendar", "text": "计划" },
-      { "pagePath": "pages/profile/profile", "text": "我的" }
+      {
+        "pagePath": "pages/today/today",
+        "text": "今天"
+      },
+      {
+        "pagePath": "pages/calendar/calendar",
+        "text": "计划"
+      },
+      {
+        "pagePath": "pages/profile/profile",
+        "text": "我的"
+      }
     ]
   },
   "usingComponents": {
     "topbar": "/components/topbar/topbar",
-    "character": "/components/character/character"
+    "character": "/components/character/character",
+    "plan-day": "/components/plan-day/plan-day"
   },
   "style": "v2",
   "sitemapLocation": "sitemap.json"

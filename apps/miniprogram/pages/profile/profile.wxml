@@ -1,6 +1,11 @@
 <view class="page">
   <topbar />
   <view wx:if="{{preview}}" class="preview-banner">本地预览数据 · 未连接云开发</view>
+  <view wx:if="{{isCoach}}" class="card coach-entry" bindtap="openCoach">
+    <view class="eyebrow">教练</view>
+    <view class="title">教练工作台</view>
+    <view class="muted">邀请客户、确认资料、审阅和发布计划、处理身体提醒。</view>
+  </view>
   <view class="card">
     <view class="eyebrow">我的</view>
     <view class="title">{{client.displayName || '我的资料'}}</view>

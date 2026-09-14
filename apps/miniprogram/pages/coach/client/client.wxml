@@ -1,0 +1,71 @@
+<view class="page coach-client">
+  <topbar />
+  <view wx:if="{{preview}}" class="preview-banner">本地预览数据 · 未连接云开发</view>
+
+  <view wx:if="{{status === 'ready'}}" class="rise">
+    <view class="head">
+      <view class="avatar">{{item.client.displayName[0]}}</view>
+      <view class="who">
+        <view class="h1">{{item.client.displayName}}</view>
+        <view class="stage {{stageView.tone}}">{{stageView.label}}</view>
+      </view>
+    </view>
+
+    <view wx:for="{{alerts}}" wx:key="id" class="alert-card">
+      <image class="alert-ic" src="/assets/icons/warning.svg" />
+      <view class="alert-copy"><view class="t">训练时有地方疼</view><view class="s num">{{item.localDate}} · 建议先联系客户了解情况</view></view>
+      <view class="ack" data-id="{{item.id}}" bindtap="ackAlert">已沟通</view>
+    </view>
+
+    <view class="card next-step">
+      <block wx:if="{{item.stage === 'profile_submitted'}}">
+        <view class="t">看完资料后确认</view>
+        <view class="s">确认后就可以为 TA 安排 30 天计划。</view>
+        <view class="primary" bindtap="confirmProfile">{{busy ? '正在确认…' : '确认资料'}}</view>
+      </block>
+      <block wx:elif="{{item.stage === 'needs_conversation'}}">
+        <view class="t warn-text">先和 TA 聊一下</view>
+        <view class="s">资料里有需要人工判断的情况，系统不会自动安排计划。确认安全、调整资料后再安排。</view>
+      </block>
+      <block wx:elif="{{item.stage === 'confirmed'}}">
+        <view class="t">安排 30 天计划</view>
+        <picker mode="date" value="{{startDate}}" bindchange="pickStart"><view class="date-pick">从 <text class="num">{{startDate}}</text> 开始</view></picker>
+        <view class="primary" bindtap="requestPlan">{{busy ? '正在发起…' : '开始准备计划'}}</view>
+      </block>
+      <block wx:elif="{{item.stage === 'generating'}}">
+        <view class="t">计划正在准备</view>
+        <view class="s">准备好之后会出现在这里，由你逐天检查再发布。</view>
+      </block>
+      <block wx:elif="{{item.stage === 'draft_ready'}}">
+        <view class="t">30 天计划等你审阅</view>
+        <view class="s">看到的就是 TA 将来每天看到的样子。</view>
+        <view class="primary" bindtap="openDraft">逐天查看</view>
+      </block>
+      <block wx:elif="{{item.stage === 'published'}}">
+        <view class="t">最近 7 天</view>
+        <view class="metrics">
+          <view class="m"><text class="num v">{{summary.openedDays}}</text><text class="k">打开天数</text></view>
+          <view class="m"><text class="num v">{{summary.trainingCheckins}}</text><text class="k">训练打卡</text></view>
+          <view class="m"><text class="num v">{{summary.mealCheckins}}</text><text class="k">餐次打卡</text></view>
+          <view class="m"><text class="num v">{{summary.painAlerts}}</text><text class="k">疼痛提醒</text></view>
+        </view>
+      </block>
+      <block wx:else>
+        <view class="t">等 TA 填完资料</view>
+        <view class="s">填完会出现在这里。</view>
+      </block>
+    </view>
+
+    <view wx:if="{{profile}}" class="card facts">
+      <view class="label">资料</view>
+      <view wx:for="{{facts}}" wx:key="k" class="fact"><text class="k">{{item.k}}</text><text class="v">{{item.v}}</text></view>
+      <view class="divider"></view>
+      <view wx:for="{{flags}}" wx:key="k" class="fact"><text class="k">{{item.k}}</text><text class="v {{item.tone}}">{{item.v}}</text></view>
+    </view>
+  </view>
+
+  <view wx:elif="{{status === 'error'}}" class="state-card rise">
+    <view class="t">暂时没连上</view>
+    <view class="retry" bindtap="load">重新加载</view>
+  </view>
+</view>

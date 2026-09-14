@@ -1,0 +1,22 @@
+@import "../home/home.wxss";
+
+.coach-client { padding-bottom: calc(60rpx + env(safe-area-inset-bottom)); }
+.head { display: flex; align-items: center; gap: 24rpx; }
+.head .avatar { flex: 0 0 96rpx; width: 96rpx; height: 96rpx; font-size: 38rpx; }
+.head .h1 { font-size: 40rpx; font-weight: 700; margin: 0 0 10rpx; }
+.head .stage { display: inline-block; }
+.next-step .t { font-size: 30rpx; font-weight: 700; }
+.next-step .s { font-size: 24rpx; color: var(--ink-2); margin-top: 8rpx; line-height: 1.6; }
+.date-pick { margin-top: 18rpx; padding: 20rpx 26rpx; border-radius: 24rpx; background: var(--surface-2); border: 3rpx solid var(--line); font-size: 27rpx; }
+.metrics { display: flex; margin-top: 20rpx; }
+.m { flex: 1; display: flex; flex-direction: column; align-items: center; }
+.m .v { font-size: 44rpx; }
+.m .k { font-size: 21rpx; color: var(--ink-3); margin-top: 4rpx; }
+.facts .label { font-size: 25rpx; font-weight: 700; margin-bottom: 12rpx; }
+.fact { display: flex; justify-content: space-between; gap: 24rpx; padding: 12rpx 0; font-size: 25rpx; }
+.fact .k { color: var(--ink-3); flex: 0 0 auto; }
+.fact .v { text-align: right; color: var(--ink); }
+.fact .v.train { color: var(--train); font-weight: 700; }
+.fact .v.diet { color: var(--diet); font-weight: 700; }
+.fact .v.warn { color: var(--warn); font-weight: 700; }
+.divider { height: 2rpx; background: var(--line); margin: 12rpx 0; }
