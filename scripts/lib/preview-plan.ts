@@ -180,7 +180,17 @@ async function buildDataset() {
     draftDays: Object.fromEntries(await Promise.all(secondPlan.days.map(async (day) => [day.localDate, await call(coach, `/api/coach/plan-drafts/${pendingDraft.draft.id}/preview?date=${day.localDate}`)]))),
   };
 
-  const dataset = { today: PREVIEW_TODAY, me: { client: me.client }, days, calendar, week, coach: coachData };
+  // An adjustment for 大卫, started after the overview snapshot so the workbench still shows his period ending.
+  const adjustment = await call(coach, `/api/coach/clients/${quietClientId}/plan-revisions`, "POST", { effectiveFrom: "2026-09-13" });
+  const adjustmentId = adjustment.draft.id as string;
+  const revisionDraft = (await call(coach, `/api/coach/plan-drafts/${adjustmentId}`)).draft;
+  const revision = {
+    clientId: quietClientId,
+    draft: revisionDraft,
+    options: await call(coach, `/api/coach/plan-drafts/${adjustmentId}/options`),
+    days: Object.fromEntries(await Promise.all(["2026-09-13", "2026-09-14", "2026-09-15"].map(async (date) => [date, await call(coach, `/api/coach/plan-drafts/${adjustmentId}/preview?date=${date}`)]))),
+  };
+  const dataset = { today: PREVIEW_TODAY, me: { client: me.client }, days, calendar, week, coach: { ...coachData, revision } };
   // Generated ids and timestamps vary per run; pin them so the committed dataset is reproducible.
   const ids = new Map<string, string>();
   const text = JSON.stringify(dataset)

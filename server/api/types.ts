@@ -94,6 +94,8 @@ export type DraftRecord = {
   createdAt: string;
   reviewedAt: string | null;
   rejectionReason: string | null;
+  /** Set when the coach adjusts a published plan: the copy replaces it from effectiveFrom on. */
+  revision?: { planId: string; effectiveFrom: string };
 };
 
 export type PlanVersionRecord = PlanVersion & {

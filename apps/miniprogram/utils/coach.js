@@ -41,7 +41,8 @@ function memberRow(item) {
   else if (item.course && item.course.dayNumber > 0) hint = `第 ${item.course.dayNumber}/${item.course.totalDays} 天`;
   else if (item.course && item.course.dayNumber === 0) hint = `${item.course.startDate.slice(5).replace('-', '月')}日开始`;
   if (item.note) hint = hint ? `${hint}  ·  ${item.note}` : item.note;
-  return { ...item, id: item.client.id, stageView: stage(item.stage), initial: item.client.displayName.slice(0, 1), attention, hint, hintTone };
+  const stageView = item.stage === 'draft_ready' && item.draft && item.draft.revision ? { label: '调整待确认', tone: 'action' } : stage(item.stage);
+  return { ...item, id: item.client.id, stageView, initial: item.client.displayName.slice(0, 1), attention, hint, hintTone };
 }
 
 module.exports = { stage, FILTERS, inFilter, memberRow };

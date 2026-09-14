@@ -5,7 +5,7 @@ import { allowedCatalog, explainPlanErrors, validateProviderPayload } from "./pl
 import { body, error, issueSession, json, requireClient, requireCoach, requireOperator } from "./http";
 import { audit, checkinKey, id, nowIso, randomToken, recordOpenedDay, sha256 } from "./store";
 import { encryptSecret } from "./persistence";
-import type { ApiContext, ClientRecord, ConsentType, HealthProfile, JsonRecord } from "./types";
+import type { ApiContext, ClientRecord, ConsentType, DraftRecord, HealthProfile, JsonRecord } from "./types";
 
 function requestId(request: Request): string {
   return request.headers.get("x-request-id") ?? id("req");
@@ -135,6 +135,8 @@ export async function handleApi(context: ApiContext): Promise<Response> {
     if (planVersionsMatch && method === "GET") return coachPlanVersions(context, planVersionsMatch[1]);
     const profileConfirmMatch = path.match(/^coach\/clients\/([^/]+)\/profile\/confirm$/);
     if (profileConfirmMatch && method === "POST") return confirmProfile(context, profileConfirmMatch[1], reqId);
+    const revisionMatch = path.match(/^coach\/clients\/([^/]+)\/plan-revisions$/);
+    if (revisionMatch && method === "POST") return createRevision(context, revisionMatch[1], reqId);
     const generationMatch = path.match(/^coach\/clients\/([^/]+)\/plan-generations$/);
     if (generationMatch && method === "POST") return createGeneration(context, generationMatch[1], reqId);
     const jobMatch = path.match(/^coach\/generation-jobs\/([^/]+)$/);
@@ -447,6 +449,12 @@ async function updateDraft(context: ApiContext, draftId: string, reqId: string):
   const profile = context.store.profiles.get(draft.clientId);
   if (!profile) return error("PROFILE_INCOMPLETE", "Client profile is incomplete", 400);
   const input = await body(context.request);
+  if (draft.revision) {
+    const effectiveFrom = draft.revision.effectiveFrom;
+    const incoming = (input.payload as { days?: Array<{ localDate?: string }> } | undefined)?.days ?? [];
+    const before = (days: Array<{ localDate?: string }>) => JSON.stringify(days.filter((day) => String(day.localDate) < effectiveFrom).sort((a, b) => String(a.localDate).localeCompare(String(b.localDate))));
+    if (before(incoming) !== before(draft.payload.days)) return error("VALIDATION_FAILED", "Days before the revision takes effect cannot change", 422, { reasons: ["revision: days before effectiveFrom changed"], messages: [`${effectiveFrom} 之前的日子客户已经在用，不能改`] });
+  }
   const validation = validateProviderPayload(profile, input.payload);
   if (!validation.ok) {
     audit(context.store, "draft.update_rejected", { requestId: reqId, draftId, clientId: draft.clientId, reason: validation.errors.slice(0, 5), actor: "coach" });
@@ -476,7 +484,9 @@ async function publishDraft(context: ApiContext, draftId: string, reqId: string)
   const auth = requireCoach(context); if (auth !== true) return auth;
   const draft = context.store.drafts.get(draftId); if (!draft || draft.status !== "pending_review") return error("DRAFT_NOT_FOUND", "Pending draft not found", 404);
   const client = context.store.clients.get(draft.clientId); if (!client) return error("NOT_FOUND", "Client not found", 404);
-  const input = await body(context.request); const effectiveFrom = safeString(input.effectiveFrom, draft.payload.startDate); const changeReason = safeString(input.changeReason, "Initial coach-approved plan");
+  const input = await body(context.request);
+  if (draft.revision) return publishRevision(context, draft, client, safeString(input.changeReason, "教练调整"), reqId);
+  const effectiveFrom = safeString(input.effectiveFrom, draft.payload.startDate); const changeReason = safeString(input.changeReason, "Initial coach-approved plan");
   if (!isCalendarDate(effectiveFrom)) return error("INVALID_INPUT", "effectiveFrom must be YYYY-MM-DD", 400);
   const existing = [...context.store.plans.values()].filter((plan) => plan.clientId === draft.clientId && plan.status !== "archived").sort((a, b) => b.versionNo - a.versionNo)[0];
   if (existing && effectiveFrom <= existing.effectiveFrom) return error("CONFLICT", "Future version must start after current version", 409);
@@ -486,6 +496,53 @@ async function publishDraft(context: ApiContext, draftId: string, reqId: string)
   const plan = { id: id("plan"), clientId: draft.clientId, versionNo: (existing?.versionNo ?? 0) + 1, effectiveFrom, effectiveTo: null, payload: draft.payload, status: "published" as const, approvedAt: nowIso(), changeReason };
   context.store.plans.set(plan.id, plan); draft.status = "approved"; draft.reviewedAt = nowIso(); const job = context.store.jobs.get(draft.generationJobId); if (job) job.status = "published"; client.status = "active";
   audit(context.store, "plan.published", { requestId: reqId, draftId, planId: plan.id, clientId: draft.clientId, planHash: job?.outputHash, effectiveFrom, actor: "coach" });
+  return json({ plan: { id: plan.id, clientId: plan.clientId, versionNo: plan.versionNo, effectiveFrom: plan.effectiveFrom, status: plan.status } }, 201);
+}
+
+/** Copies the published plan that covers `effectiveFrom` into a draft the coach edits with the day editor. */
+async function createRevision(context: ApiContext, clientId: string, reqId: string): Promise<Response> {
+  const auth = requireCoach(context); if (auth !== true) return auth;
+  const client = context.store.clients.get(clientId); if (!client) return error("NOT_FOUND", "Client not found", 404);
+  if (!context.store.profiles.get(clientId)) return error("PROFILE_INCOMPLETE", "Client profile is incomplete", 400);
+  const input = await body(context.request);
+  const today = localToday();
+  const effectiveFrom = safeString(input.effectiveFrom, addCalendarDays(today, 1));
+  if (!isCalendarDate(effectiveFrom)) return error("INVALID_INPUT", "effectiveFrom must be YYYY-MM-DD", 400);
+  if (effectiveFrom <= today) return error("CONFLICT", "An adjustment starts tomorrow at the earliest", 409);
+  const pending = [...context.store.drafts.values()].find((item) => item.clientId === clientId && item.status === "pending_review");
+  if (pending) return error("DRAFT_PENDING", "Finish or discard the draft waiting for review first", 409, { draftId: pending.id });
+  const plan = currentPlan(context.store, clientId, effectiveFrom);
+  if (!plan || !plan.payload.days.some((day) => day.localDate === effectiveFrom)) return error("PLAN_NOT_FOUND", "No published plan covers that date", 409);
+  const now = nowIso();
+  const job = { id: id("job"), clientId, provider: "codex_cli" as const, model: "coach-revision", schemaVersion: PLAN_SCHEMA_VERSION, status: "pending_review" as const, errorCode: null, traceId: id("trace"), startDate: plan.payload.startDate, outputHash: await sha256(JSON.stringify(plan.payload)), createdAt: now, updatedAt: now, operator: "coach" as const };
+  const profile = context.store.profiles.get(clientId)!;
+  const validation = validateProviderPayload(profile, plan.payload);
+  const draft = { id: id("draft"), generationJobId: job.id, clientId, status: "pending_review" as const, payload: structuredClone(plan.payload), validation: { ok: true as const, warnings: validation.ok ? validation.warnings : [] }, createdAt: now, reviewedAt: null, rejectionReason: null, revision: { planId: plan.id, effectiveFrom } };
+  context.store.jobs.set(job.id, job); context.store.drafts.set(draft.id, draft);
+  audit(context.store, "plan.revision_started", { requestId: reqId, clientId, planId: plan.id, draftId: draft.id, effectiveFrom, actor: "coach" });
+  return json({ draft: { id: draft.id, status: draft.status, revision: draft.revision } }, 201);
+}
+
+/**
+ * Publishes an adjustment: a new version that takes over from effectiveFrom until the adjusted
+ * plan would have ended (or the next period starts). Earlier days, and their check-ins, keep
+ * reading the version the client already had.
+ */
+function publishRevision(context: ApiContext, draft: DraftRecord, client: ClientRecord, changeReason: string, reqId: string): Response {
+  const revision = draft.revision!;
+  const base = context.store.plans.get(revision.planId);
+  if (!base) return error("PLAN_NOT_FOUND", "The plan being adjusted no longer exists", 409);
+  if (revision.effectiveFrom <= localToday()) return error("CONFLICT", "The adjustment date has passed; start a new adjustment", 409);
+  const plans = [...context.store.plans.values()].filter((plan) => plan.clientId === draft.clientId && plan.status !== "archived");
+  const covering = currentPlan(context.store, draft.clientId, revision.effectiveFrom);
+  const effectiveTo = covering?.effectiveTo ?? null;
+  if (covering) { covering.status = "superseded"; }
+  const plan = { id: id("plan"), clientId: draft.clientId, versionNo: Math.max(...plans.map((item) => item.versionNo)) + 1, effectiveFrom: revision.effectiveFrom, effectiveTo, payload: draft.payload, status: "published" as const, approvedAt: nowIso(), changeReason };
+  context.store.plans.set(plan.id, plan);
+  draft.status = "approved"; draft.reviewedAt = nowIso();
+  const job = context.store.jobs.get(draft.generationJobId); if (job) { job.status = "published"; job.updatedAt = nowIso(); }
+  client.status = "active";
+  audit(context.store, "plan.revision_published", { requestId: reqId, draftId: draft.id, planId: plan.id, basePlanId: base.id, clientId: draft.clientId, effectiveFrom: plan.effectiveFrom, actor: "coach" });
   return json({ plan: { id: plan.id, clientId: plan.clientId, versionNo: plan.versionNo, effectiveFrom: plan.effectiveFrom, status: plan.status } }, 201);
 }
 
@@ -686,7 +743,7 @@ function coachOverview(context: ApiContext): Response {
       manualReview: profile ? hasManualRisk(profile) : false,
       openAlerts,
       job: latestJob ? { id: latestJob.id, status: latestJob.status, startDate: latestJob.startDate } : null,
-      draft: draft ? { id: draft.id, status: draft.status, startDate: draft.payload.startDate, warnings: draft.validation.warnings } : null,
+      draft: draft ? { id: draft.id, status: draft.status, startDate: draft.payload.startDate, warnings: draft.validation.warnings, revision: draft.revision ?? null } : null,
       plan: plan ? { id: plan.id, versionNo: plan.versionNo, effectiveFrom: plan.effectiveFrom } : null,
       course,
       lastOpenedDate,
@@ -732,7 +789,7 @@ function draftOptions(context: ApiContext, draftId: string): Response {
 function previewDraft(context: ApiContext, draftId: string): Response {
   const auth = requireCoach(context); if (auth !== true) return auth;
   const draft = context.store.drafts.get(draftId); if (!draft) return error("DRAFT_NOT_FOUND", "Draft not found", 404);
-  const url = new URL(context.request.url); const date = safeString(url.searchParams.get("date"), draft.payload.startDate);
+  const url = new URL(context.request.url); const date = safeString(url.searchParams.get("date"), draft.revision?.effectiveFrom ?? draft.payload.startDate);
   const day = draft.payload.days.find((item) => item.localDate === date) ?? null;
   const client = context.store.clients.get(draft.clientId);
   return json({
@@ -740,7 +797,7 @@ function previewDraft(context: ApiContext, draftId: string): Response {
     date,
     plan: day ? { id: draft.id, versionNo: 0, day: clientDayView(day) } : null,
     checkins: [],
-    draft: { id: draft.id, status: draft.status, clientId: draft.clientId, clientName: client?.displayName ?? "", startDate: draft.payload.startDate, dates: draft.payload.days.map((item) => item.localDate) },
+    draft: { id: draft.id, status: draft.status, clientId: draft.clientId, clientName: client?.displayName ?? "", startDate: draft.payload.startDate, dates: draft.payload.days.map((item) => item.localDate).filter((value) => !draft.revision || value >= draft.revision.effectiveFrom), revision: draft.revision ?? null },
   });
 }
 

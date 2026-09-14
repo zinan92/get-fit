@@ -42,3 +42,7 @@
 .note-save { margin-top: 16rpx; display: inline-block; padding: 12rpx 30rpx; border-radius: 999rpx; background: var(--ink); color: #fff; font-size: 24rpx; font-weight: 700; }
 .archive-link { margin: 12rpx 0 40rpx; text-align: center; font-size: 24rpx; color: var(--ink-3); }
 .note.one-line { min-height: 80rpx; height: 80rpx; }
+.adjust { margin-top: 26rpx; padding: 24rpx; border-radius: 30rpx; border: 2rpx dashed var(--line-2); }
+.adjust .t { font-size: 28rpx; }
+.adjust .date-pick { margin-top: 16rpx; }
+.secondary { margin-top: 16rpx; height: 80rpx; border-radius: 999rpx; background: var(--ink); color: #fff; font-size: 27rpx; font-weight: 700; display: flex; align-items: center; justify-content: center; }

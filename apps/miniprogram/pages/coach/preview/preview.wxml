@@ -4,9 +4,9 @@
 
   <block wx:if="{{draft}}">
     <view class="head rise">
-      <view class="eyebrow">{{draft.clientName}} · 30 天计划草案</view>
-      <view class="h1">逐天看一遍</view>
-      <view class="sub">下面就是 TA 发布后每天看到的样子，打卡框在预览里不能点。</view>
+      <view class="eyebrow">{{eyebrow}}</view>
+      <view class="h1">{{heading}}</view>
+      <view class="sub">{{draft.revision ? '只列出调整生效后的日子，之前的不变。打卡框在预览里不能点。' : '下面就是 TA 发布后每天看到的样子，打卡框在预览里不能点。'}}</view>
     </view>
     <scroll-view class="strip" scroll-x enhanced show-scrollbar="{{false}}" scroll-into-view="{{scrollInto}}" scroll-with-animation>
       <view wx:for="{{strip}}" wx:key="key" id="{{item.key}}" class="dcell {{item.selected ? 'sel' : ''}}" data-date="{{item.date}}" bindtap="pick">
@@ -19,7 +19,7 @@
       <text class="edit-hint">这一天哪里不合适，可以直接改</text>
       <view class="edit-btn" bindtap="editDay">改这一天</view>
     </view>
-    <plan-day wx:if="{{day}}" day="{{day}}" done="{{emptyDone}}" readonly badge="草案预览 · 客户还看不到" />
+    <plan-day wx:if="{{day}}" day="{{day}}" done="{{emptyDone}}" readonly badge="{{badge}}" />
   </block>
 
   <view wx:if="{{status === 'error'}}" class="state-card rise">
@@ -27,7 +27,7 @@
   </view>
 
   <view wx:if="{{draft && draft.status === 'pending_review'}}" class="actions">
-    <view class="back" bindtap="sendBack">打回</view>
-    <view class="publish" bindtap="publish">{{busy ? '正在发布…' : '确认发布给 ' + draft.clientName}}</view>
+    <view class="back" bindtap="sendBack">{{draft.revision ? '放弃' : '打回'}}</view>
+    <view class="publish" bindtap="publish">{{busy ? '正在发布…' : draft.revision ? '确认调整' : '确认发布给 ' + draft.clientName}}</view>
   </view>
 </view>

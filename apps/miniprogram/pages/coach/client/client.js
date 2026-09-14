@@ -9,7 +9,7 @@ function labels(list, values) {
 }
 
 Page({
-  data: { preview: false, status: 'loading', clientId: '', item: null, stageView: null, profile: null, facts: [], flags: [], summary: null, alerts: [], startDate: '', busy: false, course: null, renewal: false, note: '', noteDraft: '', message: '', messageDraft: '', archived: false },
+  data: { preview: false, status: 'loading', clientId: '', item: null, stageView: null, profile: null, facts: [], flags: [], summary: null, alerts: [], startDate: '', busy: false, course: null, renewal: false, note: '', noteDraft: '', message: '', messageDraft: '', archived: false, adjustFrom: '', adjustMin: '', adjustMax: '' },
 
   onLoad(query) {
     this.setData({ preview: getApp().globalData.preview, clientId: query.id, startDate: dates.addDays(dates.today(), 1) });
@@ -41,7 +41,10 @@ Page({
       const renewal = Boolean(item && item.stage === 'published' && course && !course.nextStartDate && item.attention.some(entry => entry.kind === 'ending' || entry.kind === 'ended'));
       const today = overview.today || dates.today();
       const startDate = renewal ? [dates.addDays(course.endDate, 1), today].sort()[1] : this.data.startDate;
+      const adjustMin = dates.addDays(today, 1);
+      const adjustMax = course ? course.endDate : '';
       this.setData({
+        adjustMin, adjustMax, adjustFrom: this.data.adjustFrom && this.data.adjustFrom >= adjustMin ? this.data.adjustFrom : adjustMin,
         course, renewal, startDate, note: item ? item.note : '', noteDraft: item ? item.note : '', message: item ? item.message : '', messageDraft: item ? item.message : '', archived: Boolean(item && item.archived),
         status: 'ready', item, stageView: coach.stage(item ? item.stage : ''), profile, facts, flags, summary,
         alerts: alerts.alerts.filter(alert => alert.clientId === id && alert.status === 'open')
@@ -70,6 +73,21 @@ Page({
       this.load();
     } catch (error) { wx.showToast({ title: '没发起成功', icon: 'none' }); }
     finally { this.setData({ busy: false }); }
+  },
+
+  pickAdjust(e) { this.setData({ adjustFrom: e.detail.value }); },
+
+  // Copies the live plan into a draft that takes over from the chosen day, then opens it for review.
+  async startAdjust() {
+    if (this.data.busy) return;
+    this.setData({ busy: true });
+    try {
+      const result = await request(`/api/coach/clients/${this.data.clientId}/plan-revisions`, { method: 'POST', data: { effectiveFrom: this.data.adjustFrom } });
+      wx.navigateTo({ url: `/pages/coach/preview/preview?draftId=${result.draft.id}` });
+    } catch (error) {
+      const code = error && error.error && error.error.code;
+      wx.showToast({ title: code === 'DRAFT_PENDING' ? '还有一份没处理完的计划' : code === 'PREVIEW_UNSUPPORTED' ? '预览里只有大卫可以试调整' : '没发起成功', icon: 'none' });
+    } finally { this.setData({ busy: false }); }
   },
 
   onMessage(e) { this.setData({ messageDraft: e.detail.value }); },
