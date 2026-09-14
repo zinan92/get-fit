@@ -7,8 +7,10 @@ Page({
 
   onLoad(query) {
     this.setData({ preview: getApp().globalData.preview, draftId: query.draftId });
-    this.load('');
   },
+
+  // Reloads after returning from the day editor so the preview shows what was saved.
+  onShow() { this.load(this.data.date); },
 
   async load(date) {
     try {
@@ -26,6 +28,10 @@ Page({
   pick(e) {
     const date = e.currentTarget.dataset.date;
     if (date !== this.data.date) this.load(date);
+  },
+
+  editDay() {
+    wx.navigateTo({ url: `/pages/coach/edit/edit?draftId=${this.data.draftId}&date=${this.data.date}&name=${encodeURIComponent(this.data.draft.clientName)}` });
   },
 
   async publish() {

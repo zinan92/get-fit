@@ -121,15 +121,23 @@ test("pain feedback alerts the coach and tells the client to stop, without swapp
 test("coach mode reuses the client's plan-day view, reads only coach endpoints and never loosens identity", async () => {
   const preview = await read("pages/coach/preview/preview.wxml");
   assert.match(preview, /<plan-day wx:if="\{\{day\}\}" day="\{\{day\}\}" done="\{\{emptyDone\}\}" readonly badge=/, "the review screen renders the same component, read-only");
-  const coachJs = (await Promise.all(["pages/coach/home/home.js", "pages/coach/client/client.js", "pages/coach/preview/preview.js"].map(read))).join("\n");
+  const coachJs = (await Promise.all(["pages/coach/home/home.js", "pages/coach/client/client.js", "pages/coach/preview/preview.js", "pages/coach/edit/edit.js"].map(read))).join("\n");
   for (const [, route] of coachJs.matchAll(/request\(`?'?(\/api\/[^`'$?]+)/g)) assert.match(route, /^\/api\/coach\//, route);
   assert.doesNotMatch(coachJs, /x-coach-token|COACH_TOKEN|openid/i);
   assert.match(await read("pages/coach/preview/preview.js"), /plan-drafts\/\$\{this\.data\.draftId\}\/publish/);
   const app = JSON.parse(await read("app.json"));
-  for (const page of ["pages/coach/home/home", "pages/coach/client/client", "pages/coach/preview/preview"]) assert.ok(app.pages.includes(page), page);
+  for (const page of ["pages/coach/home/home", "pages/coach/client/client", "pages/coach/preview/preview", "pages/coach/edit/edit"]) assert.ok(app.pages.includes(page), page);
   assert.equal(app.tabBar.list.some((item) => item.pagePath.includes("coach")), false, "coach pages are not in the client tab bar");
   const today = await read("pages/today/today.wxml");
   assert.doesNotMatch(today, /badge=/, "the client never sees a draft badge");
+});
+
+test("the day editor sends the whole plan to the server validator and shows its reasons", async () => {
+  const editor = await read("pages/coach/edit/edit.js");
+  assert.match(editor, /plan-drafts\/\$\{this\.data\.draftId\}\/options/, "swap choices come from the server");
+  assert.match(editor, /method: 'PATCH', data: \{ payload \}/, "saves the full plan");
+  assert.match(editor, /details\.messages/, "shows the validator's explanation");
+  assert.doesNotMatch(editor, /contraindication|allergens|equipmentTags|injuryFlags/, "no client-side safety rules");
 });
 
 test("privacy notice matches the declared guide and is reachable from consent and 我的", async () => {

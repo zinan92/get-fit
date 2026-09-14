@@ -3,6 +3,7 @@
 const data = require('./preview-data');
 
 const checkins = {};
+let editedDraft = null;
 
 // DevTools reports an empty AppID (or 'touristappid') for a tourist project; any build that
 // runs on a phone reports its real AppID.
@@ -42,6 +43,10 @@ function respond(path, method, body) {
   if (method === 'GET' && pathname === '/api/coach/alerts') return reply(data.coach.alerts);
   let match = pathname.match(/^\/api\/coach\/clients\/([^/]+)\/(profile|summary)$/);
   if (method === 'GET' && match) return reply((match[2] === 'profile' ? data.coach.profiles : data.coach.summaries)[match[1]] || { summary: null });
+  // The day editor works on a local copy of the pending draft; saves stay on this device.
+  if (method === 'GET' && /^\/api\/coach\/plan-drafts\/[^/]+$/.test(pathname)) return reply({ draft: editedDraft || data.coach.draft });
+  if (method === 'GET' && /^\/api\/coach\/plan-drafts\/[^/]+\/options$/.test(pathname)) return reply(data.coach.draftOptions);
+  if (method === 'PATCH' && /^\/api\/coach\/plan-drafts\/[^/]+$/.test(pathname)) { editedDraft = { ...data.coach.draft, payload: body.payload }; return reply({ draft: editedDraft }); }
   match = pathname.match(/^\/api\/coach\/plan-drafts\/([^/]+)\/preview$/);
   if (method === 'GET' && match) {
     const first = Object.keys(data.coach.draftDays)[0];

@@ -137,6 +137,8 @@ export async function buildPreviewDataset() {
     alerts: await call(coach, "/api/coach/alerts"),
     profiles: Object.fromEntries(await Promise.all([clientId, draftClientId, reviewClientId].map(async (id) => [id, await call(coach, `/api/coach/clients/${id}/profile`)]))),
     summaries: { [clientId]: await call(coach, `/api/coach/clients/${clientId}/summary?days=7`) },
+    draft: (await call(coach, `/api/coach/plan-drafts/${pendingDraft.draft.id}`)).draft,
+    draftOptions: await call(coach, `/api/coach/plan-drafts/${pendingDraft.draft.id}/options`),
     draftDays: Object.fromEntries(await Promise.all(secondPlan.days.map(async (day) => [day.localDate, await call(coach, `/api/coach/plan-drafts/${pendingDraft.draft.id}/preview?date=${day.localDate}`)]))),
   };
 
