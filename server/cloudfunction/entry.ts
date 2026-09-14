@@ -4,13 +4,18 @@
  * identity (platform OPENID) and storage (a CloudBase document) differ.
  */
 import { handleApi } from "../api/handlers";
-import { loadSnapshot, saveSnapshot, StateConflictError, type SnapshotBackend } from "../api/persistence";
+import { durableFingerprint, loadSnapshot, saveSnapshot, StateConflictError, type SnapshotBackend } from "../api/persistence";
+import { purgeDueDeletions } from "../api/retention";
 import { createMemoryStore, sha256 } from "../api/store";
 import type { ApiEnv, PlatformIdentity } from "../api/types";
 import { cloudbaseSnapshotBackend, type CloudbaseDatabase } from "./cloudbase-storage";
 
+export const RETENTION_TRIGGER = "daily-retention";
+
 export type CloudFunctionEvent = {
   action?: unknown;
+  Type?: unknown;
+  TriggerName?: unknown;
   path?: unknown;
   operatorKey?: unknown;
   method?: unknown;
@@ -77,7 +82,20 @@ function cloudbaseBackend(): SnapshotBackend {
 }
 
 /** Deployment check: runtime globals, storage readable with the configured key, and which settings are present (never their values). */
-async function health(storage: SnapshotBackend, encryptionKey: string | undefined, config: { coaches: number; operatorKey: boolean }): Promise<CloudFunctionResult> {
+async function runRetention(storage: SnapshotBackend, encryptionKey: string, maxAttempts: number): Promise<CloudFunctionResult> {
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const store = createMemoryStore();
+    let revision: number;
+    try { revision = await loadSnapshot(store, storage, encryptionKey); } catch { return failure(503, "STORAGE_UNAVAILABLE", "Storage is temporarily unavailable"); }
+    const purged = await purgeDueDeletions(store);
+    if (!purged) return { statusCode: 200, body: { purged: 0 } };
+    try { await saveSnapshot(store, storage, encryptionKey, revision); return { statusCode: 200, body: { purged } }; }
+    catch (caught) { if (!(caught instanceof StateConflictError)) return failure(503, "STORAGE_UNAVAILABLE", "Storage is temporarily unavailable"); }
+  }
+  return failure(409, "STATE_CONFLICT", "Retention could not save; it will run again tomorrow");
+}
+
+async function health(storage: SnapshotBackend, encryptionKey: string | undefined, config: { coaches: number; operatorKey: boolean; retention: boolean }): Promise<CloudFunctionResult> {
   let storageStatus = "unchecked";
   if (encryptionKey) {
     try { await loadSnapshot(createMemoryStore(), storage, encryptionKey); storageStatus = "ok"; }
@@ -87,7 +105,7 @@ async function health(storage: SnapshotBackend, encryptionKey: string | undefine
   const ok = storageStatus === "ok" && Object.values(capabilities).every(Boolean) && config.coaches > 0;
   return {
     statusCode: ok ? 200 : 503,
-    body: { ok, node: typeof process !== "undefined" ? process.versions.node : null, capabilities, storage: storageStatus, config: { encryptionKey: Boolean(encryptionKey), coaches: config.coaches, operatorKey: config.operatorKey } },
+    body: { ok, node: typeof process !== "undefined" ? process.versions.node : null, capabilities, storage: storageStatus, config: { encryptionKey: Boolean(encryptionKey), coaches: config.coaches, operatorKey: config.operatorKey, retentionJob: config.retention } },
   };
 }
 
@@ -105,6 +123,8 @@ function failure(statusCode: number, code: string, message: string): CloudFuncti
 export function createCloudFunction(options: CloudFunctionOptions) {
   const encryptionKey = options.env.DATA_ENCRYPTION_KEY;
   const operatorKeyHash = (options.env.OPERATOR_KEY_SHA256 ?? "").trim().toLowerCase();
+  // Stop switch for the scheduled deletion job.
+  const retentionEnabled = options.env.RETENTION_JOB_ENABLED !== "false";
   const list = (value: string | undefined) => new Set((value ?? "").split(",").map((item) => item.trim()).filter(Boolean));
   const coachOpenids = list(options.env.COACH_OPENIDS);
   // Hashes let the coach be allowlisted from the account id shown in 我的, without anyone copying a raw OPENID.
@@ -122,8 +142,11 @@ export function createCloudFunction(options: CloudFunctionOptions) {
   return async function main(event: CloudFunctionEvent, context?: unknown): Promise<CloudFunctionResult> {
     const path = typeof event?.path === "string" && event.path.startsWith("/api/") ? event.path : null;
     const method = typeof event?.method === "string" ? event.method.toUpperCase() : "GET";
-    if (event?.action !== "health" && (!path || !METHODS.has(method))) return failure(400, "BAD_EVENT", "Event requires an /api/ path and a supported method");
-    if (!encryptionKey && event?.action !== "health") return failure(503, "STORAGE_NOT_CONFIGURED", "Storage is temporarily unavailable");
+    // A CloudBase timer trigger delivers { Type: "Timer", TriggerName } instead of an api event.
+    const timer = event?.Type === "Timer" && event?.TriggerName === RETENTION_TRIGGER;
+    const action = timer ? "purge" : event?.action === "health" || event?.action === "purge" ? event.action : null;
+    if (!action && (!path || !METHODS.has(method))) return failure(400, "BAD_EVENT", "Event requires an /api/ path and a supported method");
+    if (!encryptionKey && action !== "health") return failure(503, "STORAGE_NOT_CONFIGURED", "Storage is temporarily unavailable");
 
     let openid = "";
     try { openid = resolveOpenid(context); } catch { openid = ""; }
@@ -132,7 +155,13 @@ export function createCloudFunction(options: CloudFunctionOptions) {
     const openidHash = openid ? await sha256(openid) : "";
     const platform: PlatformIdentity = { openid, openidHash, isCoach: Boolean(openid) && (coachOpenids.has(openid) || coachOpenidHashes.has(openidHash)), operator };
 
-    if (event.action === "health") return health(backend(), encryptionKey, { coaches: coachOpenids.size + coachOpenidHashes.size, operatorKey: Boolean(operatorKeyHash) });
+    if (event.action === "health") return health(backend(), encryptionKey, { coaches: coachOpenids.size + coachOpenidHashes.size, operatorKey: Boolean(operatorKeyHash), retention: retentionEnabled });
+    // Daily retention job (timer trigger). WeChat callers always carry an OPENID, so they cannot start it.
+    if (action === "purge") {
+      if (openid) return failure(403, "FORBIDDEN", "Retention runs only from the scheduler");
+      if (!retentionEnabled) return { statusCode: 200, body: { skipped: "RETENTION_JOB_ENABLED=false" } };
+      return runRetention(backend(), encryptionKey!, maxAttempts);
+    }
     // Any WeChat caller may read their own account id (a hash of the OPENID) to be added to the coach list.
     if (path === "/api/me/account-id" && method === "GET") return openid ? { statusCode: 200, body: { accountId: openidHash, isCoach: platform.isCoach } } : failure(401, "AUTH_REQUIRED", "WeChat identity is required");
 
@@ -155,11 +184,13 @@ export function createCloudFunction(options: CloudFunctionOptions) {
       const pending: Promise<unknown>[] = [];
       const ctx = { waitUntil: (promise: Promise<unknown>) => { pending.push(promise); }, passThroughOnException() {} } as ExecutionContext;
       const request = new Request(`https://cloudfunction.invalid${path}`, { method, headers, body: payload });
+      const before = await durableFingerprint(store);
       const response = await handleApi({ request, env, store, ctx, platform });
       // A cloud function instance may freeze after returning; finish deferred work first.
       await Promise.allSettled(pending);
       try {
-        await saveSnapshot(store, storage, encryptionKey!, revision);
+        // Browsing a plan changes nothing durable; only write when something that must survive changed.
+        if (await durableFingerprint(store) !== before) await saveSnapshot(store, storage, encryptionKey!, revision);
       } catch (caught) {
         if (caught instanceof StateConflictError) continue;
         return failure(503, "STORAGE_UNAVAILABLE", "Storage is temporarily unavailable");

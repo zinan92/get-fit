@@ -39,6 +39,12 @@ node scripts/cloudbase-ops.mjs deploy     # 带上教练名单重新部署，并
 
 顺序：第一次部署（无教练）→ 上传体验版 → 教练复制账号编号 → add-coach → 再次部署。Park 的微信也可以先加进教练名单，方便真机走查。
 
+### 定时清理（产品运行时任务）
+
+- 契约：每天 03:00 云函数定时触发器 `daily-retention` 运行一次，只清除冷静期（30 天）已到的删除申请；客户调用不能触发。
+- 证据：`npm run ops -- health` 里 `config.retentionJob: true`；云开发控制台函数日志里每天一条 `purge` 调用，返回 `{ purged: n }`。
+- 停止：云开发控制台给 `api` 函数设置环境变量 `RETENTION_JOB_ENABLED=false`（或删除触发器），立即生效；恢复时改回或删掉该变量。
+
 ## 2. 上传体验版（Wendy）
 
 ```bash

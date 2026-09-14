@@ -2,7 +2,8 @@
 import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } from "vinext/server/image-optimization";
 import handler from "vinext/server/app-router-entry";
 import { handleApi, runGeneration } from "../server/api/handlers";
-import { decryptSecret, hydrateStore, persistStore, purgeClient } from "../server/api/persistence";
+import { decryptSecret, hydrateStore, persistStore } from "../server/api/persistence";
+import { purgeDueDeletions } from "../server/api/retention";
 import { createMemoryStore } from "../server/api/store";
 import type { ApiEnv, DeliveryLogRecord } from "../server/api/types";
 
@@ -87,14 +88,7 @@ const worker = {
     void ctx;
     const storageDb = env.DEV_MODE === "true" ? undefined : env.DB;
     await hydrateStore(memoryStore, storageDb, env.DATA_ENCRYPTION_KEY);
-    const now = Date.now();
-    for (const request of memoryStore.deletionRequests.values()) {
-      if (request.status === "requested" && Date.parse(request.purgeAt) <= now) {
-        if (request.clientId) await purgeClient(memoryStore, request.clientId);
-        request.status = "purged";
-        memoryStore.audit.push({ id: `audit_purge_${request.id}`, actor: "system", action: "deletion.executed", at: new Date().toISOString(), requestId: request.id });
-      }
-    }
+    await purgeDueDeletions(memoryStore);
     await sendReminders(memoryStore, env);
     await persistStore(memoryStore, storageDb, env.DATA_ENCRYPTION_KEY);
   },

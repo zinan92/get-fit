@@ -14,6 +14,7 @@ import { fileURLToPath } from "node:url";
 import { buildCloudFunction, CLOUDBASE_RUNTIME } from "./build-cloudfunction.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+export const RETENTION_TRIGGER = "daily-retention";
 export const configDir = process.env.QINGLIAN_CONFIG_DIR ?? path.join(homedir(), ".config", "qinglian");
 const functionEnvFile = () => path.join(configDir, "function-env.json");
 const operatorKeyFile = () => path.join(configDir, "operator-key");
@@ -80,12 +81,19 @@ export async function deploy({ dryRun = false } = {}) {
   await writeFile(configFile, JSON.stringify({
     envId: dryRun ? "dry-run" : envId(),
     functionRoot,
-    functions: [{ name: "api", runtime: CLOUDBASE_RUNTIME, handler: "index.main", timeout: 20, memorySize: 256, installDependency: true, envVariables }],
+    functions: [{
+      name: "api", runtime: CLOUDBASE_RUNTIME, handler: "index.main", timeout: 20, memorySize: 256, installDependency: true, envVariables,
+      // Product runtime job: purge deletions whose 30-day window ended. Stop switch: RETENTION_JOB_ENABLED=false.
+      triggers: [{ name: RETENTION_TRIGGER, type: "timer", config: "0 0 3 * * * *" }],
+    }],
   }, null, 2), { mode: 0o600 });
   try {
-    if (dryRun) return { bundle: path.relative(root, bundle), runtime: CLOUDBASE_RUNTIME, variables: Object.keys(envVariables), warning };
+    if (dryRun) return { bundle: path.relative(root, bundle), runtime: CLOUDBASE_RUNTIME, variables: Object.keys(envVariables), triggers: [RETENTION_TRIGGER], warning };
     tcb(["fn", "deploy", "api", "--force", "--runtime", CLOUDBASE_RUNTIME, "-e", envId(), "--config-file", configFile]);
-    return { deployed: true, warning, health: health() };
+    let trigger = "created";
+    try { tcb(["fn", "trigger", "create", "api", "-e", envId(), "--config-file", configFile]); }
+    catch (error) { trigger = /exist/i.test(error.message) ? "already present" : `not created: ${error.message}`; }
+    return { deployed: true, warning, retentionTrigger: trigger, health: health() };
   } finally {
     await rm(work, { recursive: true, force: true });
   }

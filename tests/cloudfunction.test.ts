@@ -272,7 +272,7 @@ test("health reports readiness without values, and a coach can be allowlisted by
   const unconfigured = createCloudFunction({ env: {}, backend, resolveOpenid: () => "" });
   const bad = await unconfigured({ action: "health" });
   assert.equal(bad.statusCode, 503);
-  assert.deepEqual((bad.body as Body).config, { encryptionKey: false, coaches: 0, operatorKey: false });
+  assert.deepEqual((bad.body as Body).config, { encryptionKey: false, coaches: 0, operatorKey: false, retentionJob: true });
 
   const probe = createCloudFunction({ env: { DATA_ENCRYPTION_KEY: KEY }, backend, resolveOpenid: (context) => String((context as { openid?: string }).openid ?? "") });
   const account = await probe({ path: "/api/me/account-id", method: "GET" }, { openid: "openid-friend-coach" });
@@ -288,7 +288,7 @@ test("health reports readiness without values, and a coach can be allowlisted by
   const body = good.body as Body;
   assert.equal(body.ok, true);
   assert.equal(body.storage, "ok");
-  assert.deepEqual(body.config, { encryptionKey: true, coaches: 1, operatorKey: true });
+  assert.deepEqual(body.config, { encryptionKey: true, coaches: 1, operatorKey: true, retentionJob: true });
   assert.equal(JSON.stringify(body).includes(KEY), false);
   assert.equal((await configured({ path: "/api/coach/overview", method: "GET" }, { openid: "openid-friend-coach" })).statusCode, 200, "allowlisted by account id");
   assert.equal((await configured({ path: "/api/coach/overview", method: "GET" }, { openid: "openid-someone-else" })).statusCode, 401);
@@ -298,4 +298,48 @@ test("health reports readiness without values, and a coach can be allowlisted by
   const seeded = createCloudFunction({ env: { DATA_ENCRYPTION_KEY: KEY, COACH_OPENID_HASHES: accountId }, backend, resolveOpenid: () => "openid-friend-coach" });
   await seeded({ path: "/api/coach/invitations", method: "POST", body: { displayName: "种子" } });
   assert.equal(((await wrongKey({ action: "health" })).body as Body).storage, "unreadable", "a mismatched key is caught at deploy time");
+});
+
+test("reads that change nothing durable skip the storage write", async () => {
+  const inner = cloudbaseSnapshotBackend(fakeCloudbase().db);
+  let writes = 0;
+  const counting: SnapshotBackend = { read: () => inner.read(), async write(record, expected) { writes += 1; return inner.write(record, expected); } };
+  const call = harness(counting);
+  const { planId } = await onboard(call, "openid-a", "客户甲");
+  writes = 0;
+  await call("openid-a", "/api/plan/today?date=2026-09-15");
+  assert.equal(writes, 1, "the first open of the day records an opened day");
+  await call("openid-a", "/api/plan/today?date=2026-09-16");
+  await call("openid-a", "/api/plan/today?date=2026-09-17");
+  await call("openid-a", "/api/plans/calendar?month=2026-09");
+  await call("openid-a", "/api/me");
+  await call(COACH_OPENID, "/api/coach/overview");
+  assert.equal(writes, 1, "browsing does not rewrite storage");
+  await call("openid-a", "/api/checkins", "PUT", { localDate: "2026-09-15", planDayId: `${planId}:2026-09-15`, itemId: "ex-walk", itemType: "exercise", status: "completed" });
+  assert.equal(writes, 2, "a check-in is written");
+  assert.deepEqual((await call("openid-a", "/api/plan/today?date=2026-09-15")).body.checkins.map((item: Body) => item.itemId), ["ex-walk"]);
+});
+
+test("the retention job purges only expired deletions, only from the scheduler, and obeys its stop switch", async (t) => {
+  const backend = cloudbaseSnapshotBackend(fakeCloudbase().db);
+  const call = harness(backend);
+  await onboard(call, "openid-a", "客户甲");
+  const receipt = await call("openid-a", "/api/me", "DELETE");
+  assert.equal(receipt.statusCode, 202);
+  const retention = (env: Record<string, string> = {}) => createCloudFunction({ env: { DATA_ENCRYPTION_KEY: KEY, COACH_OPENIDS: COACH_OPENID, ...env }, backend, resolveOpenid: (context) => String((context as { openid?: string } | undefined)?.openid ?? "") });
+
+  assert.deepEqual((await retention()({ action: "purge" })).body, { purged: 0 }, "nothing is due inside the 30-day window");
+  t.mock.timers.enable({ apis: ["Date"], now: Date.now() + 31 * 24 * 60 * 60 * 1000 });
+  assert.equal((await retention()({ action: "purge" }, { openid: "openid-a" })).statusCode, 403, "a WeChat caller cannot trigger it");
+  assert.deepEqual((await retention({ RETENTION_JOB_ENABLED: "false" })({ action: "purge" })).body, { skipped: "RETENTION_JOB_ENABLED=false" });
+  assert.deepEqual((await retention()({ Type: "Timer", TriggerName: "daily-retention", Time: "2026-10-16T03:00:00Z" } as never)).body, { purged: 1 }, "the timer trigger runs it");
+  assert.deepEqual((await retention()({ action: "purge" })).body, { purged: 0 }, "idempotent");
+  t.mock.timers.reset();
+
+  const store = createMemoryStore();
+  await loadSnapshot(store, backend, KEY);
+  assert.equal(store.profiles.size, 0);
+  assert.equal(store.authByOpenId.size, 0);
+  assert.equal([...store.plans.values()].length, 0);
+  assert.equal((await call("openid-a", "/api/plan/today")).statusCode, 401, "the WeChat account is no longer linked");
 });

@@ -96,6 +96,12 @@
 - 部署工具 `node scripts/cloudbase-ops.mjs init / add-coach / deploy / health`：密钥只在 `~/.config/qinglian`（600）；存储密钥只生成一次，拒绝覆盖。云函数新增健康检查（运行时能力、存储可用该密钥解密、配置是否齐全，只报布尔和数量）。
 - 教练名单改为可用「账号编号」（OPENID 的 SHA-256）配置：教练在「我的」复制编号发给操作员，谁都不需要拿到原始 OPENID。
 
+## 2026-09-14 · 云函数只在状态变化时写回；删除到期定时清理（#27）
+
+- 每个请求在处理前后各算一次「持久状态指纹」（快照去掉浏览类审计），相同就不写存储：翻看计划、日历、总览不再整份重写，也就不会和教练发布抢修订号。每天第一次打开仍会写（记录打开天数）。
+- 删除到期清理抽成 `server/api/retention.ts`，Worker 与云函数共用。
+- 云函数定时触发器 `daily-retention` 每天 03:00 运行；只接受无 OPENID 的调用（定时器/运维）；停止开关 `RETENTION_JOB_ENABLED=false`；健康检查报告开关状态。按手册，这是产品运行时任务，有独立契约、证据和停止方法（写在 runbook）。
+
 ## Gotchas
 
 - 热量必须绑定份量；只有食物名称的热量数字没有可信含义。
@@ -120,3 +126,4 @@
 - WXML 的 `wx:key` 只能写 item 的直接属性名，不能写 `client.id` 这类路径。
 - 存储密钥（`DATA_ENCRYPTION_KEY`）换了旧数据就解不开；init 拒绝覆盖，健康检查会把「密钥不匹配」报成 `storage: unreadable`。
 - 本地 Codex 一次写满 30 天 JSON 需要几分钟，180 秒上限会超时；上限改为默认 10 分钟，可用 `CODEX_TIMEOUT_MS` 调整。
+- CloudBase 定时触发器传给函数的是 `{ Type: "Timer", TriggerName }`，不是业务事件；入口要按触发器名映射到清理动作。
