@@ -36,6 +36,4 @@ Chinese step text was edited by 轻练 for clarity; entries marked `authored` we
 - **USDA FoodData Central, SR Legacy (April 2018)** — U.S. Department of Agriculture, Agricultural
   Research Service. Public domain (U.S. government work). Energy per 100 g is nutrient 1008; look up
   any entry by its `fdcId` at https://fdc.nal.usda.gov/.
-- **《中国食物成分表》** — 中国疾病预防控制中心营养与健康所，经“食物营养成分查询平台”
-  (https://nlc.chinanutri.cn/) 查询。仅用于 USDA 没有的中国主食（馒头、小米粥），记录原表能量 kJ，
-  kcal = kJ ÷ 4.184 取整。该平台声明未经许可不得用于商业目的：正式商用前需要确认授权，或改用其他来源替换这两项。
+- USDA 没有对应条目的中国食物用最接近的条目代替，差异写在条目的 `approximation` 字段（目前：馒头按白面包计）。

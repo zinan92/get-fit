@@ -1,8 +1,7 @@
 /**
  * 轻练食物库。每 100 克（饮品按每 100 毫升近似）的能量都有可回查来源：
- * - usda-sr-legacy：USDA FoodData Central，SR Legacy（2018-04，美国政府公开数据），按 fdcId 回查；
- * - cn-fct：中国疾病预防控制中心营养与健康所《中国食物成分表》（食物营养成分查询平台），
- *   只用于 USDA 没有的中国主食，kcal 由原表 kJ ÷ 4.184 取整。
+ * USDA FoodData Central，SR Legacy（2018-04，美国政府公开数据），按 fdcId 回查。
+ * USDA 没有对应条目的中国食物用最接近的条目代替，并在 approximation 里写明差异。
  * 份量写的是可食部重量；热量由服务端按克数重算，模型不能自己给热量。
  */
 
@@ -16,9 +15,7 @@ export type FoodCatalogEntry = {
   kcalPer100g: number;
   unit: "g" | "ml" | "item";
   allergens: Allergen[];
-  source:
-    | { kind: "usda-sr-legacy"; fdcId: number; description: string }
-    | { kind: "cn-fct"; entry: string; energyKj: number; url: string };
+  source: { kind: "usda-sr-legacy"; fdcId: number; description: string; approximation?: string };
   sourceVersion: string;
 };
 
@@ -27,8 +24,8 @@ const SOURCE_VERSION = "foods-2026-09";
 export const foodCatalog: FoodCatalogEntry[] = [
   { id: "food-rice", name: "糙米饭", category: "staple", kcalPer100g: 123, unit: "g", allergens: [], source: { kind: "usda-sr-legacy", fdcId: 169704, description: "Rice, brown, long-grain, cooked (Includes foods for USDA's Food Distribution Program)" }, sourceVersion: SOURCE_VERSION },
   { id: "food-white-rice", name: "白米饭", category: "staple", kcalPer100g: 130, unit: "g", allergens: [], source: { kind: "usda-sr-legacy", fdcId: 168878, description: "Rice, white, long-grain, regular, enriched, cooked" }, sourceVersion: SOURCE_VERSION },
-  { id: "food-mantou", name: "馒头", category: "staple", kcalPer100g: 226, unit: "g", allergens: ["wheat"], source: { kind: "cn-fct", entry: "馒头(均值)", energyKj: 947, url: "https://nlc.chinanutri.cn/fq/foodinfo/272.html" }, sourceVersion: SOURCE_VERSION },
-  { id: "food-millet-porridge", name: "小米粥", category: "staple", kcalPer100g: 46, unit: "g", allergens: [], source: { kind: "cn-fct", entry: "小米粥", energyKj: 193, url: "https://nlc.chinanutri.cn/fq/foodinfo/303.html" }, sourceVersion: SOURCE_VERSION },
+  { id: "food-mantou", name: "馒头", category: "staple", kcalPer100g: 266, unit: "g", allergens: ["wheat"], source: { kind: "usda-sr-legacy", fdcId: 174924, description: "Bread, white, commercially prepared (includes soft bread crumbs)", approximation: "USDA 没有馒头条目，按白面包计；比《中国食物成分表》馒头均值高约 18%，热量偏保守" }, sourceVersion: SOURCE_VERSION },
+  { id: "food-oatmeal", name: "燕麦粥", category: "staple", kcalPer100g: 71, unit: "g", allergens: [], source: { kind: "usda-sr-legacy", fdcId: 173905, description: "Cereals, oats, regular and quick, unenriched, cooked with water (includes boiling and microwaving), without salt" }, sourceVersion: SOURCE_VERSION },
   { id: "food-oats", name: "燕麦片（干）", category: "staple", kcalPer100g: 379, unit: "g", allergens: [], source: { kind: "usda-sr-legacy", fdcId: 173904, description: "Cereals, oats, regular and quick, not fortified, dry" }, sourceVersion: SOURCE_VERSION },
   { id: "food-toast", name: "全麦吐司", category: "staple", kcalPer100g: 252, unit: "g", allergens: ["wheat"], source: { kind: "usda-sr-legacy", fdcId: 172688, description: "Bread, whole-wheat, commercially prepared" }, sourceVersion: SOURCE_VERSION },
   { id: "food-whole-wheat-pasta", name: "全麦意面（煮）", category: "staple", kcalPer100g: 149, unit: "g", allergens: ["wheat"], source: { kind: "usda-sr-legacy", fdcId: 168910, description: "Pasta, whole-wheat, cooked (Includes foods for USDA's Food Distribution Program)" }, sourceVersion: SOURCE_VERSION },

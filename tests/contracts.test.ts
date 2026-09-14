@@ -81,8 +81,8 @@ test("catalogs are large enough to plan 30 varied days, with unique ids and trac
   for (const item of exerciseCatalog) if (item.source.kind === "dataset") assert.match(item.source.datasetId, /^\d{4}$/);
   for (const food of foodCatalog) {
     assert.ok(food.kcalPer100g > 0 && food.kcalPer100g < 900, food.id);
-    if (food.source.kind === "usda-sr-legacy") assert.ok(food.source.fdcId > 100000, food.id);
-    else assert.equal(Math.round(food.source.energyKj / 4.184), food.kcalPer100g, food.id);
+    assert.equal(food.source.kind, "usda-sr-legacy", food.id);
+    assert.ok(food.source.fdcId > 100000, food.id);
   }
   for (const category of ["staple", "protein", "dairy", "vegetable", "fruit", "fat"]) assert.ok(foodCatalog.filter((food) => food.category === category).length >= 4, category);
 });

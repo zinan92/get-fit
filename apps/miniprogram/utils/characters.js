@@ -640,7 +640,7 @@ module.exports = {
     "food-sweet-potato": "/assets/characters/food/food-sweet-potato.svg",
     "food-spinach": "/assets/characters/food/food-spinach.svg",
     "food-white-rice": "/assets/characters/food/food-white-rice.svg",
-    "food-millet-porridge": "/assets/characters/food/food-millet-porridge.svg",
+    "food-oatmeal": "/assets/characters/food/food-oatmeal.svg",
     "food-quinoa": "/assets/characters/food/food-quinoa.svg",
     "food-whole-wheat-pasta": "/assets/characters/food/food-whole-wheat-pasta.svg",
     "food-soba": "/assets/characters/food/food-soba.svg",

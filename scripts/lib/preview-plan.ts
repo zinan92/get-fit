@@ -44,7 +44,7 @@ const snacks = [
 ] as const;
 const dinners = [
   [["food-salmon", 160], ["food-sweet-potato", 180], ["food-spinach", 120]],
-  [["food-tofu", 150], ["food-millet-porridge", 300], ["food-tomato", 150]],
+  [["food-tofu", 150], ["food-oatmeal", 300], ["food-tomato", 150]],
   [["food-cod", 160], ["food-corn", 150], ["food-asparagus", 120]],
 ] as const;
 const foods = (items: ReadonlyArray<readonly [string, number]>) => items.map(([foodCatalogId, grams]) => ({ foodCatalogId, grams }));

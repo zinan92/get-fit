@@ -56,7 +56,7 @@ function nut(fill: string, line: string, texture: string): string {
 
 export const extraFoodCharacters: Record<string, string> = {
   "food-white-rice": bowl("#FFFFFF", "#E7D5BC", "#EDE3D0"),
-  "food-millet-porridge": bowl("#F6D77A", "#D9B64E", "", true),
+  "food-oatmeal": bowl("#EFE1C4", "#C8AC84", "", true),
   "food-quinoa": bowl("#EAD9B5", "#C8AC84", "#B58A5A"),
   "food-whole-wheat-pasta": svg(`<path d="M11 25c2-8 6-10 13-10s11 2 13 10z" fill="#D9A45E" stroke="#B9823D" stroke-width="1.5"/><path d="M14 22c3-3 6 3 9 0s6 3 9 0M13 19c4-2 7 3 11 0" stroke="#F0C98A" stroke-width="1.6" fill="none" stroke-linecap="round"/><path d="M8 25h32c0 8-6 14-16 14S8 33 8 25z" fill="#FFFDF7" stroke="#E7D5BC" stroke-width="1.6"/>${face(24, 30.5)}`),
   "food-soba": svg(`<path d="M11 25c2-8 6-10 13-10s11 2 13 10z" fill="#9C8570" stroke="#7B6554" stroke-width="1.5"/><path d="M14 18v7M18 16v9M22 15v10M26 15v10M30 16v9M34 18v7" stroke="#B9A48E" stroke-width="1.4" stroke-linecap="round"/><path d="M8 25h32c0 8-6 14-16 14S8 33 8 25z" fill="#FFFDF7" stroke="#E7D5BC" stroke-width="1.6"/>${face(24, 30.5)}`),
