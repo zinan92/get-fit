@@ -28,6 +28,27 @@
   <block wx:if="{{status === 'ready'}}">
     <plan-day day="{{day}}" done="{{done}}" bind:toggle="onToggle">
       <view slot="middle">
+        <view wx:if="{{week && date === today}}" class="card week rise">
+          <view class="week-head">
+            <view>
+              <view class="t">这一周</view>
+              <view class="s">{{week.line}}</view>
+            </view>
+            <view wx:if="{{week.planned}}" class="week-count"><text class="num big">{{week.done}}</text><text class="num">/{{week.planned}}</text><text class="u">次训练</text></view>
+          </view>
+          <view class="week-dots">
+            <view wx:for="{{week.cells}}" wx:key="date" class="wcell">
+              <view class="wdot {{item.state}} {{item.isToday ? 'today' : ''}}"><view wx:if="{{item.state === 'trained'}}" class="wtick"></view></view>
+              <text class="wl {{item.isToday ? 'today' : ''}}">{{item.label}}</text>
+            </view>
+          </view>
+          <view wx:if="{{week.streak >= 2}}" class="streak">已经连续打卡 <text class="num">{{week.streak}}</text> 天</view>
+          <view wx:if="{{week.message}}" class="coach-says">
+            <view class="cs-avatar">教</view>
+            <view class="cs-bubble"><view class="cs-k">教练说</view><view class="cs-t">{{week.message}}</view></view>
+          </view>
+        </view>
+
         <view class="card feeling rise">
           <block wx:if="{{!feelingSent}}">
             <view class="feeling-head"><character catalog-id="ex-walk" size="{{72}}" /><view><view class="t">今天身体感觉怎么样</view><view class="s">点一下就好，教练会看到</view></view></view>

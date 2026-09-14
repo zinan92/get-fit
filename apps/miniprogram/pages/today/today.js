@@ -16,6 +16,7 @@ Page({
     done: {},
     feeling: { pain: '', energy: '', hunger: '' },
     feelingSent: '',
+    week: null,
     feelingOptions: {
       pain: [{ value: 'none', label: '没有疼痛' }, { value: 'present', label: '有地方疼' }],
       energy: [{ value: 'low', label: '有点累' }, { value: 'normal', label: '还行' }, { value: 'good', label: '精神好' }],
@@ -54,6 +55,7 @@ Page({
       const [me, result] = await Promise.all([request('/api/me'), request(`/api/plan/today?date=${date}`)]);
       const done = {};
       (result.checkins || []).forEach(item => { done[item.itemId] = true; });
+      this.loadWeek();
       this.setData({
         feeling: { pain: '', energy: '', hunger: '' },
         feelingSent: '',
@@ -76,6 +78,21 @@ Page({
     }
   },
 
+  // The week card is a small extra: if it fails, today's plan still shows.
+  async loadWeek() {
+    try {
+      const week = await request('/api/me/week');
+      const LABELS = ['一', '二', '三', '四', '五', '六', '日'];
+      const cells = week.days.map((day, index) => ({ date: day.date, label: day.isToday ? '今' : LABELS[index], state: day.kind === 'training' ? (day.trained ? 'trained' : day.isFuture || day.isToday ? 'planned' : 'missed') : day.kind === 'recovery' ? (day.checkedIn ? 'rest-done' : 'rest') : 'none', isToday: day.isToday }));
+      let line;
+      if (!week.trainingPlanned) line = '这周以恢复为主，好好休息也是训练的一部分';
+      else if (week.trainingDone >= week.trainingPlanned) line = '这周的训练全部完成，超棒';
+      else if (week.trainingDone === 0) line = '这周的第一次，今天开始也刚刚好';
+      else line = `再练 ${week.trainingPlanned - week.trainingDone} 次，这周就圆满了`;
+      this.setData({ week: { cells, done: week.trainingDone, planned: week.trainingPlanned, streak: week.streak, line, message: week.coachMessage ? week.coachMessage.text : '' } });
+    } catch (error) { this.setData({ week: null }); }
+  },
+
   selectDate(e) {
     const date = e.currentTarget.dataset.date;
     if (date === this.data.date) return;
@@ -88,6 +105,7 @@ Page({
     this.setData({ [`done.${itemId}`]: !wasDone });
     try {
       await request('/api/checkins', { method: 'PUT', data: { localDate: this.data.date, planDayId: `${this.data.planId}:${this.data.date}`, itemId, itemType, status: wasDone ? 'not_completed' : 'completed' } });
+      this.loadWeek();
     } catch (error) {
       this.setData({ [`done.${itemId}`]: wasDone });
       wx.showToast({ title: '没存上，再点一次试试', icon: 'none' });

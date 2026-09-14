@@ -31,6 +31,7 @@ function respond(path, method, body) {
     const local = Object.values(checkins[date] || {}).filter(item => item.status === 'completed').map(({ itemId, itemType, status }) => ({ itemId, itemType, status }));
     return reply({ ...day, checkins: local });
   }
+  if (method === 'GET' && pathname === '/api/me/week') return reply(data.week);
   if (method === 'GET' && pathname === '/api/plans/calendar') return reply(data.calendar[params.month] || { month: params.month, days: [] });
   if (method === 'PUT' && pathname === '/api/checkins') {
     checkins[body.localDate] = { ...(checkins[body.localDate] || {}), [body.itemId]: body };
@@ -52,7 +53,7 @@ function respond(path, method, body) {
     const first = Object.keys(data.coach.draftDays)[0];
     return reply(data.coach.draftDays[params.date || first] || data.coach.draftDays[first]);
   }
-  if (method === 'PATCH' && /^\/api\/coach\/clients\/[^/]+$/.test(pathname)) return reply({ note: body.note !== undefined ? body.note : '', archived: Boolean(body.archived) });
+  if (method === 'PATCH' && /^\/api\/coach\/clients\/[^/]+$/.test(pathname)) return reply({ note: body.note !== undefined ? body.note : '', message: body.message !== undefined ? body.message : '', archived: Boolean(body.archived) });
   if (method === 'POST' && pathname === '/api/coach/invitations') return reply({ invitation: { token: 'preview-invite-code', client: { displayName: body.displayName } } });
   if (method === 'POST' && /^\/api\/coach\//.test(pathname)) return reply({ ok: true });
   // Onboarding can be walked through in DevTools with ?preview=onboarding.

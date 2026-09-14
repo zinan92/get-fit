@@ -117,6 +117,13 @@ async function buildDataset() {
   const calendar: Record<string, unknown> = {};
   for (const month of months) calendar[month] = await call(client, `/api/plans/calendar?month=${month}`);
   const me = await call(client, "/api/me");
+  // A few days of check-ins and a line from the coach, so the week card has something to show.
+  const previewPlanId = Object.values(days).map((day) => (day as { plan?: { id: string } }).plan?.id).find(Boolean);
+  for (const [date, itemId, itemType] of [["2026-09-08", "ex-goblet-squat", "exercise"], ["2026-09-08", "lunch", "meal"], ["2026-09-09", "breakfast", "meal"], ["2026-09-10", "ex-dumbbell-row", "exercise"], ["2026-09-11", "dinner", "meal"]] as const) {
+    await call(client, "/api/checkins", "PUT", { localDate: date, planDayId: `${previewPlanId}:${date}`, itemId, itemType, status: "completed" });
+  }
+  await call(coach, `/api/coach/clients/${clientId}`, "PATCH", { message: "这周两次训练都很稳，周末记得多走走" });
+  const week = await call(client, "/api/me/week");
   await call(client, "/api/wellness-feedback", "PUT", { localDate: PREVIEW_TODAY, pain: "present", energy: "low", hunger: "normal" });
 
   // Two more clients so the coach screens show every stage that needs the coach.
@@ -173,7 +180,7 @@ async function buildDataset() {
     draftDays: Object.fromEntries(await Promise.all(secondPlan.days.map(async (day) => [day.localDate, await call(coach, `/api/coach/plan-drafts/${pendingDraft.draft.id}/preview?date=${day.localDate}`)]))),
   };
 
-  const dataset = { today: PREVIEW_TODAY, me: { client: me.client }, days, calendar, coach: coachData };
+  const dataset = { today: PREVIEW_TODAY, me: { client: me.client }, days, calendar, week, coach: coachData };
   // Generated ids and timestamps vary per run; pin them so the committed dataset is reproducible.
   const ids = new Map<string, string>();
   const text = JSON.stringify(dataset)
