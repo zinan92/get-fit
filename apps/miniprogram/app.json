@@ -6,7 +6,8 @@
     "pages/onboarding/onboarding",
     "pages/coach/home/home",
     "pages/coach/client/client",
-    "pages/coach/preview/preview"
+    "pages/coach/preview/preview",
+    "pages/privacy/privacy"
   ],
   "window": {
     "navigationStyle": "custom",

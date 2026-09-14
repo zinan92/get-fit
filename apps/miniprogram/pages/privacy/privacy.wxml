@@ -1,0 +1,12 @@
+<view class="page privacy">
+  <topbar />
+  <view class="head rise">
+    <view class="eyebrow">隐私说明</view>
+    <view class="h1">你的资料怎么被使用</view>
+    <view class="sub">更新于 <text class="num">{{updated}}</text></view>
+  </view>
+  <view wx:for="{{sections}}" wx:key="t" class="card section rise">
+    <view class="t">{{item.t}}</view>
+    <view wx:for="{{item.p}}" wx:for-item="line" wx:key="*this" class="p">{{line}}</view>
+  </view>
+</view>

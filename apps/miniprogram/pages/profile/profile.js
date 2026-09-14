@@ -16,6 +16,7 @@ Page({
   },
   // The coach sends this id to the operator to be added to the coach list.
   copyAccountId() { if (this.data.accountId) wx.setClipboardData({ data: this.data.accountId }); },
+  openPrivacy() { wx.navigateTo({ url: '/pages/privacy/privacy' }); },
   openCoach() { wx.navigateTo({ url: '/pages/coach/home/home' }); },
   async requestDelete() {
     const result = await wx.showModal({ title: '确认删除', content: '提交后会进入 30 天恢复期，之后清除身份和健康资料。', confirmText: '确认删除' });

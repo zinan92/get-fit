@@ -50,3 +50,4 @@
 .next { display: flex; flex-direction: column; gap: 22rpx; }
 .next-row { display: flex; align-items: center; gap: 20rpx; font-size: 26rpx; color: var(--ink-2); }
 .next-row .n { flex: 0 0 44rpx; width: 44rpx; height: 44rpx; border-radius: 50%; background: var(--train-soft); color: var(--train); display: flex; align-items: center; justify-content: center; font-size: 24rpx; }
+.privacy-link { margin: 4rpx 32rpx 0; text-align: center; font-size: 24rpx; color: var(--ink-3); text-decoration: underline; }

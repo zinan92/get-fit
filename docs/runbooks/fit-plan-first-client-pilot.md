@@ -9,6 +9,7 @@
 3. 小程序后台 → 成员管理 → 体验成员：加教练朋友和首位客户的微信号（个人主体最多 15 人）。
 4. 这台 Mac mini 上：`tcb login`（扫码授权 Park 的腾讯云账号）；微信开发者工具已登录。
 5. 在 `apps/miniprogram/project.private.config.json`（已 gitignore）写入 `{ "appid": "<AppID>" }`。
+6. 小程序后台 → 设置 → 服务内容声明 →「用户隐私保护指引」：按 `docs/privacy/user-privacy-guide.md` 第一部分勾选「剪切板」并填写用途和联系方式（不填的话复制口令/账号编号会被微信拦截）。
 
 完成标志：后台截图回帖 #8，AppID 与环境 ID 打码。AppID、环境 ID、任何密钥都不进仓库、issue、日志。
 

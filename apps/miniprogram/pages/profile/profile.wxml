@@ -16,6 +16,7 @@
     <view wx:if="{{!consents.length}}" class="muted">还没有记录。</view>
     <view wx:for="{{consents}}" wx:key="*this" class="muted">· {{item}}</view>
   </view>
+  <view class="card link-row" bindtap="openPrivacy"><text>隐私说明</text><image class="link-ic" src="/assets/icons/arrow.svg" /></view>
   <view class="card"><button bindtap="requestDelete" class="danger">申请删除我的资料</button></view>
   <view wx:if="{{accountId}}" class="account" bindtap="copyAccountId">账号编号 <text class="num">{{accountId[0]}}{{accountId[1]}}{{accountId[2]}}{{accountId[3]}}{{accountId[4]}}{{accountId[5]}}</text>… · 点此复制</view>
 </view>

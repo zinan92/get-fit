@@ -1,0 +1,9 @@
+.privacy { padding-bottom: calc(60rpx + env(safe-area-inset-bottom)); }
+.head { padding: 4rpx 32rpx 28rpx; }
+.head .eyebrow { font-size: 23rpx; color: var(--train); font-weight: 600; }
+.head .h1 { margin-top: 8rpx; font-size: 40rpx; font-weight: 700; }
+.head .sub { margin-top: 6rpx; font-size: 22rpx; color: var(--ink-3); }
+.section { margin-bottom: 20rpx; }
+.section .t { font-size: 28rpx; font-weight: 700; margin-bottom: 10rpx; }
+.section .p { font-size: 25rpx; color: var(--ink-2); line-height: 1.7; }
+.section .p + .p { margin-top: 10rpx; }
