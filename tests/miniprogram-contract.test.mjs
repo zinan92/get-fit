@@ -84,7 +84,7 @@ test("styles use only the v3 palette and pages carry no emoji, arrows or generat
     const text = await readFile(file, "utf8");
     for (const [color] of text.matchAll(/#[0-9A-Fa-f]{3,6}\b/g)) assert.ok(palette.has(color) || palette.has(color.toUpperCase()), `${path.relative(app, file)} uses off-palette ${color}`);
   }
-  const clientFacing = (await sourceFiles([".wxml", ".js"])).filter((file) => !file.includes(`${path.sep}onboarding${path.sep}`) && !file.includes(`${path.sep}coach${path.sep}`) && !file.endsWith("utils/coach.js") && !file.endsWith("preview-data.js"));
+  const clientFacing = (await sourceFiles([".wxml", ".js"])).filter((file) => !file.includes(`${path.sep}onboarding${path.sep}`) && !file.includes(`${path.sep}coach${path.sep}`) && !file.includes(`${path.sep}privacy${path.sep}`) && !file.endsWith("utils/coach.js") && !file.endsWith("preview-data.js"));
   for (const file of clientFacing) {
     const text = await readFile(file, "utf8");
     assert.doesNotMatch(text, /\p{Extended_Pictographic}|[→↗▦]/u, `${path.relative(app, file)} has decorative characters`);
@@ -130,4 +130,21 @@ test("coach mode reuses the client's plan-day view, reads only coach endpoints a
   assert.equal(app.tabBar.list.some((item) => item.pagePath.includes("coach")), false, "coach pages are not in the client tab bar");
   const today = await read("pages/today/today.wxml");
   assert.doesNotMatch(today, /badge=/, "the client never sees a draft badge");
+});
+
+test("privacy notice matches the declared guide and is reachable from consent and 我的", async () => {
+  const guide = await readFile(path.join(root, "docs", "privacy", "user-privacy-guide.md"), "utf8");
+  const page = await read("pages/privacy/privacy.js");
+  for (const phrase of ["30 天冷静期", "第三方大模型", "腾讯云微信云开发", "剪切板"]) {
+    assert.ok(guide.includes(phrase), `guide: ${phrase}`);
+    assert.ok(page.includes(phrase.replace("30 天冷静期", "30 天冷静期")), `page: ${phrase}`);
+  }
+  assert.match(await read("pages/onboarding/onboarding.wxml"), /bindtap="openPrivacy"/);
+  assert.match(await read("pages/profile/profile.wxml"), /bindtap="openPrivacy"/);
+  // Every privacy-gated API the app calls must be declared in the guide.
+  const gated = { "wx.setClipboardData": "剪切板", "wx.getLocation": "位置", "wx.chooseImage": "相册", "wx.chooseMedia": "相册", "wx.getPhoneNumber": "手机号", "wx.getWeRunData": "微信运动", "wx.startRecord": "麦克风" };
+  const code = (await sourceFiles([".js"])).filter((file) => !file.endsWith("preview-data.js"));
+  const used = new Set();
+  for (const file of code) for (const api of Object.keys(gated)) if ((await readFile(file, "utf8")).includes(api)) used.add(api);
+  for (const api of used) assert.match(guide, new RegExp(`\`${api}\``), `${api} is used but not declared`);
 });

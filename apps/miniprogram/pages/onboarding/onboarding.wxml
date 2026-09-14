@@ -47,6 +47,7 @@
         <view class="s">不选也能正常使用，以后可以再打开。</view>
       </view>
     </view>
+    <view class="privacy-link" bindtap="openPrivacy">查看完整隐私说明</view>
     <view class="primary sticky {{consents.health_processing && consents.third_party_model ? '' : 'disabled'}}" bindtap="saveConsents">{{busy ? '正在保存…' : '继续'}}</view>
   </view>
 

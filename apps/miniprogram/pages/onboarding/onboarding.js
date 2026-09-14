@@ -133,5 +133,7 @@ Page({
     finally { this.setData({ busy: false }); }
   },
 
+  openPrivacy() { wx.navigateTo({ url: '/pages/privacy/privacy' }); },
+
   goToday() { wx.switchTab({ url: '/pages/today/today' }); }
 });
