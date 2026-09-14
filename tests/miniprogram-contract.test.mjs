@@ -38,15 +38,18 @@ test("preview data is only reachable without a real AppID", async () => {
 
 test("today page follows v3: training before meals, per-food kcal, meal and day totals", async () => {
   const wxml = await read("pages/today/today.wxml");
-  const training = wxml.indexOf("今天练什么");
-  const meals = wxml.indexOf("今天吃什么");
+  const dayMarkup = await read("components/plan-day/plan-day.wxml");
+  const training = dayMarkup.indexOf("今天练什么");
+  const meals = dayMarkup.indexOf("今天吃什么");
   assert.ok(training > 0 && meals > training, "training section precedes meals");
-  assert.match(wxml, /food\.kcal\}\} kcal/);
-  assert.match(wxml, /meal\.kcal\}\} kcal/);
-  assert.match(wxml, /day\.dailyKcal/);
-  assert.match(wxml, /教练已确认/);
-  assert.match(wxml, /<character catalog-id="\{\{item\.id\}\}"/);
-  assert.doesNotMatch(wxml, /mediaPath|\.gif/);
+  assert.match(dayMarkup, /food\.kcal\}\} kcal/);
+  assert.match(dayMarkup, /meal\.kcal\}\} kcal/);
+  assert.match(dayMarkup, /day\.dailyKcal/);
+  assert.match(dayMarkup, /教练已确认/);
+  assert.match(wxml, /<plan-day day="\{\{day\}\}" done="\{\{done\}\}" bind:toggle="onToggle">/);
+  const component = await read("components/plan-day/plan-day.wxml");
+  assert.match(component, /<character catalog-id="\{\{item\.id\}\}"/);
+  assert.doesNotMatch(wxml + component, /mediaPath|\.gif/);
 });
 
 test("check-ins start tilted and snap upright, with reduced motion respected", async () => {
@@ -54,7 +57,7 @@ test("check-ins start tilted and snap upright, with reduced motion respected", a
   assert.match(wxss, /\.check-button \{[^}]*transform: rotate\(-9deg\)/);
   assert.match(wxss, /\.check-button\.on \{[^}]*transform: rotate\(0deg\) scale\(1\.08\)/);
   assert.match(wxss, /prefers-reduced-motion: reduce/);
-  const page = await read("pages/today/today.wxss");
+  const page = await read("components/plan-day/plan-day.wxss");
   assert.match(page, /\.pill-badge \{[^}]*rotate\(-9deg\)/);
   assert.match(await read("components/character/character.wxss"), /@import "\.\/motions\.wxss"/);
   assert.match(await read("components/character/motions.wxss"), /prefers-reduced-motion: reduce/);
@@ -81,7 +84,7 @@ test("styles use only the v3 palette and pages carry no emoji, arrows or generat
     const text = await readFile(file, "utf8");
     for (const [color] of text.matchAll(/#[0-9A-Fa-f]{3,6}\b/g)) assert.ok(palette.has(color) || palette.has(color.toUpperCase()), `${path.relative(app, file)} uses off-palette ${color}`);
   }
-  const clientFacing = (await sourceFiles([".wxml", ".js"])).filter((file) => !file.includes(`${path.sep}onboarding${path.sep}`) && !file.endsWith("preview-data.js"));
+  const clientFacing = (await sourceFiles([".wxml", ".js"])).filter((file) => !file.includes(`${path.sep}onboarding${path.sep}`) && !file.includes(`${path.sep}coach${path.sep}`) && !file.endsWith("utils/coach.js") && !file.endsWith("preview-data.js"));
   for (const file of clientFacing) {
     const text = await readFile(file, "utf8");
     assert.doesNotMatch(text, /\p{Extended_Pictographic}|[→↗▦]/u, `${path.relative(app, file)} has decorative characters`);
@@ -113,4 +116,18 @@ test("pain feedback alerts the coach and tells the client to stop, without swapp
   assert.match(wxml, /先停下让你疼的动作/);
   const sendFeeling = js.slice(js.indexOf("async sendFeeling"), js.indexOf("openCalendar()"));
   assert.doesNotMatch(sendFeeling, /exercises|catalogId|checkins/, "feedback never edits the plan");
+});
+
+test("coach mode reuses the client's plan-day view, reads only coach endpoints and never loosens identity", async () => {
+  const preview = await read("pages/coach/preview/preview.wxml");
+  assert.match(preview, /<plan-day wx:if="\{\{day\}\}" day="\{\{day\}\}" done="\{\{emptyDone\}\}" readonly badge=/, "the review screen renders the same component, read-only");
+  const coachJs = (await Promise.all(["pages/coach/home/home.js", "pages/coach/client/client.js", "pages/coach/preview/preview.js"].map(read))).join("\n");
+  for (const [, route] of coachJs.matchAll(/request\(`?'?(\/api\/[^`'$?]+)/g)) assert.match(route, /^\/api\/coach\//, route);
+  assert.doesNotMatch(coachJs, /x-coach-token|COACH_TOKEN|openid/i);
+  assert.match(await read("pages/coach/preview/preview.js"), /plan-drafts\/\$\{this\.data\.draftId\}\/publish/);
+  const app = JSON.parse(await read("app.json"));
+  for (const page of ["pages/coach/home/home", "pages/coach/client/client", "pages/coach/preview/preview"]) assert.ok(app.pages.includes(page), page);
+  assert.equal(app.tabBar.list.some((item) => item.pagePath.includes("coach")), false, "coach pages are not in the client tab bar");
+  const today = await read("pages/today/today.wxml");
+  assert.doesNotMatch(today, /badge=/, "the client never sees a draft badge");
 });

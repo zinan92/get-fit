@@ -152,6 +152,9 @@ export async function handleApi(context: ApiContext): Promise<Response> {
     const alertsAckMatch = path.match(/^coach\/alerts\/([^/]+)\/ack$/);
     if (alertsAckMatch && method === "POST") return acknowledgeAlert(context, alertsAckMatch[1], reqId);
     if (path === "coach/alerts" && method === "GET") return listAlerts(context);
+    if (path === "coach/overview" && method === "GET") return coachOverview(context);
+    const draftPreviewMatch = path.match(/^coach\/plan-drafts\/([^/]+)\/preview$/);
+    if (draftPreviewMatch && method === "GET") return previewDraft(context, draftPreviewMatch[1]);
     if (path === "codex-fallback/import" && method === "POST") return importCodexFallback(context, reqId);
     return error("NOT_FOUND", "API route not found", 404);
   } catch (caught) {
@@ -570,7 +573,54 @@ async function acknowledgeAlert(context: ApiContext, alertId: string, reqId: str
   const auth = requireCoach(context); if (auth !== true) return auth; const alert = context.store.alerts.get(alertId); if (!alert) return error("NOT_FOUND", "Alert not found", 404); alert.status = "acknowledged"; alert.acknowledgedAt = nowIso(); audit(context.store, "alert.acknowledged", { requestId: reqId, alertId, actor: "coach" }); return json({ alert });
 }
 
-function listAlerts(context: ApiContext): Response { const auth = requireCoach(context); if (auth !== true) return auth; return json({ alerts: [...context.store.alerts.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt)) }); }
+/** Everything the coach home screen needs in one call: each client's stage and what is waiting on the coach. */
+function coachOverview(context: ApiContext): Response {
+  const auth = requireCoach(context); if (auth !== true) return auth;
+  const clients = [...context.store.clients.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map((client) => {
+    const profile = context.store.profiles.get(client.id) ?? null;
+    const jobs = [...context.store.jobs.values()].filter((job) => job.clientId === client.id).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    const latestJob = jobs[0] ?? null;
+    const draft = latestJob ? [...context.store.drafts.values()].find((item) => item.generationJobId === latestJob.id) ?? null : null;
+    const plan = [...context.store.plans.values()].filter((item) => item.clientId === client.id && item.status !== "archived").sort((a, b) => b.versionNo - a.versionNo)[0] ?? null;
+    const openAlerts = [...context.store.alerts.values()].filter((alert) => alert.clientId === client.id && alert.status === "open").length;
+    const consents = context.store.consents.get(client.id) ?? new Set();
+    let stage: string;
+    if (!profile) stage = requiredConsents(consents) ? "profile_pending" : client.status === "invited" ? "invited" : "onboarding";
+    else if (draft?.status === "pending_review") stage = "draft_ready";
+    else if (latestJob && ["awaiting_local", "queued", "running"].includes(latestJob.status)) stage = "generating";
+    else if (plan) stage = "published";
+    else if (client.status === "active") stage = "confirmed";
+    else stage = hasManualRisk(profile) ? "needs_conversation" : "profile_submitted";
+    return {
+      client: clientView(client),
+      stage,
+      manualReview: profile ? hasManualRisk(profile) : false,
+      openAlerts,
+      job: latestJob ? { id: latestJob.id, status: latestJob.status, startDate: latestJob.startDate } : null,
+      draft: draft ? { id: draft.id, status: draft.status, startDate: draft.payload.startDate } : null,
+      plan: plan ? { id: plan.id, versionNo: plan.versionNo, effectiveFrom: plan.effectiveFrom } : null,
+    };
+  });
+  return json({ clients, openAlerts: clients.reduce((sum, item) => sum + item.openAlerts, 0) });
+}
+
+/** A draft day in exactly the shape the client's today screen receives, so the coach previews what the client will see. */
+function previewDraft(context: ApiContext, draftId: string): Response {
+  const auth = requireCoach(context); if (auth !== true) return auth;
+  const draft = context.store.drafts.get(draftId); if (!draft) return error("DRAFT_NOT_FOUND", "Draft not found", 404);
+  const url = new URL(context.request.url); const date = safeString(url.searchParams.get("date"), draft.payload.startDate);
+  const day = draft.payload.days.find((item) => item.localDate === date) ?? null;
+  const client = context.store.clients.get(draft.clientId);
+  return json({
+    status: day ? "ready" : "waiting_for_coach",
+    date,
+    plan: day ? { id: draft.id, versionNo: 0, day: clientDayView(day) } : null,
+    checkins: [],
+    draft: { id: draft.id, status: draft.status, clientId: draft.clientId, clientName: client?.displayName ?? "", startDate: draft.payload.startDate, dates: draft.payload.days.map((item) => item.localDate) },
+  });
+}
+
+function listAlerts(context: ApiContext): Response { const auth = requireCoach(context); if (auth !== true) return auth; return json({ alerts: [...context.store.alerts.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map((alert) => ({ ...alert, clientName: context.store.clients.get(alert.clientId)?.displayName ?? "" })) }); }
 
 async function requestDeletion(context: ApiContext, reqId: string): Promise<Response> {
   const clientId = requireClient(context); if (clientId instanceof Response) return clientId;

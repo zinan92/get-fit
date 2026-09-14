@@ -1,5 +1,6 @@
 // Builds the mini-program preview dataset by running a demo plan through the
 // real API seam, so preview screens always match the shapes a client receives.
+import { exerciseCatalogById } from "../../packages/catalogs/src/index";
 import { handleApi } from "../../server/api/handlers";
 import { createMemoryStore, sha256 } from "../../server/api/store";
 import type { PlatformIdentity } from "../../server/api/types";
@@ -109,8 +110,44 @@ export async function buildPreviewDataset() {
   const calendar: Record<string, unknown> = {};
   for (const month of months) calendar[month] = await call(client, `/api/plans/calendar?month=${month}`);
   const me = await call(client, "/api/me");
-  const dataset = { today: PREVIEW_TODAY, me: { client: { ...me.client, createdAt: `${PREVIEW_START}T09:00:00.000Z` } }, days, calendar };
-  // Generated ids are random; pin them so the committed dataset is reproducible.
-  const planId = (days[PREVIEW_TODAY] as { plan: { id: string } }).plan.id;
-  return JSON.parse(JSON.stringify(dataset).replaceAll(planId, "plan_preview").replaceAll(clientId, "client_preview")) as typeof dataset;
+  await call(client, "/api/wellness-feedback", "PUT", { localDate: PREVIEW_TODAY, pain: "present", energy: "low", hunger: "normal" });
+
+  // Two more clients so the coach screens show every stage that needs the coach.
+  const addClient = async (name: string, openid: string, profileFields: Record<string, unknown>) => {
+    const person = await identity(openid);
+    const invite = await call(coach, "/api/coach/invitations", "POST", { displayName: name });
+    const id = (await call(person, "/api/invitations/accept", "POST", { token: invite.invitation.token })).client.id as string;
+    await call(person, "/api/wx/auth/login", "POST", { invitationToken: invite.invitation.token });
+    await call(person, "/api/me/consents", "POST", { types: ["health_processing", "third_party_model"] });
+    await call(person, "/api/me/profile", "PUT", { target: "muscle_gain", ageBand: "25_34", heightCm: 178, weightKg: 70, trainingExperience: "intermediate", sessionsPerWeek: 4, minutesPerSession: 60, equipment: ["gym"], injuryFlags: [], allergyFlags: [], dietaryPreferences: [], riskFlags: [], timezone: "Asia/Shanghai", ...profileFields });
+    return id;
+  };
+  const draftClientId = await addClient("阿杰", "preview-client-draft", { injuryFlags: ["shoulder_discomfort"] });
+  await call(coach, `/api/coach/clients/${draftClientId}/profile/confirm`, "POST");
+  const draftJob = await call(coach, `/api/coach/clients/${draftClientId}/plan-generations`, "POST", { startDate: "2026-09-15" });
+  const draftToken = await call(coach, `/api/coach/generation-jobs/${draftJob.job.id}/codex-fallback-token`, "POST");
+  const secondPlan = previewPlan();
+  secondPlan.startDate = "2026-09-15";
+  secondPlan.days = secondPlan.days.map((day, index) => ({ ...day, localDate: addDays("2026-09-15", index), exercises: day.exercises.filter((item) => !exerciseCatalogById.get(item.catalogId)?.contraindications.includes("shoulder_discomfort")) }));
+  const pendingDraft = await call(coach, "/api/codex-fallback/import", "POST", { token: draftToken.token, payload: secondPlan });
+  const reviewClientId = await addClient("小林", "preview-client-review", { target: "general_fitness", allergyFlags: ["peanut"], equipment: [] });
+
+  const coachData = {
+    overview: await call(coach, "/api/coach/overview"),
+    alerts: await call(coach, "/api/coach/alerts"),
+    profiles: Object.fromEntries(await Promise.all([clientId, draftClientId, reviewClientId].map(async (id) => [id, await call(coach, `/api/coach/clients/${id}/profile`)]))),
+    summaries: { [clientId]: await call(coach, `/api/coach/clients/${clientId}/summary?days=7`) },
+    draftDays: Object.fromEntries(await Promise.all(secondPlan.days.map(async (day) => [day.localDate, await call(coach, `/api/coach/plan-drafts/${pendingDraft.draft.id}/preview?date=${day.localDate}`)]))),
+  };
+
+  const dataset = { today: PREVIEW_TODAY, me: { client: me.client }, days, calendar, coach: coachData };
+  // Generated ids and timestamps vary per run; pin them so the committed dataset is reproducible.
+  const ids = new Map<string, string>();
+  const text = JSON.stringify(dataset)
+    .replace(/\b(client|plan|draft|job|alert|invite|trace)_[a-z0-9]{20}\b/g, (match, kind: string) => {
+      if (!ids.has(match)) ids.set(match, `${kind}_preview_${[...ids.keys()].filter((key) => key.startsWith(kind)).length + 1}`);
+      return ids.get(match)!;
+    })
+    .replace(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/g, `${PREVIEW_TODAY}T09:00:00.000Z`);
+  return JSON.parse(text) as typeof dataset;
 }

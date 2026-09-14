@@ -1,0 +1,61 @@
+<view class="page coach">
+  <topbar />
+  <view wx:if="{{preview}}" class="preview-banner">本地预览数据 · 未连接云开发</view>
+
+  <view wx:if="{{status === 'ready'}}" class="rise">
+    <view class="head">
+      <view class="eyebrow">教练工作台</view>
+      <view class="h1">{{waiting ? '有 ' + waiting + ' 件事等你' : '都处理好了'}}</view>
+    </view>
+
+    <view wx:if="{{alerts.length}}" class="section">
+      <view class="sec-head"><text class="h3">身体提醒</text><text class="count num">{{alerts.length}}</text></view>
+      <view wx:for="{{alerts}}" wx:key="id" class="alert-card">
+        <image class="alert-ic" src="/assets/icons/warning.svg" />
+        <view class="alert-copy">
+          <view class="t">{{item.clientName}} 说训练时有地方疼</view>
+          <view class="s num">{{item.localDate}}</view>
+        </view>
+        <view class="ack" data-id="{{item.id}}" bindtap="ackAlert">已沟通</view>
+      </view>
+    </view>
+
+    <view class="section">
+      <view class="sec-head"><text class="h3">我的客户</text><text class="count num">{{clients.length}}</text></view>
+      <view class="list">
+        <view wx:for="{{clients}}" wx:key="id" class="client-row" data-id="{{item.client.id}}" bindtap="openClient">
+          <view class="avatar">{{item.initial}}</view>
+          <view class="who">
+            <view class="n">{{item.client.displayName}}</view>
+            <view wx:if="{{item.openAlerts}}" class="s warn-text">有未处理的身体提醒</view>
+          </view>
+          <view class="stage {{item.stageView.tone}}">{{item.stageView.label}}</view>
+        </view>
+      </view>
+    </view>
+
+    <view class="section">
+      <view class="sec-head"><text class="h3">邀请新客户</text></view>
+      <view class="card invite">
+        <block wx:if="{{!invite}}">
+          <input class="field" placeholder="客户的称呼，比如 小满" value="{{inviteName}}" bindinput="onInviteName" />
+          <view class="primary" bindtap="createInvite">{{busy ? '正在生成…' : '生成邀请'}}</view>
+        </block>
+        <block wx:else>
+          <view class="invite-ok">给 {{invite.name}} 的邀请已生成，48 小时内有效</view>
+          <button class="share" open-type="share">发给 {{invite.name}}</button>
+          <view class="copy" bindtap="copyInvite">复制口令</view>
+        </block>
+      </view>
+    </view>
+  </view>
+
+  <view wx:elif="{{status === 'denied'}}" class="state-card rise">
+    <view class="t">这里是教练专用的</view>
+    <view class="s">当前微信不在教练名单里。</view>
+  </view>
+  <view wx:elif="{{status === 'error'}}" class="state-card rise">
+    <view class="t">暂时没连上</view>
+    <view class="retry" bindtap="load">重新加载</view>
+  </view>
+</view>

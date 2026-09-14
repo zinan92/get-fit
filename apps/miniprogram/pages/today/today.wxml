@@ -26,121 +26,28 @@
   </view>
 
   <block wx:if="{{status === 'ready'}}">
-    <view class="card hero rise" style="animation-delay: .1s">
-      <view class="hero-top">
-        <view class="chip confirmed"><view class="dot"></view>教练已确认</view>
-        <view class="dayof">第 <text class="num strong">{{day.dayIndex}}</text><text class="num">/30</text> 天</view>
-      </view>
-      <view class="hero-mid">
-        <view class="hero-copy">
-          <view class="eyebrow">今日主题</view>
-          <view class="h2">{{day.title}}</view>
-          <view class="metachips">
-            <text wx:if="{{exercises.length}}"><text class="num">{{exercises.length}}</text> 个动作</text>
-            <text wx:else>恢复日</text>
-            <text>约 <text class="num">{{day.dailyKcal}}</text> kcal</text>
-          </view>
-        </view>
-        <view class="ring {{progress === 100 ? 'full' : ''}}" style="background: conic-gradient(#D85C28 {{ringDeg}}deg, #E6DDC9 {{ringDeg}}deg);">
-          <view class="ring-in">
-            <text class="num ring-pct">{{progress}}%</text>
-            <text class="ring-lb">{{progressText}}</text>
-          </view>
-        </view>
-      </view>
-      <view wx:if="{{day.reminders.length}}" class="quote"><text class="q">“</text>{{day.reminders[0]}}<text class="q">”</text></view>
-    </view>
-
-    <block wx:if="{{exercises.length}}">
-      <view class="sec-head rise" style="animation-delay: .2s">
-        <text class="eyebrow">Training</text>
-        <text class="h3">今天练什么</text>
-        <text class="count"><text class="num">{{exercises.length}}</text> 个动作</text>
-      </view>
-      <view class="exlist rise" style="animation-delay: .22s">
-        <view wx:for="{{exercises}}" wx:key="id" class="exercise-item">
-          <view class="exrow {{openId === item.id ? 'open' : ''}}" data-id="{{item.id}}" bindtap="toggleDetail">
-            <text class="exidx num">{{item.index}}</text>
-            <view class="exdemo-tile"><character catalog-id="{{item.id}}" size="{{124}}" /></view>
-            <view class="exb">
-              <view class="n">{{item.name}}</view>
-              <view class="s"><text wx:for="{{item.detail}}" wx:for-item="part" wx:key="index" class="{{part.num ? 'num hl' : ''}}">{{part.value}}</text></view>
-              <view class="cue"><text wx:for="{{item.cue}}" wx:for-item="part" wx:key="index" class="{{part.num ? 'num' : ''}}">{{part.value}}</text></view>
+    <plan-day day="{{day}}" done="{{done}}" bind:toggle="onToggle">
+      <view slot="middle">
+        <view class="card feeling rise">
+          <block wx:if="{{!feelingSent}}">
+            <view class="feeling-head"><character catalog-id="ex-walk" size="{{72}}" /><view><view class="t">今天身体感觉怎么样</view><view class="s">点一下就好，教练会看到</view></view></view>
+            <view class="feeling-row" wx:for="{{['pain', 'energy', 'hunger']}}" wx:for-item="field" wx:key="*this">
+              <view wx:for="{{feelingOptions[field]}}" wx:key="value" class="feel-opt {{feeling[field] === item.value ? 'on' : ''}} {{item.value === 'present' ? 'pain' : ''}}" data-field="{{field}}" data-value="{{item.value}}" bindtap="pickFeeling">{{item.label}}</view>
             </view>
-            <view class="check-button {{done[item.id] ? 'on' : ''}} {{pulse === item.id ? 'pulse' : ''}}" data-id="{{item.id}}" catchtap="toggleExercise" aria-role="checkbox" aria-checked="{{done[item.id] ? true : false}}" aria-label="{{done[item.id] ? '取消完成' : '标记完成'}}{{item.name}}">
-              <view class="check-mark"></view>
-              <view class="ripple"></view>
-            </view>
+            <view class="feel-send" bindtap="sendFeeling">告诉教练</view>
+          </block>
+          <view wx:elif="{{feelingSent === 'pain'}}" class="feeling-result pain">
+            <image class="safety-ic" src="/assets/icons/warning.svg" />
+            <view><view class="t">先停下让你疼的动作</view><view class="s">教练已经收到提醒，会来问问你的情况。不要硬撑，也不用自己换动作。</view></view>
           </view>
-          <view class="exdetail {{openId === item.id ? 'open' : ''}}">
-            <view class="exdetail-in">
-              <view class="exdetail-head"><text class="lb">动作要领</text><text class="steps-n"><text class="num">{{item.steps.length}}</text> 步</text></view>
-              <view class="tagrow"><text>目标：{{item.target}}</text><text>器械：{{item.equipment}}</text></view>
-              <view class="steplist">
-                <view wx:for="{{item.steps}}" wx:for-item="step" wx:for-index="stepIndex" wx:key="stepIndex" class="step">
-                  <text class="step-n num">{{stepIndex + 1}}</text>
-                  <view class="step-t"><text wx:for="{{step}}" wx:for-item="part" wx:key="index" class="{{part.num ? 'num' : ''}}">{{part.value}}</text></view>
-                </view>
-              </view>
-              <view class="safenote">按自己的舒适范围完成；出现疼痛时先停下，并联系教练。</view>
-            </view>
+          <view wx:else class="feeling-result">
+            <character catalog-id="ex-jumping-jack" size="{{72}}" />
+            <view><view class="t">收到，教练会看到</view><view class="s">明天也记得告诉我感觉怎么样。</view></view>
           </view>
         </view>
-      </view>
-      <view class="safetybar"><image class="safety-ic" src="/assets/icons/warning.svg" /><text>任何动作让你疼痛，立即停止并联系教练。</text></view>
-    </block>
 
-    <view wx:else class="card recovery rise" style="animation-delay: .2s">
-      <character catalog-id="ex-walk" size="{{96}}" />
-      <view class="recovery-copy">
-        <view class="t">今天是恢复日</view>
-        <view class="s">不用练力量，让身体歇一歇。</view>
       </view>
-    </view>
-
-    <view class="card feeling rise">
-      <block wx:if="{{!feelingSent}}">
-        <view class="feeling-head"><character catalog-id="ex-walk" size="{{72}}" /><view><view class="t">今天身体感觉怎么样</view><view class="s">点一下就好，教练会看到</view></view></view>
-        <view class="feeling-row" wx:for="{{['pain', 'energy', 'hunger']}}" wx:for-item="field" wx:key="*this">
-          <view wx:for="{{feelingOptions[field]}}" wx:key="value" class="feel-opt {{feeling[field] === item.value ? 'on' : ''}} {{item.value === 'present' ? 'pain' : ''}}" data-field="{{field}}" data-value="{{item.value}}" bindtap="pickFeeling">{{item.label}}</view>
-        </view>
-        <view class="feel-send" bindtap="sendFeeling">告诉教练</view>
-      </block>
-      <view wx:elif="{{feelingSent === 'pain'}}" class="feeling-result pain">
-        <image class="safety-ic" src="/assets/icons/warning.svg" />
-        <view><view class="t">先停下让你疼的动作</view><view class="s">教练已经收到提醒，会来问问你的情况。不要硬撑，也不用自己换动作。</view></view>
-      </view>
-      <view wx:else class="feeling-result">
-        <character catalog-id="ex-jumping-jack" size="{{72}}" />
-        <view><view class="t">收到，教练会看到</view><view class="s">明天也记得告诉我感觉怎么样。</view></view>
-      </view>
-    </view>
-
-    <view class="sec-head meals-head">
-      <text class="eyebrow">Meals</text>
-      <text class="h3">今天吃什么</text>
-      <text class="count">约 <text class="num">{{day.dailyKcal}}</text> kcal</text>
-    </view>
-
-    <view wx:for="{{meals}}" wx:for-item="meal" wx:key="id" class="meal">
-      <view class="meal-head">
-        <view class="meal-name">{{meal.label}}</view>
-        <view class="pill {{done[meal.id] ? 'on' : ''}}" data-id="{{meal.id}}" bindtap="toggleMeal" aria-role="checkbox" aria-checked="{{done[meal.id] ? true : false}}">
-          <view class="pill-badge"><view class="check-mark small"></view></view>
-          <text class="lb">{{done[meal.id] ? '已吃完' : '完成打卡'}}</text>
-        </view>
-      </view>
-      <view class="foods">
-        <view wx:for="{{meal.foods}}" wx:for-item="food" wx:for-index="foodIndex" wx:key="id" class="food {{cheer === meal.id ? 'cheer' : ''}}" style="animation-delay: {{foodIndex * 70}}ms">
-          <image class="food-img" src="{{food.image}}" mode="aspectFit" />
-          <view class="fn">{{food.name}}</view>
-          <view class="fg num">{{food.portion}}</view>
-          <view class="fk num">{{food.kcal}} kcal</view>
-        </view>
-      </view>
-      <view class="mealsum"><text class="lb">本餐合计</text><text class="vv num">{{meal.kcal}} kcal</text></view>
-    </view>
-    <view class="credit">轻练原创角色</view>
+    </plan-day>
   </block>
 
   <view wx:elif="{{status === 'waiting_for_coach'}}" class="state-card rise">

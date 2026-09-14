@@ -102,6 +102,27 @@ try {
   await wait(1200);
   await mini.pageScrollTo(0);
   await shot("13-onboarding-done");
+  // Coach workbench.
+  page = await mini.reLaunch("/pages/coach/home/home");
+  await wait(1500);
+  await shot("14-coach-home");
+  const inviteInput = await page.$(".invite .field");
+  if (inviteInput) { await page.setData({ inviteName: "小周" }); await (await page.$(".invite .primary")).tap(); await wait(800); await mini.pageScrollTo(1200); await shot("15-coach-invite"); }
+  const overview = await page.data("clients");
+  const draftClient = overview.find((item) => item.stage === "draft_ready");
+  const reviewClient = overview.find((item) => item.stage === "profile_submitted");
+  const liveClient = overview.find((item) => item.stage === "published");
+  page = await mini.navigateTo(`/pages/coach/client/client?id=${reviewClient.id}`);
+  await wait(1500);
+  await shot("16-coach-client-review");
+  page = await mini.redirectTo(`/pages/coach/client/client?id=${liveClient.id}`);
+  await wait(1500);
+  await shot("17-coach-client-live");
+  page = await mini.redirectTo(`/pages/coach/preview/preview?draftId=${draftClient.draft.id}`);
+  await wait(1800);
+  await shot("18-coach-draft-preview");
+  const cells = await page.$$(".strip .dcell");
+  if (cells[3]) { await cells[3].tap(); await wait(1500); await mini.pageScrollTo(700); await shot("19-coach-draft-day4"); }
   console.log(logs.slice(-20).join("\n"));
 } finally {
   mini.disconnect();
