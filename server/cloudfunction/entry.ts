@@ -26,6 +26,7 @@ type CloudFunctionOptions = {
 };
 
 const METHODS = new Set(["GET", "POST", "PUT", "PATCH", "DELETE"]);
+const EDGE_IDENTITY_HEADERS = new Set(["oai-authenticated-user-id"]);
 
 /** Runtime globals the shared API code depends on; reported by the spike test and health checks. */
 export function runtimeCapabilities(): Record<string, boolean> {
@@ -42,7 +43,8 @@ export function runtimeCapabilities(): Record<string, boolean> {
 
 export function createCloudFunction(options: CloudFunctionOptions) {
   // DEV_MODE unlocks fixture identities; a cloud function is never a local sandbox.
-  const env: ApiEnv = { ...options.env, DEV_MODE: undefined, DB: undefined, QUEUE: undefined } as ApiEnv;
+  // COACH_ACCESS_USER_ID trusts an edge-injected Sites header that callFunction callers can forge.
+  const env: ApiEnv = { ...options.env, DEV_MODE: undefined, COACH_ACCESS_USER_ID: undefined, DB: undefined, QUEUE: undefined } as ApiEnv;
   const store = options.store ?? createMemoryStore();
 
   return async function main(event: CloudFunctionEvent): Promise<CloudFunctionResult> {
@@ -54,7 +56,7 @@ export function createCloudFunction(options: CloudFunctionOptions) {
     const headers = new Headers({ "content-type": "application/json" });
     if (event.headers && typeof event.headers === "object") {
       for (const [name, value] of Object.entries(event.headers as Record<string, unknown>)) {
-        if (typeof value === "string") headers.set(name, value);
+        if (typeof value === "string" && !EDGE_IDENTITY_HEADERS.has(name.toLowerCase())) headers.set(name, value);
       }
     }
     const hasBody = method !== "GET" && event.body !== undefined;
