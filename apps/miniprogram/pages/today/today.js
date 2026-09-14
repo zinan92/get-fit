@@ -76,7 +76,7 @@ Page({
         index: String(index + 1).padStart(2, '0'),
         name: item.name,
         kind: (characters.exercise[item.catalogId] || []).length ? item.catalogId : '',
-        detail: dates.numberParts(`${item.sets} 组 × ${item.reps} 次`),
+        detail: dates.numberParts(item.unit === 'minutes' ? `${item.reps} 分钟` : `${item.sets} 组 × ${item.reps} ${item.unit === 'seconds' ? '秒' : '次'}`),
         cue: dates.numberParts(item.restSeconds ? `组间休息 ${item.restSeconds} 秒` : (item.cues[0] || '')),
         target: item.target,
         equipment: item.equipment,

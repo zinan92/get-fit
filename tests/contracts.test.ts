@@ -36,8 +36,8 @@ function makePlan() {
 test("accepts exactly 30 consecutive catalog-backed days and calculates kcal", () => {
   const result = validatePlanPayload(makePlan(), catalog);
   assert.equal(result.ok, true);
-  if (result.ok) assert.equal(result.dailyKcal["2026-08-12"], 1311);
-  assert.equal(calculateFoodKcal("food-egg", 100, catalog), 143);
+  if (result.ok) assert.equal(result.dailyKcal["2026-08-12"], 1320);
+  assert.equal(calculateFoodKcal("food-egg", 100, catalog), 155);
 });
 
 test("rejects unknown ids, duplicates and negative grams", () => {
@@ -57,13 +57,31 @@ test("rejects a blocked food even when the catalog id exists", () => {
   if (!result.ok) assert.ok(result.errors.some((error) => error.includes("blocked by profile")));
 });
 
-test("exercise catalog exposes customer-facing coaching metadata and media fallbacks", () => {
+test("exercise catalog exposes customer-facing coaching metadata without licensed media", () => {
   const squat = exerciseCatalog.find((item) => item.id === "ex-goblet-squat");
   const walk = exerciseCatalog.find((item) => item.id === "ex-walk");
-  assert.equal(squat?.target, "股四头肌");
   assert.equal(squat?.equipment, "哑铃");
   assert.ok(squat?.steps.length && squat.steps.length > 0);
-  assert.match(squat?.mediaPath ?? "", /dumbbell-goblet-squat\.gif$/);
-  assert.equal(walk?.mediaPath, undefined);
-  assert.ok(walk?.steps.length && walk.steps.length > 0);
+  assert.equal(walk?.unit, "minutes");
+  for (const item of exerciseCatalog) {
+    assert.equal(item.mediaPath, undefined, `${item.id} must not reference licensed media`);
+    assert.ok(item.name && item.target && item.steps.length >= 2 && item.cues.length >= 1, item.id);
+    assert.ok(item.steps.every((step) => !/重复所需|英寸/.test(step)), `${item.id} has an unedited dataset sentence`);
+  }
+});
+
+test("catalogs are large enough to plan 30 varied days, with unique ids and traceable sources", () => {
+  assert.ok(exerciseCatalog.length >= 40, `exercises: ${exerciseCatalog.length}`);
+  assert.ok(foodCatalog.length >= 50, `foods: ${foodCatalog.length}`);
+  assert.equal(new Set(exerciseCatalog.map((item) => item.id)).size, exerciseCatalog.length);
+  assert.equal(new Set(foodCatalog.map((item) => item.id)).size, foodCatalog.length);
+  const beginnerPatterns = new Set(exerciseCatalog.filter((item) => item.level === "beginner").map((item) => item.pattern));
+  for (const pattern of ["squat", "lunge", "hinge", "bridge", "row", "pushup", "overhead", "crunch", "plank", "walk"]) assert.ok(beginnerPatterns.has(pattern as never), `beginner ${pattern}`);
+  for (const item of exerciseCatalog) if (item.source.kind === "dataset") assert.match(item.source.datasetId, /^\d{4}$/);
+  for (const food of foodCatalog) {
+    assert.ok(food.kcalPer100g > 0 && food.kcalPer100g < 900, food.id);
+    if (food.source.kind === "usda-sr-legacy") assert.ok(food.source.fdcId > 100000, food.id);
+    else assert.equal(Math.round(food.source.energyKj / 4.184), food.kcalPer100g, food.id);
+  }
+  for (const category of ["staple", "protein", "dairy", "vegetable", "fruit", "fat"]) assert.ok(foodCatalog.filter((food) => food.category === category).length >= 4, category);
 });

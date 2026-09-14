@@ -56,15 +56,16 @@ test("check-ins start tilted and snap upright, with reduced motion respected", a
   assert.match(wxss, /prefers-reduced-motion: reduce/);
   const page = await read("pages/today/today.wxss");
   assert.match(page, /\.pill-badge \{[^}]*rotate\(-9deg\)/);
-  assert.match(await read("components/character/character.wxss"), /prefers-reduced-motion: reduce/);
+  assert.match(await read("components/character/character.wxss"), /@import "\.\/motions\.wxss"/);
+  assert.match(await read("components/character/motions.wxss"), /prefers-reduced-motion: reduce/);
 });
 
 test("every catalog exercise and food has a character", async () => {
-  const catalogs = await readFile(path.join(root, "packages", "catalogs", "src", "index.ts"), "utf8");
+  const catalogs = (await Promise.all(["exercises.ts", "foods.ts"].map((file) => readFile(path.join(root, "packages", "catalogs", "src", file), "utf8")))).join("\n");
   const characters = await read("utils/characters.js");
   const exerciseIds = [...catalogs.matchAll(/id: "(ex-[\w-]+)"/g)].map((match) => match[1]);
   const foodIds = [...catalogs.matchAll(/id: "(food-[\w-]+)"/g)].map((match) => match[1]);
-  assert.ok(exerciseIds.length >= 4 && foodIds.length >= 12);
+  assert.ok(exerciseIds.length >= 40 && foodIds.length >= 50, `${exerciseIds.length} exercises, ${foodIds.length} foods`);
   for (const id of [...exerciseIds, ...foodIds]) assert.match(characters, new RegExp(`"${id}"`), id);
   for (const file of (await walk(path.join(app, "assets"))).filter((item) => item.endsWith(".svg"))) {
     const svg = await readFile(file, "utf8");

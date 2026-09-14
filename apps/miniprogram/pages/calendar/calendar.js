@@ -46,7 +46,7 @@ Page({
         dayIndex: index + 1,
         dayNumber: dates.parts(day.date).day,
         title: day.title,
-        rest: !day.hasTraining,
+        rest: day.kind ? day.kind === 'recovery' : !day.hasTraining,
         isToday: day.date === today
       })));
       const firstWeek = days.slice(0, 7);
@@ -55,7 +55,7 @@ Page({
         status: 'ready',
         eyebrow: `${MONTHS[dates.parts(selectedDate).month - 1]} · ${selectedDate.slice(0, 4)}`,
         cells,
-        trainingPerWeek: firstWeek.filter(day => day.hasTraining).length,
+        trainingPerWeek: firstWeek.filter(day => (day.kind ? day.kind === 'training' : day.hasTraining)).length,
         mealsPerDay: days[0].mealCount
       });
       this.select(selectedDate);
@@ -84,7 +84,7 @@ Page({
       this.setData({
         detail: {
           kcal: day.dailyKcal,
-          exercises: day.exercises.map((item, index) => ({ key: item.catalogId, index: String(index + 1).padStart(2, '0'), name: item.name, sets: `${item.sets} × ${item.reps}` })),
+          exercises: day.exercises.map((item, index) => ({ key: item.catalogId, index: String(index + 1).padStart(2, '0'), name: item.name, sets: item.unit === 'minutes' ? `${item.reps} 分钟` : `${item.sets} × ${item.reps}${item.unit === 'seconds' ? ' 秒' : ''}` })),
           note: day.reminders[0] || ''
         }
       });
