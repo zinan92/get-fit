@@ -1,3 +1,4 @@
+import { requiresManualReview } from "../packages/contracts/src/index";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { exerciseCatalog, foodCatalog } from "../packages/catalogs/src/index";
@@ -84,4 +85,14 @@ test("catalogs are large enough to plan 30 varied days, with unique ids and trac
     else assert.equal(Math.round(food.source.energyKj / 4.184), food.kcalPer100g, food.id);
   }
   for (const category of ["staple", "protein", "dairy", "vegetable", "fruit", "fat"]) assert.ok(foodCatalog.filter((food) => food.category === category).length >= 4, category);
+});
+
+test("risk tiers: common discomfort and known allergens stay automatic, serious or unknown flags go to the coach", () => {
+  const base = { riskFlags: [] as string[], injuryFlags: [] as string[], allergyFlags: [] as string[] };
+  assert.equal(requiresManualReview(base), false);
+  assert.equal(requiresManualReview({ ...base, injuryFlags: ["knee_discomfort", "wrist_discomfort"] }), false);
+  assert.equal(requiresManualReview({ ...base, allergyFlags: ["peanut", "shellfish", "tree_nut"] }), false);
+  for (const flag of ["acute_knee_pain", "acute_back_pain", "sprained_something"]) assert.equal(requiresManualReview({ ...base, injuryFlags: [flag] }), true, flag);
+  for (const flag of ["minor", "pregnancy", "acute_pain", "chronic_disease", "eating_disorder", "pain", "anything"]) assert.equal(requiresManualReview({ ...base, riskFlags: [flag] }), true, flag);
+  assert.equal(requiresManualReview({ ...base, allergyFlags: ["sesame"] }), true);
 });
