@@ -114,6 +114,20 @@ function hydrate(store: Store, value: Snapshot): void {
   store.audit = value.audit;
 }
 
+/** Audit entries that only record someone looking at a screen; they are not worth a storage write on their own. */
+const VIEW_ACTIONS = new Set(["client.today_viewed"]);
+
+/**
+ * A digest of everything that must survive the request. Two equal fingerprints
+ * mean the request changed nothing durable, so the write can be skipped.
+ */
+export async function durableFingerprint(store: Store): Promise<string> {
+  const value = snapshot(store);
+  value.audit = store.audit.filter((event) => !VIEW_ACTIONS.has(String(event.action)));
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(value)));
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
 /** Storage for the encrypted single-coach snapshot with compare-and-set writes. */
 export type SnapshotBackend = {
   read(): Promise<{ ciphertext: string; keyVersion: string; revision: number } | null>;

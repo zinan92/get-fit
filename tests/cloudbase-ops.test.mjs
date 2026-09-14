@@ -24,6 +24,7 @@ test("coaches are added by account id; the first deploy without one only warns",
   const plan = await ops.deploy({ dryRun: true });
   assert.equal(plan.warning, null);
   assert.equal(plan.runtime, "Nodejs20.19");
+  assert.deepEqual(plan.triggers, ["daily-retention"]);
   assert.deepEqual(plan.variables.sort(), ["COACH_OPENID_HASHES", "DATA_ENCRYPTION_KEY", "OPERATOR_KEY_SHA256"]);
   assert.equal(JSON.stringify(plan).includes("DATA_ENCRYPTION_KEY\":"), false, "the dry run never prints secret values");
 });
