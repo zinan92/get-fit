@@ -1,29 +1,47 @@
-# Fit Plan Mockup Registry
+# 轻练 Registry
+
+> 当前快照，可整体替换。历史依据见 `decision-log.md` 与 GitHub issue/PR。截至 2026-09-14。
 
 ## 现在在哪里
 
-- M0 已合并：共享 `plan.v1`/目录/kcal/同意契约、19 张 Drizzle/D1 表、3 份迁移、原生小程序边界与 secret runbook。
-- M1 已合并：单教练闭环 API、教练 Web `/coach`、客户今日/30 天日历/资料页、结构化计划校验、教练审核发布、版本化、打卡/疼痛告警、提醒授权和 30 天删除清扫。
-- 客户端只读 published plan；draft/provider/raw prompt/completion 不会进入客户端响应。食物 kcal 由本地目录按份量计算。
-- Codex CLI 是当前主生成路径：教练明确点击后才下载脱敏输入和一次性 token，本机生成结果经过同一校验器并仍需审核，Worker 不会自动执行。
-- 今日训练卡已嵌入 3 个已核验动作 GIF（高脚杯深蹲、单臂哑铃划船支撑版、臀桥），并把动作库的中文分步要领、目标肌群和器械信息放进可展开的动作卡；`/exercise-preview` 仍可独立查看，素材保持 180×180 与 Gym visual attribution。
-- `grill-with-docs` 已收敛首客目标、领域词汇与 4 个边界 ADR；L 级“单客户真实闭环试用”规格已发布为 GitHub Issue #17（`ready-for-agent`）。
-- Issue #18–#24 已按依赖顺序实现、测试、合并并关闭：可恢复 onboarding、独立客户 API/会话、教练草案编辑、原生今日/日历、反馈/告警、未来版本和删除清理。
-- Issue #25 的 preflight 与首客试用 runbook 已合并；软件门已 `ready-for-human`，真实微信/DevTools/实体设备/七天客户观察仍保持 OPEN，等待人工证据。
-- Claude Sonnet 5 已完成只读 review；Issue #26 的邀请绑定、未来版本日期、删除回执、时区、摘要和媒体降级修复已合并并复测。
-- Issue #27 已完成：网页 Today/计划/我的三处导航互通，计划页支持 30 天选日与摘要，我的页支持资料/同意/删除演示反馈。
-- Issue #28 已完成：Sites/vinext 运行时不兼容 `next/link`，已统一改为原生导航链接；首页“月计划”、底部“计划/我的”、子页返回入口均已在线点击验证。
-- Issue #29 已完成：新增仅限 localhost 的 `/sandbox` 客户沙盒，以及小程序显式 `devMode` 登录；邀请、同意、建档、已发布计划、kcal、打卡、反馈和 30 天日历已用本地 API 实际跑通，生产环境继续拒绝开发身份。
-- Issue #30 已完成：沙盒媒体层将固定动作资源映射到网页内已核验 GIF，加载失败仍保留文字要领降级；线上版本同步完成。
-- Issue #32 已完成：客户侧完成控件加入轻微歪斜/勾线动效，食物卡片与小程序餐食行加入小表情和腮红；保留 reduced-motion、触控和无障碍状态。
-- 本地 HTTP flow 已验证：`/api/health`、邀请、登录、同意/建档、Codex CLI handoff、fallback 导入、草案编辑、发布、客户 today/calendar、打卡、反馈/告警、版本和删除清理；主流程 15 项 + 小程序/试用契约 3 项测试、build、lint、tsc、gitleaks 均通过。
-- 私有 Sites 最新版本已部署成功：https://fit-plan-mockup.parkzz.chatgpt.site（owner-only/custom 访问策略；外部未登录请求返回 401，生产 Worker 最近检查无错误）。
-- 状态：代码闭环 `verified`；Sites 已配置加密密钥和私有 owner 身份认证，主计划链路只使用教练本机 Codex CLI；微信登录/真实 D1 读写/首位客户验收尚未完成，保持 `partial/unknown`；健康数据上线合规评估仍 `blocked`。
+**开发执行权**：2026-09-14 起由 Codex 移交 Claude。开发事实源为 GitHub `zinan92/get-fit`（issue 即合同，一 issue 一 PR）。
+
+**线上**：https://fit-plan-mockup.parkzz.chatgpt.site（ChatGPT Sites 私有托管，owner-only，未登录请求返回 401）
+
+| 位置 | 提交 | 说明 |
+|---|---|---|
+| Sites 线上 v23 | `4676b96` | v3 视觉已上线 |
+| GitHub `main` | 领先线上 3 个提交 | 含 #1 构建修复、#2 日期条修复、#5 本文档 |
+
+**差距原因**：部署远端是 Sites 的 git（`git.chatgpt-team.site`），接手方机器没有它的凭据，无法推送。
+
+**已具备的能力**
+
+- 单教练闭环 API：邀请 → 登录 → 同意/建档 → 计划生成交接 → 草案编辑 → 发布 → 版本化；打卡、疼痛告警、提醒授权、30 天删除清扫。
+- 计划校验器：只允许目录内动作/食物 ID，拒绝未知字段，kcal 由服务端按目录与克数重算。
+- 客户端只读已发布计划；草案、生成原始输出不进入客户端响应。
+- Web 客户三页（今天 / 月计划 / 我的）为 v3 视觉：手绘带脸的食物与动作角色（含循环动画）、歪斜待命点击弹正的打卡框、实时进度环、只保留训练橙/饮食绿两个语义色。设计源：`design/fit-plan-v3.html`。
+- 原生小程序页面骨架（`apps/miniprogram/`），尚未采用 v3 视觉，未部署。
+- 安全：dev 身份（`dev-coach`、`devClientId`、`devOpenid`）只认服务端 `DEV_MODE`，不认请求 Host；两条回归测试锁定。
+
+**验证**：全新 clone 下 `npm test` 7 渲染 + 21 API 全过，`tsc`、`lint`、`gitleaks` 通过。`tests/miniprogram-contract.test.mjs` 与 `tests/pilot-preflight.test.mjs` 未纳入 `npm test`。
+
+**状态**：代码闭环 `verified`；微信登录 / 真实 D1 读写 / 首位客户验收 `partial/unknown`；健康数据上线合规评估 `blocked`。
 
 ## 下一步
 
-- 完成 Issue #25 的人工门：配置独立客户 API origin、微信测试应用和 D1 生产恢复演练，再按 runbook 做 DevTools、真机和一名客户七天试用；网页三个客户 Tab 已可演示，但在人工证据完成前仍保持 `partial/unknown`。
-- 配置并验证生产 Worker secrets：WeChat AppID/AppSecret；确认 D1 migrations 已应用并完成一次恢复演练；私有 Sites owner-only 认证已配置，若改为公开 API 需另行批准并增加边界防护。
-- 用低风险成年真实客户完成 7 天验收：打开 ≥5 天、打卡 ≥3 次、教练发布 ≤15 分钟；逐项留审计证据。
-- 媒体正式商用前仍需完成 Gym visual 授权确认；当前 GIF 仅作为私有预览/演示素材。
-- Codex CLI 主链路仍不等于 production-ready：在微信审核、D1 恢复、真实客户验收和本机 Codex 运行边界完成前保持 `partial/unknown`；生产 Worker 不配置或调用外部模型 API。
+**需要 Park 决策（阻塞）**
+
+1. **部署通路**：Sites 远端无凭据 → GitHub 上的修复无法上线。选项：给接手方 Sites 推送权限 / 保留 Codex 只做部署同步 / 迁出 Sites。
+2. **客户 API 落点**：Sites 是 owner-only 私有托管，永远服务不了小程序。公开客户 API 可部署到 Park 自有 Cloudflare 账号（会是独立的新应用与新 D1，不是更新现有部署）；小程序正式环境还受 ICP 备案域名约束，微信云开发可能绕开，需调研后决定。
+
+**已知产品 / 架构缺口（未开票）**
+
+- 内容：动作库只有 3 个真动作 + 快走，食物 12 种；30 天计划必然高度重复。需教练本人扩库。
+- 生成：计划生成需要教练在自己电脑上运行 `codex exec` 再回传 JSON，真实教练无法操作。
+- 风控：`hasManualRisk` 对任何非空伤病/过敏 flag 都返回 true，导致生成直接 409，普通小伤忌口的客户生不出计划。
+- 存储：全部数据存为 D1 单行加密快照，每个请求整读整写，`revision` 不参与比较 → 并发写入会静默丢失。
+- 统计：审计日志只保留最后 500 条，而"客户打开天数"从审计日志反推 → 试用成功标准的核心数字会被截断。
+- 校验：热量下限为固定 800 kcal，不随客户体征变化；不校验训练频率与休息日。
+
+**首客试用成功标准**（沿用）：打开 ≥ 5 天、打卡 ≥ 3 次、教练资料确认到发布 ≤ 15 分钟、所有疼痛告警有人工处理。
