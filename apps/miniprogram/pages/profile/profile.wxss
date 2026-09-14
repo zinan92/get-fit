@@ -1,1 +1,1 @@
-
+.account { margin: 8rpx 32rpx 40rpx; text-align: center; font-size: 22rpx; color: var(--ink-3); }

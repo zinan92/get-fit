@@ -67,3 +67,23 @@ test("reported discomfort blocks the matching moves instead of stopping generati
   assert.equal(allergic.blockedFoodIds?.has("food-shrimp"), true);
   assert.equal(allergic.blockedFoodIds?.has("food-peanut"), false, "peanut is a separate allergen");
 });
+
+test("quality warnings flag frequency, energy band, time budget and difficulty without blocking", () => {
+  // validPlan trains every day (walk counts as recovery) with ~1320 kcal.
+  const plan = validPlan();
+  plan.days = plan.days.map((day, index) => ({ ...day, exercises: index % 7 < 6 ? [{ catalogId: "ex-goblet-squat", sets: 10, reps: 20, restSeconds: 120 }, { catalogId: "ex-jump-squat", sets: 3, reps: 10, restSeconds: 60 }] : day.exercises }));
+  const result = validateProviderPayload({ ...profile, weightKg: 80, minutesPerSession: 30, target: "muscle_gain" }, plan);
+  assert.equal(result.ok, true, "warnings never block a draft");
+  if (!result.ok) return;
+  const text = result.warnings.join("\n");
+  assert.match(text, /第 1 周安排了 6 个训练日，客户说每周能练 3 次/);
+  assert.match(text, /不在 2400–2880 kcal 的参考范围内/);
+  assert.match(text, /超过客户每次 30 分钟/);
+  assert.match(text, /新手客户的计划里有进阶动作：跳跃深蹲/);
+
+  const calm = validPlan();
+  calm.days = calm.days.map((day, index) => ({ ...day, exercises: [0, 2, 4].includes(index % 7) ? [{ catalogId: "ex-goblet-squat", sets: 3, reps: 12, restSeconds: 60 }] : day.exercises }));
+  const fine = validateProviderPayload({ ...profile, weightKg: 50, target: "fat_loss" }, calm);
+  assert.equal(fine.ok, true);
+  if (fine.ok) assert.deepEqual(fine.warnings, []);
+});

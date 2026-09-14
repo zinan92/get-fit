@@ -2,7 +2,7 @@ import { ageBands, consentTypes, isConsentType, requiredConsents, requiresManual
 import { exerciseCatalogById, foodCatalogById } from "../../packages/catalogs/src/index";
 import { PLAN_SCHEMA_VERSION, PLAN_TIMEZONE } from "../../packages/plan-schema/src/index";
 import { validateProviderPayload } from "./plan-validation";
-import { body, error, issueSession, json, requireClient, requireCoach } from "./http";
+import { body, error, issueSession, json, requireClient, requireCoach, requireOperator } from "./http";
 import { audit, checkinKey, id, nowIso, randomToken, recordOpenedDay, sha256 } from "./store";
 import { encryptSecret } from "./persistence";
 import type { ApiContext, ClientRecord, ConsentType, HealthProfile, JsonRecord } from "./types";
@@ -153,6 +153,11 @@ export async function handleApi(context: ApiContext): Promise<Response> {
     if (alertsAckMatch && method === "POST") return acknowledgeAlert(context, alertsAckMatch[1], reqId);
     if (path === "coach/alerts" && method === "GET") return listAlerts(context);
     if (path === "coach/overview" && method === "GET") return coachOverview(context);
+    if (path === "operator/jobs" && method === "GET") return operatorJobs(context);
+    const operatorInputMatch = path.match(/^operator\/jobs\/([^/]+)\/input$/);
+    if (operatorInputMatch && method === "GET") return codexInput(context, operatorInputMatch[1], requireOperator);
+    const operatorTokenMatch = path.match(/^operator\/jobs\/([^/]+)\/import-token$/);
+    if (operatorTokenMatch && method === "POST") return createFallbackToken(context, operatorTokenMatch[1], reqId, requireOperator);
     const draftPreviewMatch = path.match(/^coach\/plan-drafts\/([^/]+)\/preview$/);
     if (draftPreviewMatch && method === "GET") return previewDraft(context, draftPreviewMatch[1]);
     if (path === "codex-fallback/import" && method === "POST") return importCodexFallback(context, reqId);
@@ -373,21 +378,24 @@ function generationStatus(context: ApiContext, jobId: string): Response {
   return json({ job, draft: draft ? { id: draft.id, status: draft.status, validation: draft.validation, createdAt: draft.createdAt } : null });
 }
 
-async function createFallbackToken(context: ApiContext, jobId: string, reqId: string): Promise<Response> {
-  const auth = requireCoach(context); if (auth !== true) return auth;
+async function createFallbackToken(context: ApiContext, jobId: string, reqId: string, authorize: (context: ApiContext) => true | Response = requireCoach): Promise<Response> {
+  const auth = authorize(context); if (auth !== true) return auth;
+  const operator = authorize === requireOperator;
   const job = context.store.jobs.get(jobId);
   if (!job || !["awaiting_local", "failed"].includes(job.status)) return error("FALLBACK_NOT_ALLOWED", "Codex CLI handoff is not available for this job", 409);
   const existing = [...context.store.fallbackTokens.values()].find((item) => item.jobId === jobId && !item.consumedAt && item.expiresAt > nowIso());
-  if (existing) return error("FALLBACK_TOKEN_ALREADY_ISSUED", "A fallback token is already active", 409);
+  // The operator retries after a rejected draft; the new token retires the unused one instead of waiting for it to expire.
+  if (existing && operator) existing.expiresAt = nowIso();
+  else if (existing) return error("FALLBACK_TOKEN_ALREADY_ISSUED", "A fallback token is already active", 409);
   const rawToken = randomToken();
   const record = { tokenHash: await sha256(rawToken), jobId, clientId: job.clientId, expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(), consumedAt: null };
   context.store.fallbackTokens.set(record.tokenHash, record);
-  audit(context.store, "generation.fallback_token_issued", { requestId: reqId, jobId, clientId: job.clientId, expiresAt: record.expiresAt, actor: "coach" });
+  audit(context.store, "generation.fallback_token_issued", { requestId: reqId, jobId, clientId: job.clientId, expiresAt: record.expiresAt, actor: operator ? "operator" : "coach" });
   return json({ token: rawToken, expiresAt: record.expiresAt, jobId }, 201);
 }
 
-function codexInput(context: ApiContext, jobId: string): Response {
-  const auth = requireCoach(context); if (auth !== true) return auth;
+function codexInput(context: ApiContext, jobId: string, authorize: (context: ApiContext) => true | Response = requireCoach): Response {
+  const auth = authorize(context); if (auth !== true) return auth;
   const job = context.store.jobs.get(jobId); const profile = job ? context.store.profiles.get(job.clientId) : null;
   if (!job || !profile || !["awaiting_local", "failed"].includes(job.status)) return error("FALLBACK_NOT_ALLOWED", "Codex input is not available for this job", 409);
   return json({ job: { id: job.id, clientId: job.clientId, startDate: job.startDate, schemaVersion: job.schemaVersion }, profile: {
@@ -573,6 +581,16 @@ async function acknowledgeAlert(context: ApiContext, alertId: string, reqId: str
   const auth = requireCoach(context); if (auth !== true) return auth; const alert = context.store.alerts.get(alertId); if (!alert) return error("NOT_FOUND", "Alert not found", 404); alert.status = "acknowledged"; alert.acknowledgedAt = nowIso(); audit(context.store, "alert.acknowledged", { requestId: reqId, alertId, actor: "coach" }); return json({ alert });
 }
 
+/** Drafting work waiting for the operator. No names or profile details: the input endpoint hands out the de-identified profile. */
+function operatorJobs(context: ApiContext): Response {
+  const auth = requireOperator(context); if (auth !== true) return auth;
+  const jobs = [...context.store.jobs.values()]
+    .filter((job) => ["awaiting_local", "failed"].includes(job.status))
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+    .map((job) => ({ id: job.id, status: job.status, startDate: job.startDate, createdAt: job.createdAt }));
+  return json({ jobs });
+}
+
 /** Everything the coach home screen needs in one call: each client's stage and what is waiting on the coach. */
 function coachOverview(context: ApiContext): Response {
   const auth = requireCoach(context); if (auth !== true) return auth;
@@ -597,7 +615,7 @@ function coachOverview(context: ApiContext): Response {
       manualReview: profile ? hasManualRisk(profile) : false,
       openAlerts,
       job: latestJob ? { id: latestJob.id, status: latestJob.status, startDate: latestJob.startDate } : null,
-      draft: draft ? { id: draft.id, status: draft.status, startDate: draft.payload.startDate } : null,
+      draft: draft ? { id: draft.id, status: draft.status, startDate: draft.payload.startDate, warnings: draft.validation.warnings } : null,
       plan: plan ? { id: plan.id, versionNo: plan.versionNo, effectiveFrom: plan.effectiveFrom } : null,
     };
   });

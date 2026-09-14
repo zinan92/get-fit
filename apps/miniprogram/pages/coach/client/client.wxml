@@ -39,6 +39,10 @@
       <block wx:elif="{{item.stage === 'draft_ready'}}">
         <view class="t">30 天计划等你审阅</view>
         <view class="s">看到的就是 TA 将来每天看到的样子。</view>
+        <view wx:if="{{item.draft.warnings.length}}" class="warnings">
+          <view class="w-title">审阅时留意</view>
+          <view wx:for="{{item.draft.warnings}}" wx:for-item="warning" wx:key="*this" class="w-row">{{warning}}</view>
+        </view>
         <view class="primary" bindtap="openDraft">逐天查看</view>
       </block>
       <block wx:elif="{{item.stage === 'published'}}">

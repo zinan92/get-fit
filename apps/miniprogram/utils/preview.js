@@ -36,6 +36,7 @@ function respond(path, method, body) {
     return reply({ checkin: body });
   }
   if (method === 'PUT' && pathname === '/api/wellness-feedback') return reply({ feedback: body, alert: body.pain === 'present' ? { type: 'pain', status: 'open' } : null });
+  if (method === 'GET' && pathname === '/api/me/account-id') return reply({ accountId: 'preview0000000000000000000000000000000000000000000000000000000000', isCoach: true });
   // Coach screens.
   if (method === 'GET' && pathname === '/api/coach/overview') return reply(data.coach.overview);
   if (method === 'GET' && pathname === '/api/coach/alerts') return reply(data.coach.alerts);

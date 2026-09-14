@@ -70,3 +70,8 @@ export async function issueSession(context: ApiContext, kind: "client" | "coach"
   context.store.sessions.set(token, { kind, subjectId, expiresAt: Date.now() + 1000 * 60 * 60 * 12 });
   return token;
 }
+
+/** Operator routes only hand out de-identified drafting input and one-time import tokens. */
+export function requireOperator(context: ApiContext): true | Response {
+  return context.platform?.operator === true ? true : error("OPERATOR_AUTH_REQUIRED", "Operator authentication is required", 401);
+}

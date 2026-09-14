@@ -266,3 +266,36 @@ test("coach overview tracks each client's stage and the draft preview matches wh
   assert.equal((await call(COACH_OPENID, "/api/coach/overview")).body.openAlerts, 0);
   assert.equal((await call("openid-c", "/api/coach/overview")).statusCode, 401);
 });
+
+test("health reports readiness without values, and a coach can be allowlisted by account id", async () => {
+  const backend = cloudbaseSnapshotBackend(fakeCloudbase().db);
+  const unconfigured = createCloudFunction({ env: {}, backend, resolveOpenid: () => "" });
+  const bad = await unconfigured({ action: "health" });
+  assert.equal(bad.statusCode, 503);
+  assert.deepEqual((bad.body as Body).config, { encryptionKey: false, coaches: 0, operatorKey: false });
+
+  const probe = createCloudFunction({ env: { DATA_ENCRYPTION_KEY: KEY }, backend, resolveOpenid: (context) => String((context as { openid?: string }).openid ?? "") });
+  const account = await probe({ path: "/api/me/account-id", method: "GET" }, { openid: "openid-friend-coach" });
+  assert.equal(account.statusCode, 200);
+  const accountId = (account.body as Body).accountId as string;
+  assert.match(accountId, /^[0-9a-f]{64}$/);
+  assert.equal(JSON.stringify(account.body).includes("openid-friend-coach"), false, "the raw OPENID is never returned");
+  assert.equal((await probe({ path: "/api/me/account-id", method: "GET" }, { openid: "" })).statusCode, 401);
+
+  const configured = createCloudFunction({ env: { DATA_ENCRYPTION_KEY: KEY, COACH_OPENID_HASHES: accountId.toUpperCase(), OPERATOR_KEY_SHA256: "ab" }, backend, resolveOpenid: (context) => String((context as { openid?: string }).openid ?? "") });
+  const good = await configured({ action: "health" });
+  assert.equal(good.statusCode, 200);
+  const body = good.body as Body;
+  assert.equal(body.ok, true);
+  assert.equal(body.storage, "ok");
+  assert.deepEqual(body.config, { encryptionKey: true, coaches: 1, operatorKey: true });
+  assert.equal(JSON.stringify(body).includes(KEY), false);
+  assert.equal((await configured({ path: "/api/coach/overview", method: "GET" }, { openid: "openid-friend-coach" })).statusCode, 200, "allowlisted by account id");
+  assert.equal((await configured({ path: "/api/coach/overview", method: "GET" }, { openid: "openid-someone-else" })).statusCode, 401);
+
+  const wrongKey = createCloudFunction({ env: { DATA_ENCRYPTION_KEY: "a-different-key", COACH_OPENID_HASHES: accountId }, backend, resolveOpenid: () => "" });
+  await probe({ path: "/api/me/account-id", method: "GET" }, { openid: "x" });
+  const seeded = createCloudFunction({ env: { DATA_ENCRYPTION_KEY: KEY, COACH_OPENID_HASHES: accountId }, backend, resolveOpenid: () => "openid-friend-coach" });
+  await seeded({ path: "/api/coach/invitations", method: "POST", body: { displayName: "种子" } });
+  assert.equal(((await wrongKey({ action: "health" })).body as Body).storage, "unreadable", "a mismatched key is caught at deploy time");
+});
