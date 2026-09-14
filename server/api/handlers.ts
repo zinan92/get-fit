@@ -1,4 +1,4 @@
-import { consentTypes, isConsentType, requiredConsents } from "../../packages/contracts/src/index";
+import { consentTypes, isConsentType, requiredConsents, requiresManualReview } from "../../packages/contracts/src/index";
 import { exerciseCatalogById, foodCatalogById } from "../../packages/catalogs/src/index";
 import { PLAN_SCHEMA_VERSION, PLAN_TIMEZONE } from "../../packages/plan-schema/src/index";
 import { validateProviderPayload } from "./plan-validation";
@@ -57,11 +57,7 @@ function parseProfile(input: JsonRecord): HealthProfile | null {
 }
 
 function hasManualRisk(profile: HealthProfile): boolean {
-  const flags = [...profile.riskFlags, ...profile.injuryFlags];
-  const recognizedRisk = new Set(["minor", "pregnancy", "acute_pain", "chronic_disease", "eating_disorder", "pain"]);
-  const recognizedInjury = new Set(["acute_knee_pain", "acute_back_pain", "acute_ankle_pain"]);
-  const recognizedAllergy = new Set(["egg", "milk", "wheat", "fish", "tree_nut"]);
-  return flags.some((flag) => !recognizedRisk.has(flag) && !recognizedInjury.has(flag) || flag.startsWith("acute_") || recognizedRisk.has(flag)) || profile.allergyFlags.some((flag) => !recognizedAllergy.has(flag));
+  return requiresManualReview(profile);
 }
 
 function currentPlan(store: ApiContext["store"], clientId: string, date: string) {

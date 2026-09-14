@@ -55,3 +55,15 @@ test("moves needing equipment the client lacks are blocked, and a gym covers eve
   const result = validateProviderPayload(profile, plan);
   assert.equal(result.ok, false);
 });
+
+test("reported discomfort blocks the matching moves instead of stopping generation", () => {
+  const context = catalogContext({ ...profile, injuryFlags: ["knee_discomfort"], equipment: ["gym"] });
+  assert.equal(context.blockedExerciseIds?.has("ex-goblet-squat"), true);
+  assert.equal(context.blockedExerciseIds?.has("ex-jumping-jack"), true);
+  assert.equal(context.blockedExerciseIds?.has("ex-dumbbell-row"), false);
+  assert.equal(context.blockedExerciseIds?.has("ex-glute-bridge"), false);
+  const allergic = catalogContext({ ...profile, allergyFlags: ["tree_nut", "shellfish"] });
+  assert.equal(allergic.blockedFoodIds?.has("food-almond"), true);
+  assert.equal(allergic.blockedFoodIds?.has("food-shrimp"), true);
+  assert.equal(allergic.blockedFoodIds?.has("food-peanut"), false, "peanut is a separate allergen");
+});

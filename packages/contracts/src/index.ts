@@ -31,3 +31,21 @@ export function requiredConsents(value: Set<ConsentType>): boolean {
 export function isSafeShortText(value: unknown, max = 160): value is string {
   return typeof value === "string" && value.trim().length > 0 && value.length <= max;
 }
+
+/**
+ * Profile flags the system handles on its own: they block matching moves or
+ * foods but keep automatic drafting available. Everything else — serious risks,
+ * acute pain and any flag not listed here — goes to the coach.
+ */
+export const autoHandledInjuryFlags = ["knee_discomfort", "back_discomfort", "shoulder_discomfort", "wrist_discomfort", "ankle_discomfort"] as const;
+export const autoHandledAllergens = ["egg", "milk", "wheat", "fish", "shellfish", "soy", "peanut", "tree_nut"] as const;
+/** Shown during onboarding so the client can say so; always routes to manual review. */
+export const manualRiskFlags = ["minor", "pregnancy", "acute_pain", "chronic_disease", "eating_disorder"] as const;
+
+export function requiresManualReview(profile: { riskFlags: string[]; injuryFlags: string[]; allergyFlags: string[] }): boolean {
+  const injuries = new Set<string>(autoHandledInjuryFlags);
+  const allergens = new Set<string>(autoHandledAllergens);
+  return profile.riskFlags.length > 0
+    || profile.injuryFlags.some((flag) => !injuries.has(flag))
+    || profile.allergyFlags.some((flag) => !allergens.has(flag));
+}
