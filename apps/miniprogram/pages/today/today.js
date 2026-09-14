@@ -32,7 +32,14 @@ Page({
     openId: '',
     progress: 0,
     progressText: '还没开始',
-    ringDeg: 0
+    ringDeg: 0,
+    feeling: { pain: '', energy: '', hunger: '' },
+    feelingSent: '',
+    feelingOptions: {
+      pain: [{ value: 'none', label: '没有疼痛' }, { value: 'present', label: '有地方疼' }],
+      energy: [{ value: 'low', label: '有点累' }, { value: 'normal', label: '还行' }, { value: 'good', label: '精神好' }],
+      hunger: [{ value: 'low', label: '不太饿' }, { value: 'normal', label: '正常' }, { value: 'high', label: '很饿' }]
+    }
   },
 
   onLoad(options) {
@@ -96,6 +103,8 @@ Page({
         }))
       })) : [];
       this.setData({
+        feeling: { pain: '', energy: '', hunger: '' },
+        feelingSent: '',
         status: result.status,
         name: (me.client && me.client.displayName) || '',
         planId: result.plan ? result.plan.id : '',
@@ -152,6 +161,21 @@ Page({
       this.refreshProgress();
       wx.showToast({ title: '没存上，再点一次试试', icon: 'none' });
     }
+  },
+
+  pickFeeling(e) {
+    const { field, value } = e.currentTarget.dataset;
+    this.setData({ [`feeling.${field}`]: value });
+  },
+
+  async sendFeeling() {
+    const feeling = this.data.feeling;
+    if (!feeling.pain || !feeling.energy || !feeling.hunger) { wx.showToast({ title: '三项都点一下', icon: 'none' }); return; }
+    try {
+      await request('/api/wellness-feedback', { method: 'PUT', data: { localDate: this.data.date, ...feeling } });
+      // Pain never swaps a move automatically: the client stops and the coach decides.
+      this.setData({ feelingSent: feeling.pain === 'present' ? 'pain' : 'ok' });
+    } catch (error) { wx.showToast({ title: '没发出去，再试一次', icon: 'none' }); }
   },
 
   openCalendar() { wx.switchTab({ url: '/pages/calendar/calendar' }); },

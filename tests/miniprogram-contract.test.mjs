@@ -92,3 +92,25 @@ test("styles use only the v3 palette and pages carry no emoji, arrows or generat
 test("generated mini-program assets match packages/illustrations", () => {
   execFileSync(process.execPath, ["--import", "tsx", path.join(root, "scripts", "build-miniprogram-assets.ts"), "--check"], { cwd: root, stdio: "pipe" });
 });
+
+test("onboarding gates on the two required consents and uses the shared profile vocabulary", async () => {
+  const js = await read("pages/onboarding/onboarding.js");
+  const wxml = await read("pages/onboarding/onboarding.wxml");
+  assert.match(js, /REQUIRED_CONSENTS = \['health_processing', 'third_party_model'\]/);
+  assert.match(js, /require\('\.\.\/\.\.\/utils\/profile-options'\)/);
+  assert.match(js, /query\.invite \|\| \(query\.scene && decodeURIComponent\(query\.scene\)\)/, "invitation links and QR scenes prefill the code");
+  assert.doesNotMatch(js, /knee_discomfort|tree_nut|pregnancy|sessionToken|devOpenid|wx\.login/, "flag values come only from the generated options");
+  for (const type of ["health_processing", "third_party_model", "subscription_message"]) assert.match(wxml, new RegExp(`data-type="${type}"`));
+  assert.match(wxml, /第三方模型/, "the consent text discloses third-party drafting");
+  const options = await read("utils/profile-options.js");
+  for (const flag of ["knee_discomfort", "tree_nut", "shellfish", "pregnancy", "under_18", "gym"]) assert.match(options, new RegExp(`"${flag}"`));
+});
+
+test("pain feedback alerts the coach and tells the client to stop, without swapping moves", async () => {
+  const js = await read("pages/today/today.js");
+  const wxml = await read("pages/today/today.wxml");
+  assert.match(js, /request\('\/api\/wellness-feedback'/);
+  assert.match(wxml, /先停下让你疼的动作/);
+  const sendFeeling = js.slice(js.indexOf("async sendFeeling"), js.indexOf("openCalendar()"));
+  assert.doesNotMatch(sendFeeling, /exercises|catalogId|checkins/, "feedback never edits the plan");
+});

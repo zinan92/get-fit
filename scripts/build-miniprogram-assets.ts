@@ -16,6 +16,7 @@ import {
   type CharacterKind,
 } from "../packages/illustrations/src/index";
 import { buildPreviewDataset } from "./lib/preview-plan";
+import { autoHandledAllergens, autoHandledInjuryFlags, profileOptionLabels } from "../packages/contracts/src/index";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const app = path.join(root, "apps", "miniprogram");
@@ -50,6 +51,18 @@ export async function renderAssets(): Promise<Map<string, string>> {
     files.set(`assets/icons/nav-${name}-on.svg`, standaloneSvg(markup.replaceAll("currentColor", TRAIN)));
     files.set(`assets/icons/nav-${name}-off.svg`, standaloneSvg(markup.replaceAll("currentColor", INK_3)));
   }
+  // Onboarding choices come from the same vocabulary the server's risk gate uses.
+  const options = (labels: Record<string, string>) => Object.entries(labels).map(([value, label]) => ({ value, label }));
+  if (autoHandledInjuryFlags.some((flag) => !(flag in profileOptionLabels.injury)) || autoHandledAllergens.some((flag) => !(flag in profileOptionLabels.allergy))) throw new Error("profile option labels are missing an auto-handled flag");
+  files.set("utils/profile-options.js", `${header}module.exports = ${JSON.stringify({
+    target: options(profileOptionLabels.target),
+    ageBand: options(profileOptionLabels.ageBand),
+    trainingExperience: options(profileOptionLabels.trainingExperience),
+    equipment: options(profileOptionLabels.equipment),
+    injury: options(profileOptionLabels.injury),
+    allergy: options(profileOptionLabels.allergy),
+    risk: options(profileOptionLabels.risk),
+  }, null, 2)};\n`);
   files.set("utils/characters.js", `${header}module.exports = ${JSON.stringify({ exercise, food }, null, 2)};\n`);
   // One class per motion: rest ↔ peak loop, pivoting where the joint is in the full character box.
   const motionCss = Object.entries(motionSpecs).map(([name, spec]) => {

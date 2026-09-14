@@ -31,7 +31,7 @@ export type ConsentRecord = {
 
 export type HealthProfile = {
   target: "fat_loss" | "muscle_gain" | "general_fitness";
-  ageBand: "18_24" | "25_34" | "35_44" | "45_54" | "55_plus";
+  ageBand: "under_18" | "18_24" | "25_34" | "35_44" | "45_54" | "55_plus";
   heightCm: number;
   weightKg: number;
   trainingExperience: "beginner" | "intermediate" | "advanced";

@@ -137,10 +137,14 @@ test("onboarding can resume after a consumed invitation and keeps risky profiles
   const login = await onboardingCall("/api/wx/auth/login", { method: "POST", body: JSON.stringify({ devOpenid: `openid-local-sandbox:${clientId}`, devClientId: clientId, invitationToken: invitation.token }) });
   const clientToken = String(login.payload.sessionToken);
 
-  await onboardingCall("/api/me/profile", { method: "PUT", body: JSON.stringify({ target: "general_fitness", ageBand: "25_34", heightCm: 170, weightKg: 65, trainingExperience: "beginner", sessionsPerWeek: 3, minutesPerSession: 45, equipment: ["dumbbell"], injuryFlags: [], allergyFlags: [], dietaryPreferences: [], riskFlags: ["acute_pain"], timezone: "Asia/Shanghai" }) }, clientToken);
+  const riskyProfile = JSON.stringify({ target: "general_fitness", ageBand: "25_34", heightCm: 170, weightKg: 65, trainingExperience: "beginner", sessionsPerWeek: 3, minutesPerSession: 45, equipment: ["dumbbell"], injuryFlags: [], allergyFlags: [], dietaryPreferences: [], riskFlags: ["acute_pain"], timezone: "Asia/Shanghai" });
+  const profileBeforeConsent = await onboardingCall("/api/me/profile", { method: "PUT", body: riskyProfile }, clientToken);
+  assert.equal(profileBeforeConsent.response.status, 403);
+  assert.equal((profileBeforeConsent.payload.error as Record<string, unknown>).code, "CONSENT_REQUIRED");
   const missingConsent = await onboardingCall(`/api/coach/clients/${clientId}/profile/confirm`, { method: "POST", headers: { "x-coach-token": "dev-coach" } });
   assert.equal(missingConsent.response.status, 400);
   await onboardingCall("/api/me/consents", { method: "POST", body: JSON.stringify({ types: ["health_processing", "third_party_model"] }) }, clientToken);
+  assert.equal((await onboardingCall("/api/me/profile", { method: "PUT", body: riskyProfile }, clientToken)).response.status, 200);
   const confirmed = await onboardingCall(`/api/coach/clients/${clientId}/profile/confirm`, { method: "POST", headers: { "x-coach-token": "dev-coach" } });
   assert.equal(confirmed.response.status, 200);
   assert.equal(confirmed.payload.safetyGate, "manual");
