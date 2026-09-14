@@ -48,7 +48,11 @@ Page({
       await request(`/api/coach/plan-drafts/${this.data.draftId}/publish`, { method: 'POST', data: { changeReason: '教练审阅后发布' } });
       wx.showToast({ title: '已发布', icon: 'success' });
       setTimeout(() => wx.navigateBack(), 800);
-    } catch (error) { wx.showToast({ title: '没发布成功', icon: 'none' }); }
+    } catch (error) {
+      const code = error && error.error && error.error.code;
+      if (revision && code === 'CONFLICT') wx.showModal({ title: '调整日期已经过了', content: '这份调整原定的生效日已经到了。放弃这份，再从明天起重新发起一次。', showCancel: false, confirmText: '知道了' });
+      else wx.showToast({ title: '没发布成功', icon: 'none' });
+    }
     finally { this.setData({ busy: false }); }
   },
 

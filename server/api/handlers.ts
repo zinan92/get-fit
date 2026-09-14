@@ -564,14 +564,9 @@ function coachSummary(context: ApiContext, clientId: string): Response {
   const url = new URL(context.request.url);
   const requestedDays = Number(url.searchParams.get("days") ?? 7);
   const days = Number.isInteger(requestedDays) && requestedDays >= 1 && requestedDays <= 30 ? requestedDays : 7;
-  const dates = new Set<string>();
-  context.store.openedDays.forEach((item) => { if (item.clientId === clientId) dates.add(item.localDate); });
-  context.store.checkins.forEach((item) => { if (item.clientId === clientId) dates.add(item.localDate); });
-  context.store.feedback.forEach((item) => { if (item.clientId === clientId) dates.add(item.localDate); });
-  context.store.alerts.forEach((item) => { if (item.clientId === clientId) dates.add(item.localDate); });
-  const orderedDates = [...dates].sort();
-  const endDate = orderedDates.at(-1);
-  const windowDates = new Set(endDate ? Array.from({ length: days }, (_, index) => addCalendarDays(endDate, index - days + 1)).filter((date) => dates.has(date)) : []);
+  // The window ends today, so a client who went quiet shows a quiet week (the pilot's day-7 check reads this).
+  const endDate = localToday();
+  const windowDates = new Set(Array.from({ length: days }, (_, index) => addCalendarDays(endDate, index - days + 1)));
   const checkins = [...context.store.checkins.values()].filter((item) => item.clientId === clientId && windowDates.has(item.localDate) && item.status === "completed");
   const feedbackDays = new Set([...context.store.feedback.values()].filter((item) => item.clientId === clientId && windowDates.has(item.localDate)).map((item) => item.localDate));
   const painAlerts = [...context.store.alerts.values()].filter((item) => item.clientId === clientId && windowDates.has(item.localDate) && item.type === "pain");
@@ -583,7 +578,7 @@ function coachSummary(context: ApiContext, clientId: string): Response {
     painAlerts: painAlerts.length,
     feedbackDays: feedbackDays.size,
   };
-  return json({ client: clientView(client), days, summary, alerts: painAlerts.map((alert) => ({ ...alert, clientName: client.displayName })) });
+  return json({ client: clientView(client), days, endDate, summary, alerts: painAlerts.map((alert) => ({ ...alert, clientName: client.displayName })) });
 }
 
 function coachPlanVersions(context: ApiContext, clientId: string): Response {
