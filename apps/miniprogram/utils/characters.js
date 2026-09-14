@@ -15,14 +15,146 @@ module.exports = {
         "motion": "sq-upper"
       }
     ],
-    "ex-dumbbell-row": [
+    "ex-bodyweight-squat": [
       {
-        "src": "/assets/characters/exercise/row-0.svg",
+        "src": "/assets/characters/exercise/squat-0.svg",
         "motion": null
       },
       {
-        "src": "/assets/characters/exercise/row-1.svg",
-        "motion": "row-arm"
+        "src": "/assets/characters/exercise/squat-1.svg",
+        "motion": "sq-legs"
+      },
+      {
+        "src": "/assets/characters/exercise/squat-2.svg",
+        "motion": "sq-upper"
+      }
+    ],
+    "ex-band-squat": [
+      {
+        "src": "/assets/characters/exercise/squat-0.svg",
+        "motion": null
+      },
+      {
+        "src": "/assets/characters/exercise/squat-1.svg",
+        "motion": "sq-legs"
+      },
+      {
+        "src": "/assets/characters/exercise/squat-2.svg",
+        "motion": "sq-upper"
+      }
+    ],
+    "ex-jump-squat": [
+      {
+        "src": "/assets/characters/exercise/squat-0.svg",
+        "motion": null
+      },
+      {
+        "src": "/assets/characters/exercise/squat-1.svg",
+        "motion": "sq-legs"
+      },
+      {
+        "src": "/assets/characters/exercise/squat-2.svg",
+        "motion": "sq-upper"
+      }
+    ],
+    "ex-dumbbell-lunge": [
+      {
+        "src": "/assets/characters/exercise/lunge-0.svg",
+        "motion": null
+      },
+      {
+        "src": "/assets/characters/exercise/lunge-1.svg",
+        "motion": "lunge-legs"
+      },
+      {
+        "src": "/assets/characters/exercise/lunge-2.svg",
+        "motion": "lunge-upper"
+      }
+    ],
+    "ex-reverse-lunge": [
+      {
+        "src": "/assets/characters/exercise/lunge-0.svg",
+        "motion": null
+      },
+      {
+        "src": "/assets/characters/exercise/lunge-1.svg",
+        "motion": "lunge-legs"
+      },
+      {
+        "src": "/assets/characters/exercise/lunge-2.svg",
+        "motion": "lunge-upper"
+      }
+    ],
+    "ex-walking-lunge": [
+      {
+        "src": "/assets/characters/exercise/lunge-0.svg",
+        "motion": null
+      },
+      {
+        "src": "/assets/characters/exercise/lunge-1.svg",
+        "motion": "lunge-legs"
+      },
+      {
+        "src": "/assets/characters/exercise/lunge-2.svg",
+        "motion": "lunge-upper"
+      }
+    ],
+    "ex-split-squat": [
+      {
+        "src": "/assets/characters/exercise/lunge-0.svg",
+        "motion": null
+      },
+      {
+        "src": "/assets/characters/exercise/lunge-1.svg",
+        "motion": "lunge-legs"
+      },
+      {
+        "src": "/assets/characters/exercise/lunge-2.svg",
+        "motion": "lunge-upper"
+      }
+    ],
+    "ex-step-up": [
+      {
+        "src": "/assets/characters/exercise/lunge-0.svg",
+        "motion": null
+      },
+      {
+        "src": "/assets/characters/exercise/lunge-1.svg",
+        "motion": "lunge-legs"
+      },
+      {
+        "src": "/assets/characters/exercise/lunge-2.svg",
+        "motion": "lunge-upper"
+      }
+    ],
+    "ex-romanian-deadlift": [
+      {
+        "src": "/assets/characters/exercise/hinge-0.svg",
+        "motion": null
+      },
+      {
+        "src": "/assets/characters/exercise/hinge-1.svg",
+        "motion": "hinge-upper"
+      }
+    ],
+    "ex-dumbbell-deadlift": [
+      {
+        "src": "/assets/characters/exercise/hinge-0.svg",
+        "motion": null
+      },
+      {
+        "src": "/assets/characters/exercise/hinge-1.svg",
+        "motion": "hinge-upper"
+      }
+    ],
+    "ex-kettlebell-swing": [
+      {
+        "src": "/assets/characters/exercise/hinge-0.svg",
+        "motion": null
+      },
+      {
+        "src": "/assets/characters/exercise/hinge-1.svg",
+        "motion": "hinge-upper"
       }
     ],
     "ex-glute-bridge": [
@@ -35,6 +167,414 @@ module.exports = {
         "motion": "br-hip"
       }
     ],
+    "ex-glute-bridge-march": [
+      {
+        "src": "/assets/characters/exercise/bridge-0.svg",
+        "motion": null
+      },
+      {
+        "src": "/assets/characters/exercise/bridge-1.svg",
+        "motion": "br-hip"
+      }
+    ],
+    "ex-dumbbell-row": [
+      {
+        "src": "/assets/characters/exercise/row-0.svg",
+        "motion": null
+      },
+      {
+        "src": "/assets/characters/exercise/row-1.svg",
+        "motion": "row-arm"
+      }
+    ],
+    "ex-bent-over-row": [
+      {
+        "src": "/assets/characters/exercise/row-0.svg",
+        "motion": null
+      },
+      {
+        "src": "/assets/characters/exercise/row-1.svg",
+        "motion": "row-arm"
+      }
+    ],
+    "ex-band-seated-row": [
+      {
+        "src": "/assets/characters/exercise/row-0.svg",
+        "motion": null
+      },
+      {
+        "src": "/assets/characters/exercise/row-1.svg",
+        "motion": "row-arm"
+      }
+    ],
+    "ex-reverse-fly": [
+      {
+        "src": "/assets/characters/exercise/row-0.svg",
+        "motion": null
+      },
+      {
+        "src": "/assets/characters/exercise/row-1.svg",
+        "motion": "row-arm"
+      }
+    ],
+    "ex-push-up": [
+      {
+        "src": "/assets/characters/exercise/pushup-0.svg",
+        "motion": null
+      },
+      {
+        "src": "/assets/characters/exercise/pushup-1.svg",
+        "motion": "pushup-arms"
+      },
+      {
+        "src": "/assets/characters/exercise/pushup-2.svg",
+        "motion": "pushup-body"
+      }
+    ],
+    "ex-incline-push-up": [
+      {
+        "src": "/assets/characters/exercise/pushup-0.svg",
+        "motion": null
+      },
+      {
+        "src": "/assets/characters/exercise/pushup-1.svg",
+        "motion": "pushup-arms"
+      },
+      {
+        "src": "/assets/characters/exercise/pushup-2.svg",
+        "motion": "pushup-body"
+      }
+    ],
+    "ex-kneeling-push-up": [
+      {
+        "src": "/assets/characters/exercise/pushup-0.svg",
+        "motion": null
+      },
+      {
+        "src": "/assets/characters/exercise/pushup-1.svg",
+        "motion": "pushup-arms"
+      },
+      {
+        "src": "/assets/characters/exercise/pushup-2.svg",
+        "motion": "pushup-body"
+      }
+    ],
+    "ex-dumbbell-bench-press": [
+      {
+        "src": "/assets/characters/exercise/bench-0.svg",
+        "motion": null
+      },
+      {
+        "src": "/assets/characters/exercise/bench-1.svg",
+        "motion": "bench-arms"
+      }
+    ],
+    "ex-floor-press": [
+      {
+        "src": "/assets/characters/exercise/bench-0.svg",
+        "motion": null
+      },
+      {
+        "src": "/assets/characters/exercise/bench-1.svg",
+        "motion": "bench-arms"
+      }
+    ],
+    "ex-dumbbell-fly": [
+      {
+        "src": "/assets/characters/exercise/bench-0.svg",
+        "motion": null
+      },
+      {
+        "src": "/assets/characters/exercise/bench-1.svg",
+        "motion": "bench-arms"
+      }
+    ],
+    "ex-shoulder-press": [
+      {
+        "src": "/assets/characters/exercise/overhead-0.svg",
+        "motion": null
+      },
+      {
+        "src": "/assets/characters/exercise/overhead-1.svg",
+        "motion": "overhead-arms"
+      },
+      {
+        "src": "/assets/characters/exercise/overhead-2.svg",
+        "motion": null
+      }
+    ],
+    "ex-arnold-press": [
+      {
+        "src": "/assets/characters/exercise/overhead-0.svg",
+        "motion": null
+      },
+      {
+        "src": "/assets/characters/exercise/overhead-1.svg",
+        "motion": "overhead-arms"
+      },
+      {
+        "src": "/assets/characters/exercise/overhead-2.svg",
+        "motion": null
+      }
+    ],
+    "ex-lateral-raise": [
+      {
+        "src": "/assets/characters/exercise/raise-0.svg",
+        "motion": null
+      },
+      {
+        "src": "/assets/characters/exercise/raise-1.svg",
+        "motion": "raise-left"
+      },
+      {
+        "src": "/assets/characters/exercise/raise-2.svg",
+        "motion": "raise-right"
+      },
+      {
+        "src": "/assets/characters/exercise/raise-3.svg",
+        "motion": null
+      }
+    ],
+    "ex-front-raise": [
+      {
+        "src": "/assets/characters/exercise/raise-0.svg",
+        "motion": null
+      },
+      {
+        "src": "/assets/characters/exercise/raise-1.svg",
+        "motion": "raise-left"
+      },
+      {
+        "src": "/assets/characters/exercise/raise-2.svg",
+        "motion": "raise-right"
+      },
+      {
+        "src": "/assets/characters/exercise/raise-3.svg",
+        "motion": null
+      }
+    ],
+    "ex-biceps-curl": [
+      {
+        "src": "/assets/characters/exercise/curl-0.svg",
+        "motion": null
+      },
+      {
+        "src": "/assets/characters/exercise/curl-1.svg",
+        "motion": "curl-left"
+      },
+      {
+        "src": "/assets/characters/exercise/curl-2.svg",
+        "motion": "curl-right"
+      }
+    ],
+    "ex-hammer-curl": [
+      {
+        "src": "/assets/characters/exercise/curl-0.svg",
+        "motion": null
+      },
+      {
+        "src": "/assets/characters/exercise/curl-1.svg",
+        "motion": "curl-left"
+      },
+      {
+        "src": "/assets/characters/exercise/curl-2.svg",
+        "motion": "curl-right"
+      }
+    ],
+    "ex-triceps-kickback": [
+      {
+        "src": "/assets/characters/exercise/row-0.svg",
+        "motion": null
+      },
+      {
+        "src": "/assets/characters/exercise/row-1.svg",
+        "motion": "row-arm"
+      }
+    ],
+    "ex-overhead-triceps": [
+      {
+        "src": "/assets/characters/exercise/overhead-0.svg",
+        "motion": null
+      },
+      {
+        "src": "/assets/characters/exercise/overhead-1.svg",
+        "motion": "overhead-arms"
+      },
+      {
+        "src": "/assets/characters/exercise/overhead-2.svg",
+        "motion": null
+      }
+    ],
+    "ex-bench-dip": [
+      {
+        "src": "/assets/characters/exercise/dip-0.svg",
+        "motion": null
+      },
+      {
+        "src": "/assets/characters/exercise/dip-1.svg",
+        "motion": "dip-body"
+      }
+    ],
+    "ex-crunch": [
+      {
+        "src": "/assets/characters/exercise/crunch-0.svg",
+        "motion": null
+      },
+      {
+        "src": "/assets/characters/exercise/crunch-1.svg",
+        "motion": "crunch-upper"
+      }
+    ],
+    "ex-reverse-crunch": [
+      {
+        "src": "/assets/characters/exercise/crunch-0.svg",
+        "motion": null
+      },
+      {
+        "src": "/assets/characters/exercise/crunch-1.svg",
+        "motion": "crunch-upper"
+      }
+    ],
+    "ex-cross-crunch": [
+      {
+        "src": "/assets/characters/exercise/crunch-0.svg",
+        "motion": null
+      },
+      {
+        "src": "/assets/characters/exercise/crunch-1.svg",
+        "motion": "crunch-upper"
+      }
+    ],
+    "ex-russian-twist": [
+      {
+        "src": "/assets/characters/exercise/crunch-0.svg",
+        "motion": null
+      },
+      {
+        "src": "/assets/characters/exercise/crunch-1.svg",
+        "motion": "crunch-upper"
+      }
+    ],
+    "ex-dead-bug": [
+      {
+        "src": "/assets/characters/exercise/deadbug-0.svg",
+        "motion": null
+      },
+      {
+        "src": "/assets/characters/exercise/deadbug-1.svg",
+        "motion": "deadbug-arm"
+      },
+      {
+        "src": "/assets/characters/exercise/deadbug-2.svg",
+        "motion": "deadbug-leg"
+      }
+    ],
+    "ex-flutter-kicks": [
+      {
+        "src": "/assets/characters/exercise/deadbug-0.svg",
+        "motion": null
+      },
+      {
+        "src": "/assets/characters/exercise/deadbug-1.svg",
+        "motion": "deadbug-arm"
+      },
+      {
+        "src": "/assets/characters/exercise/deadbug-2.svg",
+        "motion": "deadbug-leg"
+      }
+    ],
+    "ex-plank": [
+      {
+        "src": "/assets/characters/exercise/plank-0.svg",
+        "motion": null
+      },
+      {
+        "src": "/assets/characters/exercise/plank-1.svg",
+        "motion": "plank-breathe"
+      }
+    ],
+    "ex-plank-shoulder-tap": [
+      {
+        "src": "/assets/characters/exercise/plank-0.svg",
+        "motion": null
+      },
+      {
+        "src": "/assets/characters/exercise/plank-1.svg",
+        "motion": "plank-breathe"
+      }
+    ],
+    "ex-bird-dog": [
+      {
+        "src": "/assets/characters/exercise/plank-0.svg",
+        "motion": null
+      },
+      {
+        "src": "/assets/characters/exercise/plank-1.svg",
+        "motion": "plank-breathe"
+      }
+    ],
+    "ex-mountain-climber": [
+      {
+        "src": "/assets/characters/exercise/climber-0.svg",
+        "motion": null
+      },
+      {
+        "src": "/assets/characters/exercise/climber-1.svg",
+        "motion": "climber-knee"
+      }
+    ],
+    "ex-jumping-jack": [
+      {
+        "src": "/assets/characters/exercise/jack-0.svg",
+        "motion": null
+      },
+      {
+        "src": "/assets/characters/exercise/jack-1.svg",
+        "motion": "jack-leg-left"
+      },
+      {
+        "src": "/assets/characters/exercise/jack-2.svg",
+        "motion": "jack-leg-right"
+      },
+      {
+        "src": "/assets/characters/exercise/jack-3.svg",
+        "motion": "jack-arm-left"
+      },
+      {
+        "src": "/assets/characters/exercise/jack-4.svg",
+        "motion": "jack-arm-right"
+      },
+      {
+        "src": "/assets/characters/exercise/jack-5.svg",
+        "motion": null
+      }
+    ],
+    "ex-high-knees-wall": [
+      {
+        "src": "/assets/characters/exercise/jack-0.svg",
+        "motion": null
+      },
+      {
+        "src": "/assets/characters/exercise/jack-1.svg",
+        "motion": "jack-leg-left"
+      },
+      {
+        "src": "/assets/characters/exercise/jack-2.svg",
+        "motion": "jack-leg-right"
+      },
+      {
+        "src": "/assets/characters/exercise/jack-3.svg",
+        "motion": "jack-arm-left"
+      },
+      {
+        "src": "/assets/characters/exercise/jack-4.svg",
+        "motion": "jack-arm-right"
+      },
+      {
+        "src": "/assets/characters/exercise/jack-5.svg",
+        "motion": null
+      }
+    ],
     "ex-walk": [
       {
         "src": "/assets/characters/exercise/walk-0.svg",
@@ -43,6 +583,46 @@ module.exports = {
       {
         "src": "/assets/characters/exercise/walk-1.svg",
         "motion": null
+      }
+    ],
+    "ex-calf-raise": [
+      {
+        "src": "/assets/characters/exercise/calf-0.svg",
+        "motion": null
+      },
+      {
+        "src": "/assets/characters/exercise/calf-1.svg",
+        "motion": "calf-body"
+      }
+    ],
+    "ex-worlds-greatest-stretch": [
+      {
+        "src": "/assets/characters/exercise/stretch-0.svg",
+        "motion": null
+      },
+      {
+        "src": "/assets/characters/exercise/stretch-1.svg",
+        "motion": "stretch-arm"
+      }
+    ],
+    "ex-hamstring-stretch": [
+      {
+        "src": "/assets/characters/exercise/stretch-0.svg",
+        "motion": null
+      },
+      {
+        "src": "/assets/characters/exercise/stretch-1.svg",
+        "motion": "stretch-arm"
+      }
+    ],
+    "ex-cat-cow": [
+      {
+        "src": "/assets/characters/exercise/stretch-0.svg",
+        "motion": null
+      },
+      {
+        "src": "/assets/characters/exercise/stretch-1.svg",
+        "motion": "stretch-arm"
       }
     ]
   },
@@ -58,13 +638,54 @@ module.exports = {
     "food-almond": "/assets/characters/food/food-almond.svg",
     "food-salmon": "/assets/characters/food/food-salmon.svg",
     "food-sweet-potato": "/assets/characters/food/food-sweet-potato.svg",
-    "food-spinach": "/assets/characters/food/food-spinach.svg"
-  },
-  "motionOrigins": {
-    "sq-legs": "50% 84.375%",
-    "sq-upper": "50% 50%",
-    "row-arm": "50% 50%",
-    "br-hip": "50.8% 82%",
-    "walk-bean": "50% 78.125%"
+    "food-spinach": "/assets/characters/food/food-spinach.svg",
+    "food-white-rice": "/assets/characters/food/food-white-rice.svg",
+    "food-millet-porridge": "/assets/characters/food/food-millet-porridge.svg",
+    "food-quinoa": "/assets/characters/food/food-quinoa.svg",
+    "food-whole-wheat-pasta": "/assets/characters/food/food-whole-wheat-pasta.svg",
+    "food-soba": "/assets/characters/food/food-soba.svg",
+    "food-oats": "/assets/characters/food/food-oats.svg",
+    "food-mantou": "/assets/characters/food/food-mantou.svg",
+    "food-potato": "/assets/characters/food/food-potato.svg",
+    "food-corn": "/assets/characters/food/food-corn.svg",
+    "food-pumpkin": "/assets/characters/food/food-pumpkin.svg",
+    "food-egg-white": "/assets/characters/food/food-egg-white.svg",
+    "food-chicken-thigh": "/assets/characters/food/food-chicken-thigh.svg",
+    "food-beef": "/assets/characters/food/food-beef.svg",
+    "food-pork-tenderloin": "/assets/characters/food/food-pork-tenderloin.svg",
+    "food-cod": "/assets/characters/food/food-cod.svg",
+    "food-tuna": "/assets/characters/food/food-tuna.svg",
+    "food-shrimp": "/assets/characters/food/food-shrimp.svg",
+    "food-tofu": "/assets/characters/food/food-tofu.svg",
+    "food-edamame": "/assets/characters/food/food-edamame.svg",
+    "food-soymilk": "/assets/characters/food/food-soymilk.svg",
+    "food-whole-milk": "/assets/characters/food/food-whole-milk.svg",
+    "food-greek-yogurt": "/assets/characters/food/food-greek-yogurt.svg",
+    "food-bok-choy": "/assets/characters/food/food-bok-choy.svg",
+    "food-napa-cabbage": "/assets/characters/food/food-napa-cabbage.svg",
+    "food-lettuce": "/assets/characters/food/food-lettuce.svg",
+    "food-tomato": "/assets/characters/food/food-tomato.svg",
+    "food-cucumber": "/assets/characters/food/food-cucumber.svg",
+    "food-carrot": "/assets/characters/food/food-carrot.svg",
+    "food-green-pepper": "/assets/characters/food/food-green-pepper.svg",
+    "food-mushroom": "/assets/characters/food/food-mushroom.svg",
+    "food-asparagus": "/assets/characters/food/food-asparagus.svg",
+    "food-okra": "/assets/characters/food/food-okra.svg",
+    "food-winter-melon": "/assets/characters/food/food-winter-melon.svg",
+    "food-zucchini": "/assets/characters/food/food-zucchini.svg",
+    "food-bean-sprouts": "/assets/characters/food/food-bean-sprouts.svg",
+    "food-apple": "/assets/characters/food/food-apple.svg",
+    "food-orange": "/assets/characters/food/food-orange.svg",
+    "food-blueberry": "/assets/characters/food/food-blueberry.svg",
+    "food-strawberry": "/assets/characters/food/food-strawberry.svg",
+    "food-kiwi": "/assets/characters/food/food-kiwi.svg",
+    "food-grape": "/assets/characters/food/food-grape.svg",
+    "food-watermelon": "/assets/characters/food/food-watermelon.svg",
+    "food-pear": "/assets/characters/food/food-pear.svg",
+    "food-walnut": "/assets/characters/food/food-walnut.svg",
+    "food-cashew": "/assets/characters/food/food-cashew.svg",
+    "food-peanut": "/assets/characters/food/food-peanut.svg",
+    "food-avocado": "/assets/characters/food/food-avocado.svg",
+    "food-olive-oil": "/assets/characters/food/food-olive-oil.svg"
   }
 };

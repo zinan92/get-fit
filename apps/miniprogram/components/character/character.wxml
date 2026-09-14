@@ -1,3 +1,3 @@
 <view class="character" style="width: {{size}}rpx; height: {{size}}rpx;" aria-hidden="true">
-  <image wx:for="{{layers}}" wx:key="src" class="layer {{item.motion}}" src="{{item.src}}" style="{{item.origin ? 'transform-origin: ' + item.origin : ''}}" mode="aspectFit" />
+  <image wx:for="{{layers}}" wx:key="src" class="layer {{item.motion}}" src="{{item.src}}" mode="aspectFit" />
 </view>

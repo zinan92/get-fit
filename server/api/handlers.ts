@@ -79,6 +79,8 @@ function clientDayView(day: NonNullable<ReturnType<typeof currentPlan>>["payload
         name: catalogEntry?.name ?? exercise.catalogId,
         target: catalogEntry?.target ?? "",
         equipment: catalogEntry?.equipment ?? "",
+        unit: catalogEntry?.unit ?? "reps",
+        pattern: catalogEntry?.pattern ?? null,
         cues: exercise.cues?.length ? exercise.cues : (catalogEntry?.cues ?? []),
         steps: catalogEntry?.steps ?? [],
         mediaPath: catalogEntry?.mediaPath ?? null,
@@ -524,12 +526,17 @@ function coachPlanVersions(context: ApiContext, clientId: string): Response {
   return json({ client: clientView(client), versions });
 }
 
+/** A day with only walking or stretching is a recovery day, even though it has moves. */
+function isRecoveryDay(exercises: Array<{ catalogId: string }>): boolean {
+  return exercises.every((exercise) => ["walk", "stretch"].includes(exerciseCatalogById.get(exercise.catalogId)?.pattern ?? ""));
+}
+
 function clientCalendar(context: ApiContext): Response {
   const clientId = requireClient(context); if (clientId instanceof Response) return clientId;
   const url = new URL(context.request.url); const month = safeString(url.searchParams.get("month"), localToday().slice(0, 7));
   const days = [...context.store.plans.values()]
     .filter((item) => item.clientId === clientId && item.status !== "archived")
-    .flatMap((item) => item.payload.days.filter((day) => day.localDate.startsWith(month) && item.effectiveFrom <= day.localDate && (!item.effectiveTo || item.effectiveTo > day.localDate)).map((day) => ({ versionNo: item.versionNo, date: day.localDate, title: day.title, hasTraining: day.exercises.length > 0, mealCount: day.meals.length })))
+    .flatMap((item) => item.payload.days.filter((day) => day.localDate.startsWith(month) && item.effectiveFrom <= day.localDate && (!item.effectiveTo || item.effectiveTo > day.localDate)).map((day) => ({ versionNo: item.versionNo, date: day.localDate, title: day.title, hasTraining: day.exercises.length > 0, kind: isRecoveryDay(day.exercises) ? "recovery" : "training", mealCount: day.meals.length })))
     .sort((a, b) => a.date.localeCompare(b.date) || b.versionNo - a.versionNo)
     .filter((day, index, all) => index === all.findIndex((candidate) => candidate.date === day.date));
   return json({ month, days });

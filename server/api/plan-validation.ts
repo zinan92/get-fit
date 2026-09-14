@@ -5,7 +5,10 @@ import type { HealthProfile } from "./types";
 export function catalogContext(profile: HealthProfile): CatalogContext {
   const injuryFlags = new Set(profile.injuryFlags);
   const allergyFlags = new Set(profile.allergyFlags);
-  const blockedExerciseIds = new Set(exerciseCatalog.filter((item) => item.contraindications.some((flag) => injuryFlags.has(flag))).map((item) => item.id));
+  // "gym" means full equipment; otherwise a move is usable only if every tool it needs was declared.
+  const equipment = new Set(profile.equipment);
+  const hasEquipment = (tags: readonly string[]) => equipment.has("gym") || tags.every((tag) => equipment.has(tag));
+  const blockedExerciseIds = new Set(exerciseCatalog.filter((item) => item.contraindications.some((flag) => injuryFlags.has(flag)) || !hasEquipment(item.equipmentTags)).map((item) => item.id));
   const blockedFoodIds = new Set(foodCatalog.filter((item) => item.allergens.some((flag) => allergyFlags.has(flag))).map((item) => item.id));
   return {
     exerciseIds: new Set(exerciseCatalog.map((item) => item.id)),

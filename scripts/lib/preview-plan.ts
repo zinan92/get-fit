@@ -16,11 +16,37 @@ function addDays(date: string, days: number): string {
   return value.toISOString().slice(0, 10);
 }
 
-const trainingDays = [
-  { title: "下肢力量日", reminder: "动作不用赶，今天把每次下蹲都做稳。" },
-  { title: "上背与臀腿", reminder: "划船时想着把手肘往后带，背会更有感觉。" },
-  { title: "全身激活日", reminder: "三个动作一圈就好，做完记得喝口水。" },
+type Move = { catalogId: string; sets: number; reps: number; restSeconds: number };
+const move = (catalogId: string, sets: number, reps: number, restSeconds: number): Move => ({ catalogId, sets, reps, restSeconds });
+
+// A beginner three-day split that rotates weekly, as a coach would program it.
+const trainingDays: Array<{ title: string; reminder: string; moves: Move[] }> = [
+  { title: "下肢力量日", reminder: "动作不用赶，今天把每次下蹲都做稳。", moves: [move("ex-goblet-squat", 4, 12, 75), move("ex-reverse-lunge", 3, 10, 60), move("ex-glute-bridge", 3, 15, 45), move("ex-plank", 3, 30, 30)] },
+  { title: "上背与推举", reminder: "划船时想着把手肘往后带，背会更有感觉。", moves: [move("ex-dumbbell-row", 4, 10, 60), move("ex-incline-push-up", 3, 10, 60), move("ex-shoulder-press", 3, 10, 60), move("ex-dead-bug", 3, 10, 30)] },
+  { title: "全身激活日", reminder: "一圈做完记得喝口水，心率上来就放慢一点。", moves: [move("ex-bodyweight-squat", 3, 15, 45), move("ex-romanian-deadlift", 3, 12, 60), move("ex-lateral-raise", 3, 12, 45), move("ex-jumping-jack", 3, 30, 30)] },
 ];
+
+const breakfasts = [
+  [["food-egg", 100], ["food-yogurt", 150], ["food-toast", 73]],
+  [["food-oats", 50], ["food-milk", 250], ["food-blueberry", 80]],
+  [["food-mantou", 80], ["food-soymilk", 300], ["food-egg", 50]],
+] as const;
+const lunches = [
+  [["food-chicken", 150], ["food-rice", 120], ["food-broccoli", 200]],
+  [["food-beef", 120], ["food-white-rice", 130], ["food-bok-choy", 200]],
+  [["food-shrimp", 150], ["food-soba", 180], ["food-cucumber", 150]],
+] as const;
+const snacks = [
+  [["food-banana", 120], ["food-almond", 15]],
+  [["food-apple", 180], ["food-greek-yogurt", 150]],
+  [["food-kiwi", 150], ["food-walnut", 15]],
+] as const;
+const dinners = [
+  [["food-salmon", 160], ["food-sweet-potato", 180], ["food-spinach", 120]],
+  [["food-tofu", 150], ["food-millet-porridge", 300], ["food-tomato", 150]],
+  [["food-cod", 160], ["food-corn", 150], ["food-asparagus", 120]],
+] as const;
+const foods = (items: ReadonlyArray<readonly [string, number]>) => items.map(([foodCatalogId, grams]) => ({ foodCatalogId, grams }));
 
 export function previewPlan(): PlanPayload {
   return {
@@ -28,26 +54,22 @@ export function previewPlan(): PlanPayload {
     timezone: PLAN_TIMEZONE,
     startDate: PREVIEW_START,
     days: Array.from({ length: 30 }, (_, index) => {
-      const training = [0, 2, 4].includes(index % 7);
-      const theme = trainingDays[Math.floor(index / 7) % trainingDays.length];
+      const slot = [0, 2, 4].indexOf(index % 7);
+      const week = Math.floor(index / 7);
+      const theme = slot >= 0 ? trainingDays[(slot + week) % trainingDays.length] : null;
+      const rotation = index % 3;
       return {
         dayIndex: index + 1,
         localDate: addDays(PREVIEW_START, index),
-        title: training ? theme.title : "恢复与轻活动",
-        exercises: training
-          ? [
-            { catalogId: "ex-goblet-squat", sets: 4, reps: 12, restSeconds: 75, cues: [] },
-            { catalogId: "ex-dumbbell-row", sets: 4, reps: 10, restSeconds: 60, cues: [] },
-            { catalogId: "ex-glute-bridge", sets: 3, reps: 15, restSeconds: 45, cues: [] },
-          ]
-          : [],
+        title: theme ? theme.title : "恢复与轻活动",
+        exercises: theme ? theme.moves.map((item) => ({ ...item, cues: [] })) : [{ catalogId: "ex-walk", sets: 1, reps: 30, restSeconds: 0, cues: [] }, { catalogId: "ex-cat-cow", sets: 2, reps: 8, restSeconds: 20, cues: [] }],
         meals: [
-          { mealType: "breakfast" as const, foods: [{ foodCatalogId: "food-egg", grams: 100 }, { foodCatalogId: "food-yogurt", grams: 150 }, { foodCatalogId: "food-toast", grams: 73 }] },
-          { mealType: "lunch" as const, foods: [{ foodCatalogId: "food-chicken", grams: 150 }, { foodCatalogId: "food-rice", grams: training ? 120 : 100 }, { foodCatalogId: "food-broccoli", grams: 200 }] },
-          { mealType: "snack" as const, foods: [{ foodCatalogId: "food-banana", grams: 120 }, { foodCatalogId: "food-milk", grams: 250 }, { foodCatalogId: "food-almond", grams: 15 }] },
-          { mealType: "dinner" as const, foods: [{ foodCatalogId: "food-salmon", grams: 160 }, { foodCatalogId: "food-sweet-potato", grams: training ? 180 : 150 }, { foodCatalogId: "food-spinach", grams: 120 }] },
+          { mealType: "breakfast" as const, foods: foods(breakfasts[rotation]) },
+          { mealType: "lunch" as const, foods: foods(lunches[(rotation + 1) % 3]) },
+          { mealType: "snack" as const, foods: foods(snacks[rotation]) },
+          { mealType: "dinner" as const, foods: foods(dinners[(rotation + 2) % 3]) },
         ],
-        reminders: [training ? theme.reminder : "今天让身体恢复一下：轻松散步 30 分钟，睡前做 8 分钟拉伸。"],
+        reminders: [theme ? theme.reminder : "今天让身体恢复一下：轻松散步 30 分钟，睡前做几组猫牛式。"],
       };
     }),
   };

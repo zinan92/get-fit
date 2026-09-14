@@ -8,14 +8,19 @@
  * moving layers with WXSS. The web composes the same layers into one SVG.
  */
 
+import { exerciseCatalog, type MovementPattern } from "../../catalogs/src/index";
+import { extraFoodCharacters } from "./foods";
+import { rigMotions, rigs, type MotionSpec } from "./rigs";
+
+export type { MotionSpec } from "./rigs";
 export type Motion = "sq-legs" | "sq-upper" | "row-arm" | "br-hip" | "walk-bean";
-export type CharacterKind = "squat" | "row" | "bridge" | "walk";
-export type CharacterLayer = { motion: Motion | null; markup: string };
+export type CharacterKind = MovementPattern;
+export type CharacterLayer = { motion: string | null; markup: string };
 export type ExerciseCharacter = { viewBox: string; layers: CharacterLayer[] };
 export type IconName = "calendar" | "warning" | "arrow" | "sun" | "person";
 export type NavIconName = "sun" | "calendar" | "person";
 
-export const exerciseCharacters: Record<CharacterKind, ExerciseCharacter> = {
+const originalCharacters: Record<"squat" | "row" | "bridge" | "walk", ExerciseCharacter> = {
   squat: {
     viewBox: "0 0 64 64",
     layers: [
@@ -48,16 +53,17 @@ export const exerciseCharacters: Record<CharacterKind, ExerciseCharacter> = {
 };
 
 /**
- * Where each motion pivots, as a percentage of the character box. The web uses
- * `transform-box: fill-box` on the group; an <image> layer spans the whole box,
- * so the mini-program needs the group's pivot expressed against the full box.
+ * Loops for every animated layer. Origins are percentages of the character box:
+ * the web uses `transform-box: fill-box` on the original four groups, while an
+ * <image> layer spans the whole box, so pivots are expressed against the box.
  */
-export const motionOrigins: Record<Motion, string> = {
-  "sq-legs": "50% 84.375%",
-  "sq-upper": "50% 50%",
-  "row-arm": "50% 50%",
-  "br-hip": "50.8% 82%",
-  "walk-bean": "50% 78.125%",
+export const motionSpecs: Record<string, MotionSpec> = {
+  "sq-legs": { peak: "scaleY(.52)", origin: "50% 84.375%", duration: 2.6 },
+  "sq-upper": { peak: "translateY(12.5%)", origin: "50% 50%", duration: 2.6 },
+  "row-arm": { peak: "translateY(-14.06%)", origin: "50% 50%", duration: 2.2 },
+  "br-hip": { peak: "translateY(7.8%) scaleY(.72)", origin: "50.8% 82%", duration: 2.6 },
+  "walk-bean": { rest: "translateY(0) rotate(-4deg)", peak: "translateY(-6.25%) rotate(4deg)", origin: "50% 78.125%", duration: 1.5 },
+  ...rigMotions,
 };
 
 /** Inline group styles the web composition needs to keep its original pivot. */
@@ -65,14 +71,10 @@ const webGroupStyle: Partial<Record<Motion, string>> = {
   "walk-bean": "transform-box:fill-box;transform-origin:center bottom",
 };
 
-export const exerciseKindByCatalogId: Record<string, CharacterKind> = {
-  "ex-goblet-squat": "squat",
-  "ex-dumbbell-row": "row",
-  "ex-glute-bridge": "bridge",
-  "ex-walk": "walk",
-};
+/** Character drawn for each catalog move, by movement pattern. */
+export const exerciseKindByCatalogId: Record<string, CharacterKind> = Object.fromEntries(exerciseCatalog.map((entry) => [entry.id, entry.pattern]));
 
-export const foodCharacters: Record<string, string> = {
+const originalFoodCharacters: Record<string, string> = {
   "food-egg": "<svg viewBox=\"0 0 48 48\"><ellipse cx=\"20\" cy=\"30\" rx=\"15\" ry=\"11\" fill=\"#FFF8EC\" stroke=\"#E7D5BC\" stroke-width=\"1.6\"/><ellipse cx=\"33\" cy=\"23\" rx=\"12\" ry=\"9\" fill=\"#FFFDF6\" stroke=\"#E7D5BC\" stroke-width=\"1.6\"/><circle cx=\"33\" cy=\"23\" r=\"5.5\" fill=\"#FFC94D\"/><circle cx=\"31.2\" cy=\"21.6\" r=\"1.6\" fill=\"#FFE9A8\"/><circle cx=\"17\" cy=\"30\" r=\"1.3\" fill=\"#3B2E28\"/><circle cx=\"24\" cy=\"30\" r=\"1.3\" fill=\"#3B2E28\"/><path d=\"M18.8 33.4q1.7 1.5 3.4 0\" stroke=\"#3B2E28\" stroke-width=\"1.3\" fill=\"none\" stroke-linecap=\"round\"/><ellipse cx=\"13.5\" cy=\"32.4\" rx=\"2.2\" ry=\"1.5\" fill=\"#FF9E8A\" opacity=\".5\"/><ellipse cx=\"27.5\" cy=\"32.4\" rx=\"2.2\" ry=\"1.5\" fill=\"#FF9E8A\" opacity=\".5\"/></svg>",
   "food-yogurt": "<svg viewBox=\"0 0 48 48\"><path d=\"M13 18h22l-2.6 21a3 3 0 0 1-3 2.6H18.6a3 3 0 0 1-3-2.6z\" fill=\"#FFFDF7\" stroke=\"#E7D5BC\" stroke-width=\"1.6\"/><path d=\"M11.5 14.5h25a2 2 0 0 1 2 2v1.5h-29V16.5a2 2 0 0 1 2-2z\" fill=\"#DDF3E8\" stroke=\"#9FD9C0\" stroke-width=\"1.6\"/><path d=\"M20 9c2-3 6-3 8 0 2.4 3.6-1 6-4 5.4\" fill=\"#FFE0E6\" stroke=\"#E9647C\" stroke-width=\"1.5\"/><circle cx=\"20.5\" cy=\"27\" r=\"1.3\" fill=\"#3B2E28\"/><circle cx=\"27.5\" cy=\"27\" r=\"1.3\" fill=\"#3B2E28\"/><path d=\"M22.3 30.4q1.7 1.5 3.4 0\" stroke=\"#3B2E28\" stroke-width=\"1.3\" fill=\"none\" stroke-linecap=\"round\"/><ellipse cx=\"17\" cy=\"29.4\" rx=\"2.2\" ry=\"1.5\" fill=\"#FF9E8A\" opacity=\".5\"/><ellipse cx=\"31\" cy=\"29.4\" rx=\"2.2\" ry=\"1.5\" fill=\"#FF9E8A\" opacity=\".5\"/></svg>",
   "food-toast": "<svg viewBox=\"0 0 48 48\"><path d=\"M10 20c0-6 6-10 14-10s14 4 14 10c0 2.6-2 3.4-3.4 3.4H35v13a3 3 0 0 1-3 3H16a3 3 0 0 1-3-3v-13h.4C12 23.4 10 22.6 10 20z\" fill=\"#F6C97A\" stroke=\"#D9A24F\" stroke-width=\"1.6\"/><path d=\"M16.5 26h15v9h-15z\" fill=\"#FFEAC4\"/><circle cx=\"20.5\" cy=\"29.5\" r=\"1.3\" fill=\"#3B2E28\"/><circle cx=\"27.5\" cy=\"29.5\" r=\"1.3\" fill=\"#3B2E28\"/><path d=\"M22.3 32.9q1.7 1.5 3.4 0\" stroke=\"#3B2E28\" stroke-width=\"1.3\" fill=\"none\" stroke-linecap=\"round\"/><ellipse cx=\"17.2\" cy=\"31.9\" rx=\"2\" ry=\"1.4\" fill=\"#FF9E8A\" opacity=\".5\"/><ellipse cx=\"30.8\" cy=\"31.9\" rx=\"2\" ry=\"1.4\" fill=\"#FF9E8A\" opacity=\".5\"/></svg>",
@@ -86,6 +88,8 @@ export const foodCharacters: Record<string, string> = {
   "food-sweet-potato": "<svg viewBox=\"0 0 48 48\"><path d=\"M8 30c0-8 8-16 18-16 8 0 14 4 14 10 0 8-9 14-19 14-8 0-13-3-13-8z\" fill=\"#E08B5C\" stroke=\"#B96A3F\" stroke-width=\"1.6\"/><path d=\"M14 25c3-3 8-5 12-5\" stroke=\"#F5C39C\" stroke-width=\"2\" stroke-linecap=\"round\"/><circle cx=\"20.5\" cy=\"30\" r=\"1.3\" fill=\"#3B2E28\"/><circle cx=\"27.5\" cy=\"30\" r=\"1.3\" fill=\"#3B2E28\"/><path d=\"M22.3 33.4q1.7 1.5 3.4 0\" stroke=\"#3B2E28\" stroke-width=\"1.3\" fill=\"none\" stroke-linecap=\"round\"/><ellipse cx=\"17\" cy=\"32.4\" rx=\"2.2\" ry=\"1.5\" fill=\"#FF6F5E\" opacity=\".35\"/><ellipse cx=\"31\" cy=\"32.4\" rx=\"2.2\" ry=\"1.5\" fill=\"#FF6F5E\" opacity=\".35\"/></svg>",
   "food-spinach": "<svg viewBox=\"0 0 48 48\"><path d=\"M24 10c7 2 9 9 6.5 14.5-1.2 2.6-4.2 3.4-6.5 1.4-2.3 2-5.3 1.2-6.5-1.4C15 19 17 12 24 10z\" fill=\"#6FC5A0\" stroke=\"#4A9E7C\" stroke-width=\"1.6\"/><path d=\"M24 10c4.4 3.4 5.4 9 3.6 14M24 10c-4.4 3.4-5.4 9-3.6 14\" stroke=\"#4A9E7C\" stroke-width=\"1.2\" fill=\"none\"/><path d=\"M16 26c5.4 3 10.6 3 16 0\" stroke=\"#4A9E7C\" stroke-width=\"1.6\" fill=\"none\" stroke-linecap=\"round\"/><circle cx=\"21.2\" cy=\"18.5\" r=\"1.2\" fill=\"#26483A\"/><circle cx=\"26.8\" cy=\"18.5\" r=\"1.2\" fill=\"#26483A\"/><path d=\"M22.6 21.4q1.4 1.3 2.8 0\" stroke=\"#26483A\" stroke-width=\"1.2\" fill=\"none\" stroke-linecap=\"round\"/><ellipse cx=\"18.2\" cy=\"20.6\" rx=\"1.9\" ry=\"1.3\" fill=\"#FF9E8A\" opacity=\".45\"/><ellipse cx=\"29.8\" cy=\"20.6\" rx=\"1.9\" ry=\"1.3\" fill=\"#FF9E8A\" opacity=\".45\"/></svg>",
 };
+
+export const foodCharacters: Record<string, string> = { ...originalFoodCharacters, ...extraFoodCharacters };
 
 export const icons: Record<IconName, string> = {
   calendar: "<svg viewBox=\"0 0 24 24\" fill=\"none\"><rect x=\"3\" y=\"5\" width=\"18\" height=\"16\" rx=\"4\" fill=\"#D85C28\" opacity=\".18\"/><rect x=\"3\" y=\"5\" width=\"18\" height=\"16\" rx=\"4\" stroke=\"#D85C28\" stroke-width=\"2\"/><path d=\"M3 10h18\" stroke=\"#D85C28\" stroke-width=\"2\"/><circle cx=\"8.5\" cy=\"14.5\" r=\"1.4\" fill=\"#D85C28\"/><circle cx=\"13\" cy=\"14.5\" r=\"1.4\" fill=\"#D85C28\"/></svg>",
@@ -104,12 +108,14 @@ export const navIcons: Record<NavIconName, string> = {
 
 export const checkMarkup = "<svg viewBox=\"0 0 24 24\"><path d=\"M5 12.5 10 17.5 19 7\"/></svg>";
 
+export const exerciseCharacters: Record<CharacterKind, ExerciseCharacter> = { ...(rigs as Record<Exclude<CharacterKind, keyof typeof originalCharacters>, ExerciseCharacter>), ...originalCharacters };
+
 /** One SVG with animated groups, as the web renders it. */
 export function composeExerciseSvg(kind: CharacterKind): string {
   const character = exerciseCharacters[kind];
   const body = character.layers.map((layer) => {
     if (!layer.motion) return layer.markup;
-    const style = webGroupStyle[layer.motion];
+    const style = webGroupStyle[layer.motion as Motion];
     return `<g class="${layer.motion}"${style ? ` style="${style}"` : ""}>${layer.markup}</g>`;
   }).join("");
   return `<svg viewBox="${character.viewBox}">${body}</svg>`;

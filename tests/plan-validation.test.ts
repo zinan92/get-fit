@@ -38,3 +38,20 @@ test("plan validator fails closed for malformed JSON and blocked catalog items",
   const context = catalogContext({ ...profile, injuryFlags: ["acute_knee_pain"] });
   assert.equal(context.blockedExerciseIds?.has("ex-goblet-squat"), true);
 });
+
+test("moves needing equipment the client lacks are blocked, and a gym covers everything", () => {
+  const bodyweightOnly = catalogContext({ ...profile, equipment: [] });
+  assert.equal(bodyweightOnly.blockedExerciseIds?.has("ex-goblet-squat"), true);
+  assert.equal(bodyweightOnly.blockedExerciseIds?.has("ex-band-squat"), true);
+  assert.equal(bodyweightOnly.blockedExerciseIds?.has("ex-bodyweight-squat"), false);
+  assert.equal(bodyweightOnly.blockedExerciseIds?.has("ex-plank"), false);
+  const dumbbells = catalogContext(profile);
+  assert.equal(dumbbells.blockedExerciseIds?.has("ex-dumbbell-bench-press"), true, "a bench is not implied by dumbbells");
+  assert.equal(dumbbells.blockedExerciseIds?.has("ex-floor-press"), false);
+  const gym = catalogContext({ ...profile, equipment: ["gym"] });
+  assert.equal(gym.blockedExerciseIds?.size, 0);
+  const plan = validPlan();
+  plan.days[0].exercises = [{ catalogId: "ex-kettlebell-swing", sets: 3, reps: 12, restSeconds: 60 }];
+  const result = validateProviderPayload(profile, plan);
+  assert.equal(result.ok, false);
+});

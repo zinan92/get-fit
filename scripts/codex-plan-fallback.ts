@@ -38,8 +38,9 @@ function prompt(input: Input): string {
       schemaVersion: input.job.schemaVersion,
       startDate: input.job.startDate,
       profile: input.profile,
-      exercises: exerciseCatalog,
-      foods: foodCatalog,
+      // Only what planning needs; sources and step text stay out of the prompt.
+      exercises: exerciseCatalog.map(({ id, name, pattern, level, target, equipmentTags, contraindications, unit }) => ({ id, name, pattern, level, target, equipmentTags, contraindications, unit })),
+      foods: foodCatalog.map(({ id, name, category, kcalPer100g, unit, allergens }) => ({ id, name, category, kcalPer100g, unit, allergens })),
     }),
   ].join("\n");
 }

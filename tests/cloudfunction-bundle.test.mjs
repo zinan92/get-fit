@@ -97,7 +97,7 @@ test("bundled API runs invitation to check-in with platform identity", async () 
 
   const today = await call("openid-client", "/api/plan/today?date=2026-09-15");
   assert.equal(today.body.status, "ready");
-  assert.equal(today.body.plan.day.meals[0].mealKcal, 341);
+  assert.equal(today.body.plan.day.meals[0].mealKcal, 357);
   const planDayId = `${published.body.plan.id}:2026-09-15`;
   const item = { localDate: "2026-09-15", planDayId, itemId: "ex-walk", itemType: "exercise", status: "completed" };
   assert.equal((await call("openid-client", "/api/checkins", "PUT", item)).statusCode, 200);

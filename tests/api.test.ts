@@ -94,9 +94,9 @@ test("single-coach onboarding, Codex CLI handoff, validated import, publish and 
   assert.equal(exercise.mediaPath, null);
   assert.deepEqual(exercise.cues, ["教练自定义：动作放慢"]);
   assert.equal(typeof day.dailyKcal, "number");
-  assert.equal((day.meals as Array<Record<string, unknown>>)[0].mealKcal, 341);
+  assert.equal((day.meals as Array<Record<string, unknown>>)[0].mealKcal, 357);
   const food = ((day.meals as Array<Record<string, unknown>>)[0].foods as Array<Record<string, unknown>>)[0];
-  assert.equal(food.kcal, 143);
+  assert.equal(food.kcal, 155);
   const publishedPlanId = String((published.payload.plan as Record<string, unknown>).id);
   const checkin = await call("/api/checkins", { method: "PUT", body: JSON.stringify({ localDate: "2026-08-12", planDayId: `${publishedPlanId}:2026-08-12`, itemId: "ex-walk", itemType: "exercise", status: "completed" }) }, clientToken);
   assert.equal(checkin.response.status, 200);
