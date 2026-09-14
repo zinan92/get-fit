@@ -9,7 +9,7 @@ function labels(list, values) {
 }
 
 Page({
-  data: { preview: false, status: 'loading', clientId: '', item: null, stageView: null, profile: null, facts: [], flags: [], summary: null, alerts: [], startDate: '', busy: false, course: null, renewal: false, note: '', noteDraft: '', archived: false },
+  data: { preview: false, status: 'loading', clientId: '', item: null, stageView: null, profile: null, facts: [], flags: [], summary: null, alerts: [], startDate: '', busy: false, course: null, renewal: false, note: '', noteDraft: '', message: '', messageDraft: '', archived: false },
 
   onLoad(query) {
     this.setData({ preview: getApp().globalData.preview, clientId: query.id, startDate: dates.addDays(dates.today(), 1) });
@@ -42,7 +42,7 @@ Page({
       const today = overview.today || dates.today();
       const startDate = renewal ? [dates.addDays(course.endDate, 1), today].sort()[1] : this.data.startDate;
       this.setData({
-        course, renewal, startDate, note: item ? item.note : '', noteDraft: item ? item.note : '', archived: Boolean(item && item.archived),
+        course, renewal, startDate, note: item ? item.note : '', noteDraft: item ? item.note : '', message: item ? item.message : '', messageDraft: item ? item.message : '', archived: Boolean(item && item.archived),
         status: 'ready', item, stageView: coach.stage(item ? item.stage : ''), profile, facts, flags, summary,
         alerts: alerts.alerts.filter(alert => alert.clientId === id && alert.status === 'open')
       });
@@ -70,6 +70,16 @@ Page({
       this.load();
     } catch (error) { wx.showToast({ title: '没发起成功', icon: 'none' }); }
     finally { this.setData({ busy: false }); }
+  },
+
+  onMessage(e) { this.setData({ messageDraft: e.detail.value }); },
+
+  async saveMessage() {
+    try {
+      const result = await request(`/api/coach/clients/${this.data.clientId}`, { method: 'PATCH', data: { message: this.data.messageDraft } });
+      this.setData({ message: result.message, messageDraft: result.message });
+      wx.showToast({ title: result.message ? 'TA 下次打开就能看到' : '已清空', icon: 'none' });
+    } catch (error) { wx.showToast({ title: '没发出去', icon: 'none' }); }
   },
 
   onNote(e) { this.setData({ noteDraft: e.detail.value }); },

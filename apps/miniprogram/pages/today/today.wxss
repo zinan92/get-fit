@@ -45,3 +45,29 @@
   .sk { animation: none; }
   .dcell, .feel-opt { transition: none; }
 }
+.week { margin-top: 28rpx; }
+.week-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 20rpx; }
+.week-head .t { font-size: 30rpx; font-weight: 700; }
+.week-head .s { font-size: 23rpx; color: var(--ink-2); margin-top: 6rpx; line-height: 1.5; }
+.week-count { flex: 0 0 auto; display: flex; align-items: baseline; color: var(--ink-3); font-size: 24rpx; }
+.week-count .big { font-size: 52rpx; color: var(--train); margin-right: 2rpx; }
+.week-count .u { font-size: 21rpx; margin-left: 8rpx; }
+.week-dots { display: flex; justify-content: space-between; margin-top: 26rpx; }
+.wcell { display: flex; flex-direction: column; align-items: center; gap: 10rpx; }
+.wdot { width: 60rpx; height: 60rpx; border-radius: 22rpx; border: 4rpx solid var(--line); background: var(--surface); display: flex; align-items: center; justify-content: center; transform: rotate(-6deg); }
+.wdot.planned { border-color: var(--train-soft); border-style: dashed; }
+.wdot.missed { border-color: var(--line-2); }
+.wdot.trained { background: var(--train); border-color: var(--train); transform: rotate(0deg); }
+.wdot.rest { width: 30rpx; height: 30rpx; margin: 15rpx 0; border-radius: 50%; border-color: var(--diet-soft); background: var(--diet-soft); transform: none; }
+.wdot.rest-done { width: 30rpx; height: 30rpx; margin: 15rpx 0; border-radius: 50%; border-color: var(--diet); background: var(--diet); transform: none; }
+.wdot.none { width: 16rpx; height: 16rpx; margin: 22rpx 0; border-radius: 50%; border: none; background: var(--line); transform: none; }
+.wdot.today { box-shadow: 0 0 0 6rpx var(--surface), 0 0 0 9rpx var(--ink); }
+.wtick { width: 22rpx; height: 12rpx; border-left: 5rpx solid #fff; border-bottom: 5rpx solid #fff; transform: translateY(-3rpx) rotate(-45deg); }
+.wl { font-size: 21rpx; color: var(--ink-3); }
+.wl.today { color: var(--ink); font-weight: 700; }
+.streak { margin-top: 22rpx; display: inline-block; padding: 8rpx 20rpx; border-radius: 999rpx; background: var(--train-soft); color: var(--train); font-size: 23rpx; font-weight: 700; }
+.coach-says { margin-top: 24rpx; display: flex; gap: 16rpx; align-items: flex-start; }
+.cs-avatar { flex: 0 0 60rpx; width: 60rpx; height: 60rpx; border-radius: 50%; background: var(--diet-soft); color: var(--diet); font-size: 24rpx; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.cs-bubble { flex: 1; background: var(--surface-2); border: 2rpx solid var(--line); border-radius: 8rpx 30rpx 30rpx 30rpx; padding: 16rpx 22rpx; }
+.cs-k { font-size: 20rpx; color: var(--diet); font-weight: 700; }
+.cs-t { font-size: 26rpx; line-height: 1.55; margin-top: 4rpx; }

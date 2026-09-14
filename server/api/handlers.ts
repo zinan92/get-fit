@@ -123,6 +123,7 @@ export async function handleApi(context: ApiContext): Promise<Response> {
     if (path === "reminders/subscribe" && method === "POST") return subscribeReminders(context, reqId);
     if (path === "plan/today" && method === "GET") return clientToday(context, reqId);
     if (path === "plans/calendar" && method === "GET") return clientCalendar(context);
+    if (path === "me/week" && method === "GET") return clientWeek(context);
     if (path === "checkins" && method === "PUT") return saveCheckin(context, reqId);
     if (path === "wellness-feedback" && method === "PUT") return saveWellness(context, reqId);
     if (path === "me" && method === "DELETE") return requestDeletion(context, reqId);
@@ -554,6 +555,44 @@ function clientCalendar(context: ApiContext): Response {
   return json({ month, days });
 }
 
+/**
+ * The client's week at a glance, Monday to Sunday around today (Beijing time). Anchored on
+ * today rather than the last day with data, so a quiet week looks quiet instead of full.
+ */
+function clientWeek(context: ApiContext): Response {
+  const clientId = requireClient(context); if (clientId instanceof Response) return clientId;
+  const client = context.store.clients.get(clientId); if (!client) return error("NOT_FOUND", "Client not found", 404);
+  const today = localToday();
+  const weekday = (new Date(`${today}T00:00:00Z`).getUTCDay() + 6) % 7;
+  const monday = addCalendarDays(today, -weekday);
+  const completed = new Map<string, Set<string>>();
+  context.store.checkins.forEach((item) => {
+    if (item.clientId !== clientId || item.status !== "completed") return;
+    const kinds = completed.get(item.localDate) ?? new Set<string>();
+    kinds.add(item.itemType); completed.set(item.localDate, kinds);
+  });
+  const days = Array.from({ length: 7 }, (_, index) => {
+    const date = addCalendarDays(monday, index);
+    const plan = currentPlan(context.store, clientId, date);
+    const day = plan?.payload.days.find((item) => item.localDate === date);
+    const kind = !day ? "none" : day.exercises.length && !isRecoveryDay(day.exercises) ? "training" : "recovery";
+    const kinds = completed.get(date) ?? new Set<string>();
+    return { date, kind, trained: kinds.has("exercise"), checkedIn: kinds.size > 0, isToday: date === today, isFuture: date > today };
+  });
+  // Consecutive days with any check-in, ending today, or yesterday while today is still open.
+  let streak = 0;
+  let cursor = completed.has(today) ? today : addCalendarDays(today, -1);
+  while (completed.has(cursor) && streak < 366) { streak += 1; cursor = addCalendarDays(cursor, -1); }
+  return json({
+    today,
+    days,
+    trainingPlanned: days.filter((item) => item.kind === "training").length,
+    trainingDone: days.filter((item) => item.kind === "training" && item.trained).length,
+    streak,
+    coachMessage: client.coachMessage ? { text: client.coachMessage.text, at: client.coachMessage.at } : null,
+  });
+}
+
 async function saveCheckin(context: ApiContext, reqId: string): Promise<Response> {
   const clientId = requireClient(context); if (clientId instanceof Response) return clientId;
   const input = await body(context.request); const localDate = safeString(input.localDate); const itemId = safeString(input.itemId); const itemType = input.itemType;
@@ -653,6 +692,7 @@ function coachOverview(context: ApiContext): Response {
       lastOpenedDate,
       attention,
       note: client.coachNote ?? "",
+      message: client.coachMessage?.text ?? "",
       archived: Boolean(client.archivedAt),
     };
   });
@@ -668,12 +708,16 @@ async function manageClient(context: ApiContext, clientId: string, reqId: string
     if (typeof input.note !== "string" || input.note.length > 500) return error("INVALID_INPUT", "note must be text up to 500 characters", 400);
     client.coachNote = input.note.trim();
   }
+  if (input.message !== undefined) {
+    if (typeof input.message !== "string" || input.message.trim().length > 60) return error("INVALID_INPUT", "message must be text up to 60 characters", 400);
+    client.coachMessage = input.message.trim() ? { text: input.message.trim(), at: nowIso() } : null;
+  }
   if (input.archived !== undefined) {
     if (typeof input.archived !== "boolean") return error("INVALID_INPUT", "archived must be true or false", 400);
     client.archivedAt = input.archived ? (client.archivedAt ?? nowIso()) : null;
   }
-  audit(context.store, "client.managed", { requestId: reqId, clientId, actor: "coach", archived: Boolean(client.archivedAt), noteChanged: input.note !== undefined });
-  return json({ client: clientView(client), note: client.coachNote ?? "", archived: Boolean(client.archivedAt) });
+  audit(context.store, "client.managed", { requestId: reqId, clientId, actor: "coach", archived: Boolean(client.archivedAt), noteChanged: input.note !== undefined, messageChanged: input.message !== undefined });
+  return json({ client: clientView(client), note: client.coachNote ?? "", message: client.coachMessage?.text ?? "", archived: Boolean(client.archivedAt) });
 }
 
 /** What the coach may swap into this draft: the validator's own filters, so the editor never offers a move it would refuse. */

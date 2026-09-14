@@ -54,6 +54,8 @@ export type ClientRecord = {
   coachNote?: string;
   /** Hidden from the coach's active list; the client's own data and access are unchanged. */
   archivedAt?: string | null;
+  /** A short line from the coach shown on the client's weekly card. */
+  coachMessage?: { text: string; at: string } | null;
 };
 
 export type InvitationRecord = {

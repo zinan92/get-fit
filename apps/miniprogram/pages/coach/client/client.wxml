@@ -76,6 +76,12 @@
       </block>
     </view>
 
+    <view wx:if="{{item.stage === 'published'}}" class="card note-card">
+      <view class="label">给 TA 的一句话 <text class="private">出现在 TA 的「这一周」卡片上</text></view>
+      <input class="note one-line" value="{{messageDraft}}" maxlength="60" placeholder="比如 这周状态很稳，周五记得早点睡" bindinput="onMessage" />
+      <view wx:if="{{messageDraft !== message}}" class="note-save" bindtap="saveMessage">{{messageDraft ? '发给 TA' : '清空'}}</view>
+    </view>
+
     <view class="card note-card">
       <view class="label">我的备注 <text class="private">只有你看得到</text></view>
       <textarea class="note" value="{{noteDraft}}" maxlength="500" auto-height placeholder="比如 周三晚上加班、想在婚礼前瘦 4 公斤" bindinput="onNote" />

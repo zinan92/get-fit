@@ -153,6 +153,20 @@ try {
     await mini.pageScrollTo(900);
     await shot("36-coach-member-note");
   }
+  // Weekly card on the client's today page, and where the coach writes the line on it.
+  page = await mini.reLaunch("/pages/today/today");
+  await wait(1800);
+  const weekCard = await page.$(".week");
+  if (weekCard) { const { top } = await weekCard.offset(); await mini.pageScrollTo(Math.max(0, top - 140)); }
+  await shot("37-today-week");
+  const live = members.find((item) => item.message);
+  if (live) {
+    page = await mini.reLaunch(`/pages/coach/client/client?id=${live.id}`);
+    await wait(1800);
+    const noteCard = await page.$(".note-card");
+    if (noteCard) { const { top } = await noteCard.offset(); await mini.pageScrollTo(Math.max(0, top - 160)); }
+    await shot("38-coach-message");
+  }
   console.log(logs.slice(-20).join("\n"));
 } finally {
   mini.disconnect();

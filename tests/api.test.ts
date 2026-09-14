@@ -509,3 +509,47 @@ test("member management: course progress, quiet days, private note, archive and 
   const invalid = await coachCall(`/api/coach/clients/${clientId}`, { method: "PATCH", body: JSON.stringify({ archived: "yes" }) });
   assert.equal(invalid.response.status, 400);
 });
+
+test("weekly card counts this Monday-to-Sunday around today, with a streak and the coach's line", async () => {
+  const realNow = Date.now;
+  Date.now = () => Date.parse("2026-09-16T02:00:00.000Z"); // Wednesday in Beijing
+  try {
+    const weekStore = createMemoryStore();
+    const weekCtx = { waitUntil() {}, passThroughOnException() {} } as ExecutionContext;
+    const clientId = "week-client";
+    weekStore.clients.set(clientId, { id: clientId, displayName: "周客户", status: "active", createdAt: "2026-09-01T00:00:00.000Z" });
+    weekStore.sessions.set("week-token", { kind: "client", subjectId: clientId, expiresAt: Date.now() + 60_000 });
+    const payload = plan("2026-09-10");
+    // Wednesday and Friday are recovery-only walks in the fixture; make Monday and Tuesday real training.
+    for (const date of ["2026-09-14", "2026-09-15", "2026-09-16"]) payload.days.find((day) => day.localDate === date)!.exercises = [{ catalogId: "ex-glute-bridge", sets: 3, reps: 12, restSeconds: 45, cues: [] }];
+    weekStore.plans.set("week-plan", { id: "week-plan", clientId, versionNo: 1, effectiveFrom: "2026-09-10", effectiveTo: null, payload, status: "published", approvedAt: "2026-09-09T00:00:00.000Z", changeReason: null });
+    const checkin = (localDate: string, itemId: string, itemType: "exercise" | "meal") => weekStore.checkins.set(`${clientId}:${localDate}:${itemId}`, { clientId, planDayId: `week-plan:${localDate}`, localDate, itemId, itemType, status: "completed", completedAt: null });
+    checkin("2026-09-13", "breakfast", "meal");
+    checkin("2026-09-14", "ex-glute-bridge", "exercise");
+    checkin("2026-09-15", "lunch", "meal");
+    const read = async () => {
+      const response = await handleApi({ request: new Request("http://localhost/api/me/week", { headers: { authorization: "Bearer week-token" } }), env, store: weekStore, ctx: weekCtx });
+      return await response.json() as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+    };
+    let week = await read();
+    assert.equal(week.days[0].date, "2026-09-14");
+    assert.equal(week.days[6].date, "2026-09-20");
+    assert.equal(week.trainingPlanned, 3);
+    assert.equal(week.trainingDone, 1);
+    assert.equal(week.streak, 3, "today is still open, so the streak runs through yesterday");
+    assert.equal(week.coachMessage, null);
+    const message = await handleApi({ request: new Request(`http://localhost/api/coach/clients/${clientId}`, { method: "PATCH", headers: { "x-coach-token": "dev-coach" }, body: JSON.stringify({ message: "这周状态很稳，周五记得早点睡" }) }), env, store: weekStore, ctx: weekCtx });
+    assert.equal(message.status, 200);
+    checkin("2026-09-16", "ex-glute-bridge", "exercise");
+    week = await read();
+    assert.equal(week.trainingDone, 2);
+    assert.equal(week.streak, 4);
+    assert.equal(week.coachMessage.text, "这周状态很稳，周五记得早点睡");
+    const tooLong = await handleApi({ request: new Request(`http://localhost/api/coach/clients/${clientId}`, { method: "PATCH", headers: { "x-coach-token": "dev-coach" }, body: JSON.stringify({ message: "长".repeat(61) }) }), env, store: weekStore, ctx: weekCtx });
+    assert.equal(tooLong.status, 400);
+    const me = await handleApi({ request: new Request("http://localhost/api/me", { headers: { authorization: "Bearer week-token" } }), env, store: weekStore, ctx: weekCtx });
+    assert.equal(JSON.stringify(await me.json()).includes("coachNote"), false);
+  } finally {
+    Date.now = realNow;
+  }
+});

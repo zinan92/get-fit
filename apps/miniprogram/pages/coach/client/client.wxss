@@ -41,3 +41,4 @@
 .note { width: 100%; min-height: 110rpx; padding: 18rpx 22rpx; border-radius: 24rpx; background: var(--surface-2); border: 2rpx solid var(--line); font-size: 26rpx; line-height: 1.55; box-sizing: border-box; }
 .note-save { margin-top: 16rpx; display: inline-block; padding: 12rpx 30rpx; border-radius: 999rpx; background: var(--ink); color: #fff; font-size: 24rpx; font-weight: 700; }
 .archive-link { margin: 12rpx 0 40rpx; text-align: center; font-size: 24rpx; color: var(--ink-3); }
+.note.one-line { min-height: 80rpx; height: 80rpx; }

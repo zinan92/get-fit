@@ -140,6 +140,15 @@ test("the day editor sends the whole plan to the server validator and shows its 
   assert.doesNotMatch(editor, /contraindication|allergens|equipmentTags|injuryFlags/, "no client-side safety rules");
 });
 
+test("the week card encourages and never counts missed days against the client", async () => {
+  const js = await read("pages/today/today.js");
+  const wxml = await read("pages/today/today.wxml");
+  assert.match(js, /request\('\/api\/me\/week'\)/);
+  assert.match(wxml, /class="card week rise"/);
+  assert.match(wxml, /week\.message/);
+  assert.doesNotMatch(js + wxml, /没练|没打卡|落后|偷懒|已经 \$\{[^}]+\} 天/);
+});
+
 test("privacy notice matches the declared guide and is reachable from consent and 我的", async () => {
   const guide = await readFile(path.join(root, "docs", "privacy", "user-privacy-guide.md"), "utf8");
   const page = await read("pages/privacy/privacy.js");
