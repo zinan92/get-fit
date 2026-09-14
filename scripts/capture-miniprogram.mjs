@@ -51,6 +51,17 @@ try {
   await wait(900);
   await mini.pageScrollTo(600);
   await shot("05-calendar-rest-day");
+  const later = await page.$$(".calcell");
+  const target = later.length > 20 ? later[20] : later[later.length - 1];
+  await target.tap();
+  await wait(900);
+  const cta = await page.$(".cta");
+  await cta.tap();
+  await wait(1800);
+  page = await mini.currentPage();
+  console.log("after goToDay", page.path, await page.data("date"), JSON.stringify((await page.data("strip")).map((cell) => `${cell.weekday}${cell.day}${cell.selected ? "*" : ""}`)));
+  await mini.pageScrollTo(0);
+  await shot("06-today-from-calendar");
   console.log(logs.slice(-20).join("\n"));
 } finally {
   mini.disconnect();
