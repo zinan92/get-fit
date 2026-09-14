@@ -3,7 +3,7 @@ import { exerciseCatalogById, foodCatalogById } from "../../packages/catalogs/sr
 import { PLAN_SCHEMA_VERSION, PLAN_TIMEZONE } from "../../packages/plan-schema/src/index";
 import { validateProviderPayload } from "./plan-validation";
 import { body, error, issueSession, json, requireClient, requireCoach } from "./http";
-import { audit, checkinKey, id, nowIso, randomToken, sha256 } from "./store";
+import { audit, checkinKey, id, nowIso, randomToken, recordOpenedDay, sha256 } from "./store";
 import { encryptSecret } from "./persistence";
 import type { ApiContext, ClientRecord, ConsentType, HealthProfile, JsonRecord } from "./types";
 
@@ -166,9 +166,10 @@ export async function handleApi(context: ApiContext): Promise<Response> {
 async function wxLogin(context: ApiContext, reqId: string): Promise<Response> {
   const input = await body(context.request);
   const code = safeString(input.code);
-  let openid = context.env.DEV_MODE === "true" ? safeString(input.devOpenid) : "";
-  const isLocalDevelopment = context.env.DEV_MODE === "true";
-  if (context.env.WECHAT_APP_ID && context.env.WECHAT_APP_SECRET && code) {
+  const platform = context.platform;
+  let openid = platform ? platform.openid : context.env.DEV_MODE === "true" ? safeString(input.devOpenid) : "";
+  const isLocalDevelopment = !platform && context.env.DEV_MODE === "true";
+  if (!platform && context.env.WECHAT_APP_ID && context.env.WECHAT_APP_SECRET && code) {
     const wxUrl = new URL("https://api.weixin.qq.com/sns/jscode2session");
     wxUrl.searchParams.set("appid", context.env.WECHAT_APP_ID);
     wxUrl.searchParams.set("secret", context.env.WECHAT_APP_SECRET);
@@ -179,8 +180,8 @@ async function wxLogin(context: ApiContext, reqId: string): Promise<Response> {
     if (!response.ok || !payload.openid) return error("WECHAT_LOGIN_FAILED", "WeChat login failed", 401);
     openid = payload.openid;
   }
-  if (!openid || (!code && context.env.DEV_MODE !== "true")) return error("WECHAT_LOGIN_REQUIRED", "WeChat login code is required", 400);
-  const openidHash = await sha256(openid);
+  if (!openid || (!platform && !code && context.env.DEV_MODE !== "true")) return error("WECHAT_LOGIN_REQUIRED", "WeChat login code is required", 400);
+  const openidHash = platform ? platform.openidHash : await sha256(openid);
   const existing = context.store.clients.get(context.store.authByOpenId.get(openidHash) ?? "");
   const requestedClientId = isLocalDevelopment ? safeString(input.devClientId) : "";
   const invitationToken = safeString(input.invitationToken);
@@ -201,11 +202,12 @@ async function wxLogin(context: ApiContext, reqId: string): Promise<Response> {
   if (invitation && (!invitation.consumedAt || invitation.revokedAt || invitation.expiresAt <= nowIso())) return error("INVITATION_INVALID", "Invitation is invalid or expired", 403);
   if (!client) return error("INVITATION_REQUIRED", "An invitation is required before login", 403);
   if (invitation && !invitation.openidHash) invitation.openidHash = openidHash;
-  const token = await issueSession(context, "client", client.id);
+  // Platform callers are re-identified on every call; a bearer session would be an unused second credential.
+  const token = platform ? null : await issueSession(context, "client", client.id);
   context.store.authByOpenId.set(openidHash, client.id);
   if (context.env.DATA_ENCRYPTION_KEY) context.store.authOpenIdCiphertext.set(client.id, await encryptSecret(openid, context.env.DATA_ENCRYPTION_KEY));
   audit(context.store, "client.auth.bound", { requestId: reqId, clientId: client.id, openidHash });
-  return json({ sessionToken: token, client: clientView(client) });
+  return json(token ? { sessionToken: token, client: clientView(client) } : { client: clientView(client) });
 }
 
 async function acceptInvitation(context: ApiContext, reqId: string): Promise<Response> {
@@ -476,6 +478,7 @@ function clientToday(context: ApiContext, reqId: string): Response {
   const clientId = requireClient(context); if (clientId instanceof Response) return clientId;
   const url = new URL(context.request.url); const date = safeString(url.searchParams.get("date"), localToday());
   audit(context.store, "client.today_viewed", { requestId: reqId, clientId, localDate: date });
+  recordOpenedDay(context.store, clientId, date);
   const plan = currentPlan(context.store, clientId, date);
   if (!plan) return json({ status: "waiting_for_coach", date, plan: null, checkins: [] });
   const day = plan.payload.days.find((item) => item.localDate === date) ?? null;
@@ -489,7 +492,7 @@ function coachSummary(context: ApiContext, clientId: string): Response {
   const requestedDays = Number(url.searchParams.get("days") ?? 7);
   const days = Number.isInteger(requestedDays) && requestedDays >= 1 && requestedDays <= 30 ? requestedDays : 7;
   const dates = new Set<string>();
-  context.store.audit.filter((event) => event.action === "client.today_viewed" && event.clientId === clientId && typeof event.localDate === "string").forEach((event) => dates.add(event.localDate as string));
+  context.store.openedDays.forEach((item) => { if (item.clientId === clientId) dates.add(item.localDate); });
   context.store.checkins.forEach((item) => { if (item.clientId === clientId) dates.add(item.localDate); });
   context.store.feedback.forEach((item) => { if (item.clientId === clientId) dates.add(item.localDate); });
   context.store.alerts.forEach((item) => { if (item.clientId === clientId) dates.add(item.localDate); });
@@ -500,7 +503,7 @@ function coachSummary(context: ApiContext, clientId: string): Response {
   const feedbackDays = new Set([...context.store.feedback.values()].filter((item) => item.clientId === clientId && windowDates.has(item.localDate)).map((item) => item.localDate));
   const painAlerts = [...context.store.alerts.values()].filter((item) => item.clientId === clientId && windowDates.has(item.localDate) && item.type === "pain");
   const summary = {
-    openedDays: new Set([...context.store.audit.filter((event) => event.action === "client.today_viewed" && event.clientId === clientId && typeof event.localDate === "string").map((event) => event.localDate as string)].filter((date) => windowDates.has(date))).size,
+    openedDays: [...context.store.openedDays.values()].filter((item) => item.clientId === clientId && windowDates.has(item.localDate)).length,
     trainingCheckins: checkins.filter((item) => item.itemType === "exercise").length,
     mealCheckins: checkins.filter((item) => item.itemType === "meal").length,
     waterCheckins: checkins.filter((item) => item.itemType === "water").length,

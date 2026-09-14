@@ -23,6 +23,7 @@ type Snapshot = {
   fallbackTokens: unknown[];
   subscriptions: unknown[];
   delivery: unknown[];
+  openedDays?: unknown[];
   audit: Array<Record<string, unknown>>;
 };
 
@@ -85,6 +86,7 @@ function snapshot(store: Store): Snapshot {
     fallbackTokens: [...store.fallbackTokens.entries()],
     subscriptions: [...store.subscriptions.entries()],
     delivery: [...store.delivery.entries()],
+    openedDays: [...store.openedDays.entries()],
     audit: store.audit.slice(-500),
   };
 }
@@ -108,7 +110,41 @@ function hydrate(store: Store, value: Snapshot): void {
   store.fallbackTokens = new Map(value.fallbackTokens as Array<[string, Store["fallbackTokens"] extends Map<string, infer V> ? V : never]>);
   store.subscriptions = new Map(value.subscriptions as Array<[string, Store["subscriptions"] extends Map<string, infer V> ? V : never]>);
   store.delivery = new Map(value.delivery as Array<[string, Store["delivery"] extends Map<string, infer V> ? V : never]>);
+  store.openedDays = new Map((value.openedDays ?? []) as Array<[string, Store["openedDays"] extends Map<string, infer V> ? V : never]>);
   store.audit = value.audit;
+}
+
+/** Storage for the encrypted single-coach snapshot with compare-and-set writes. */
+export type SnapshotBackend = {
+  read(): Promise<{ ciphertext: string; keyVersion: string; revision: number } | null>;
+  /** Writes only if the stored revision still equals `expectedRevision` (0 = no record yet). */
+  write(record: { ciphertext: string; keyVersion: string; revision: number }, expectedRevision: number): Promise<"written" | "conflict">;
+};
+
+export class StateConflictError extends Error {
+  constructor() {
+    super("Runtime state changed during this request");
+    this.name = "StateConflictError";
+  }
+}
+
+/** Loads the snapshot into `store` and returns the revision it was read at (0 when empty). */
+export async function loadSnapshot(store: Store, backend: SnapshotBackend, encryptionKey: string | undefined): Promise<number> {
+  if (!encryptionKey) throw new Error("DATA_ENCRYPTION_KEY is required when storage is configured");
+  const record = await backend.read();
+  if (!record) return 0;
+  if (record.keyVersion !== KEY_VERSION) throw new Error("Unsupported runtime state key version");
+  hydrate(store, JSON.parse(await decrypt(record.ciphertext, encryptionKey)) as Snapshot);
+  return record.revision;
+}
+
+/** Persists `store` as revision `readRevision + 1`; throws StateConflictError if another write landed first. */
+export async function saveSnapshot(store: Store, backend: SnapshotBackend, encryptionKey: string | undefined, readRevision: number): Promise<number> {
+  if (!encryptionKey) throw new Error("DATA_ENCRYPTION_KEY is required when storage is configured");
+  const ciphertext = await encrypt(JSON.stringify(snapshot(store)), encryptionKey);
+  const revision = readRevision + 1;
+  if (await backend.write({ ciphertext, keyVersion: KEY_VERSION, revision }, readRevision) === "conflict") throw new StateConflictError();
+  return revision;
 }
 
 /**
@@ -154,6 +190,7 @@ export async function purgeClient(store: Store, clientId: string): Promise<void>
   store.fallbackTokens.forEach((value, key) => { if (value.clientId === clientId) store.fallbackTokens.delete(key); });
   store.subscriptions.forEach((value, key) => { if (value.clientId === clientId) store.subscriptions.delete(key); });
   store.delivery.forEach((value, key) => { if (value.clientId === clientId) store.delivery.delete(key); });
+  store.openedDays.forEach((value, key) => { if (value.clientId === clientId) store.openedDays.delete(key); });
   store.deletionRequests.forEach((value) => { if (value.clientId === clientId) value.clientId = null; });
   store.audit = store.audit.filter((event) => event.clientId !== clientId);
 }

@@ -9,14 +9,17 @@ import { build } from "rolldown";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const outDir = path.join(root, "dist-cloudfunctions", "api");
 
-// CloudBase runtime chosen for the pilot; mirrors zinan92/wechat-xingqiu.
+// CloudBase runtime and SDK chosen for the pilot; mirrors zinan92/wechat-xingqiu.
 export const CLOUDBASE_RUNTIME = "Nodejs20.19";
+export const CLOUDBASE_SDK_VERSION = "3.18.3";
 
 export async function buildCloudFunction() {
   await mkdir(outDir, { recursive: true });
   await build({
     input: path.join(root, "server", "cloudfunction", "entry.ts"),
     platform: "node",
+    // Provided by the CloudBase function's own node_modules at deploy time.
+    external: ["@cloudbase/node-sdk"],
     // Downlevel syntax for the CloudBase runtime rather than the local Node version.
     transform: { target: "node20.19" },
     output: { file: path.join(outDir, "index.js"), format: "cjs", exports: "named" },
@@ -24,7 +27,7 @@ export async function buildCloudFunction() {
   });
   await writeFile(
     path.join(outDir, "package.json"),
-    `${JSON.stringify({ name: "qinglian-api", private: true, main: "index.js", engines: { node: ">=20.19" }, cloudbaseRuntime: CLOUDBASE_RUNTIME }, null, 2)}\n`,
+    `${JSON.stringify({ name: "qinglian-api", private: true, main: "index.js", engines: { node: ">=20.19" }, cloudbaseRuntime: CLOUDBASE_RUNTIME, dependencies: { "@cloudbase/node-sdk": CLOUDBASE_SDK_VERSION } }, null, 2)}\n`,
   );
   return path.join(outDir, "index.js");
 }

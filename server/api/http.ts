@@ -26,6 +26,11 @@ export function bearer(request: Request): string | null {
 }
 
 export function requireClient(context: ApiContext): string | Response {
+  if (context.platform) {
+    const clientId = context.platform.openidHash ? context.store.authByOpenId.get(context.platform.openidHash) : undefined;
+    if (!clientId || !context.store.clients.has(clientId)) return error("AUTH_REQUIRED", "This WeChat account is not linked to a client", 401);
+    return clientId;
+  }
   const token = bearer(context.request);
   if (!token) return error("AUTH_REQUIRED", "Client session is required", 401);
   const session = context.store.sessions.get(token);
@@ -39,6 +44,9 @@ export function requireClient(context: ApiContext): string | Response {
 }
 
 export function requireCoach(context: ApiContext): true | Response {
+  if (context.platform) {
+    return context.platform.isCoach ? true : error("COACH_AUTH_REQUIRED", "Coach authentication is required", 401);
+  }
   const bearerToken = bearer(context.request);
   const session = bearerToken ? context.store.sessions.get(bearerToken) : null;
   const sessionAllowed = Boolean(session && session.kind === "coach" && session.expiresAt >= Date.now());

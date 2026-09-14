@@ -33,6 +33,15 @@
 - 入口在构造环境时强制 `DEV_MODE: undefined`，与 Worker 的 dev 身份边界一致且更严：云函数永远不是本地沙盒。
 - 语法降级目标写死为 CloudBase 运行时 `node20.19`，不跟随本机 Node 版本。
 
+## 2026-09-14 · 云函数身份与存储：平台 OPENID、教练白名单、比较写入（#10）
+
+- `ApiContext.platform` 存在时是唯一身份来源：客户由 OPENID 哈希映射到 clientId，教练由环境变量 `COACH_OPENIDS` 白名单判定；Bearer 会话、`x-coach-token`、Sites 边缘头、请求体里的 openid/clientId 一律不参与。Worker 不传 `platform`，行为不变。
+- 云函数入口只转发 `idempotency-key` 头；传给 handlers 的环境只含加密密钥和提醒模板 ID，拿不到 DEV_MODE、COACH_TOKEN、AppSecret。
+- 快照存储抽象为 `SnapshotBackend`（读 + 按修订号比较写入）。云开发实现：首次写用固定 `_id` 插入（并发插入报重复即冲突），之后 `where({_id, revision}).update` 只在修订号未变时生效。
+- 冲突时整次请求在重新读取的状态上重跑（默认最多 3 次），仍失败返回 409 `STATE_CONFLICT`；从不在旧状态上覆盖别人的写入。
+- 「打开天数」改为一等数据 `openedDays`（每客户每本地日期一条），教练摘要和日历只读它，不再依赖只保留 500 条的审计日志。
+- D1 路径仍是无条件覆盖写，只服务 Sites 演示，不在试点数据链路上；多客户前再统一。
+
 ## Gotchas
 
 - 热量必须绑定份量；只有食物名称的热量数字没有可信含义。
@@ -45,3 +54,5 @@
 - 小程序备案与域名 ICP 备案是两道不同的门：前者只卡上架，不卡体验版；后者卡所有 `wx.request` 服务器域名，体验版真机同样校验（仅手机开调试模式时跳过，不能拿来给真实客户用）。云开发 `callFunction` 两道都不经过。
 - 打包产物目录 `dist-cloudfunctions/` 必须同时被 `.gitignore` 和 ESLint 忽略，否则 lint 会检查生成代码并报错。
 - 本机 Homebrew `node@22` 缺 simdjson 动态库无法启动；运行时兼容性不能靠本机多版本验证，要以部署后健康检查回报为准。
+- 云函数冲突重试会重跑整个 handler：handler 里对外的副作用（发消息、调外部 API）必须能容忍「执行了但没落库」，或放到落库成功之后。
+- 平台模式下没有 OPENID 的调用（例如本机 CLI 直接 invoke 云函数）什么身份都不是；操作员生成流程（#15）需要单独设计授权，不能靠放宽教练判定。
