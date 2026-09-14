@@ -14,3 +14,4 @@
 - 未经教练确认的 AI 草案不能进入客户端。
 - 本 mockup 的训练和饮食数字不可直接用于真实客户；后续实现需要独立的健康信息、过敏、伤病和风险边界设计。
 - `.openai/hosting.json` 是构建输入（`vite.config.ts` 静态 import、Sites 插件拷进部署产物），不能 gitignore；其内容只是项目标识与 binding 名，且早已在公开历史中，忽略它不换来任何隐私，只会让干净 clone 无法构建。验证构建时必须用全新 clone，不能复制工作树——被忽略的本地文件会让验证假绿。
+- 设计稿里的 `<div>` 移植进 `<button>` 时会被改成 `<span>`（button 内只允许短语内容），span 是行内元素会横排；必须给容器补纵向布局（参照 `.calcell` 的 `display:flex; flex-direction:column`）。渲染测试只断言文本和类名，测不到这类布局回归，视觉移植必须截图对照设计源。

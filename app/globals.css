@@ -115,7 +115,7 @@ button { color: inherit; }
 .avatar { margin-left: auto; flex: 0 0 34px; width: 34px; height: 34px; border-radius: 50%; background: var(--diet-soft); color: var(--diet); display: grid; place-items: center; font-weight: 700; font-size: 14px; font-family: var(--display); }
 
 .datestrip { display: flex; gap: 7px; padding: 0 16px 16px; }
-.dcell { flex: 1; text-align: center; border-radius: 14px; padding: 8px 0 7px; background: var(--surface); border: 1.5px solid var(--line); cursor: pointer; transition: background .3s var(--ease), border-color .3s var(--ease), transform .35s var(--spring); }
+.dcell { flex: 1; display: flex; flex-direction: column; align-items: center; text-align: center; border-radius: 14px; padding: 8px 0 7px; background: var(--surface); border: 1.5px solid var(--line); cursor: pointer; transition: background .3s var(--ease), border-color .3s var(--ease), transform .35s var(--spring); }
 .dcell:active { transform: scale(.95); }
 .dcell .wd { font-size: 10.5px; color: var(--ink-3); transition: color .3s; }
 .dcell .dn { font-family: var(--display); font-size: 15px; font-weight: 600; margin-top: 2px; transition: color .3s; }
