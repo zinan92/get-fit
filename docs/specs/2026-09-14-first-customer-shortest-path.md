@@ -65,6 +65,14 @@ AC1、AC3、AC5、AC6 不变。AC7 的「教练从资料确认到发布 ≤15 �
 - In：把领域逻辑与 `plan-schema` 抽成共享包，Sites 网页和云函数两个入口消费同一份代码，只有存储和身份适配器不同（**迁移不是复制**，避免两套逻辑漂移）；云函数入口、云开发存储适配器、身份与白名单、openedDays。Out：按实体拆集合、生成网关、提醒推送。
 - 禁区：不把 DEV_MODE 类开关带进云函数；敏感快照继续加密；不记录原始健康值。
 
+#### S1 spike 结论（#9，2026-09-14）
+
+- `server/api` + `packages/*` 经 rolldown 打包为单文件 CommonJS（`dist-cloudfunctions/api/index.js`，约 65 KB，无运行时依赖），语法降级目标 `node20.19`；源码不复制。
+- 纯 Node 下加载打包产物，走生产代码路径（教练令牌 + 桩化 jscode2session）跑通：邀请 → 登录 → 同意 → 建档 → 确认 → 生成交接 → 导入 → 发布 → 今天 → 幂等打卡。云函数入口强制忽略 `DEV_MODE`，有测试。
+- 所需全局：`crypto.subtle`、`crypto.randomUUID`、`Request`/`Response`/`Headers`、`TextEncoder`、`fetch`。Node 20 均为非实验全局，**无需兼容层**。
+- 局限：本机只有可用的 Node 26（Node 22 安装损坏），spike 未在 Node 20.19 上实际执行。真实运行时由 #11 部署后的健康检查回报 `runtimeCapabilities()` 确认，全部为 true 才算通过。
+- 云函数无需 `wx-server-sdk` 即可承载领域逻辑；#10 引入 `@cloudbase/node-sdk` 仅用于数据库与平台身份。
+
 ### S2 客户端 v3（M）
 
 - Outcome：客户在小程序里看到与 `design/fit-plan-v3.html` 一致的邀请/同意/建档/今天/日历/打卡/反馈。

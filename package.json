@@ -9,8 +9,9 @@
     "dev": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext dev",
     "build": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext build",
     "start": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext start",
-    "test": "npm run build && node --test tests/rendered-html.test.mjs && node --import tsx --test tests/contracts.test.ts tests/api.test.ts tests/persistence.test.ts tests/plan-validation.test.ts",
+    "test": "npm run build && node --test tests/rendered-html.test.mjs tests/cloudfunction-bundle.test.mjs && node --import tsx --test tests/contracts.test.ts tests/api.test.ts tests/persistence.test.ts tests/plan-validation.test.ts",
     "codex:plan": "tsx scripts/codex-plan-fallback.ts",
+    "build:cloudfunction": "node scripts/build-cloudfunction.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate",
     "codex:fallback": "tsx scripts/codex-plan-fallback.ts"
@@ -37,6 +38,7 @@
     "eslint-plugin-react-hooks": "7.1.1",
     "globals": "16.4.0",
     "react-server-dom-webpack": "19.2.6",
+    "rolldown": "1.0.1",
     "tailwindcss": "4.2.1",
     "tsx": "^4.19.4",
     "typescript": "5.9.3",
