@@ -111,6 +111,12 @@ test("cloud function ignores DEV_MODE even when the environment sets it", async 
   assert.notEqual(devLogin.statusCode, 200);
 });
 
+test("cloud function does not trust the Sites edge identity header", async () => {
+  const main = bundle.createCloudFunction({ env: { ...env, COACH_ACCESS_USER_ID: "owner-1" } });
+  const forged = await main({ path: "/api/coach/invitations", method: "POST", body: { displayName: "x" }, headers: { "oai-authenticated-user-id": "owner-1" } });
+  assert.equal(forged.statusCode, 401);
+});
+
 test("malformed events fail closed with a stable error", async () => {
   const main = bundle.createCloudFunction({ env });
   assert.equal((await main({ path: "/not-api", method: "GET" })).body.error.code, "BAD_EVENT");
