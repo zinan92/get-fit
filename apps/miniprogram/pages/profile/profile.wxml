@@ -1,22 +1,45 @@
-<view class="page">
+<view class="page profile">
   <topbar />
   <view wx:if="{{preview}}" class="preview-banner">本地预览数据 · 未连接云开发</view>
-  <view wx:if="{{isCoach}}" class="card coach-entry" bindtap="openCoach">
-    <view class="eyebrow">教练</view>
-    <view class="title">教练工作台</view>
-    <view class="muted">邀请客户、确认资料、审阅和发布计划、处理身体提醒。</view>
+
+  <view class="me rise">
+    <view class="me-avatar">{{initial || '我'}}</view>
+    <view class="me-copy">
+      <view class="h1">{{client.displayName || '我的'}}</view>
+      <view class="sub">你看到的每一天，都由教练确认过。</view>
+    </view>
   </view>
-  <view class="card">
-    <view class="eyebrow">我的</view>
-    <view class="title">{{client.displayName || '我的资料'}}</view>
-    <view class="muted">轻练只在你同意后处理必要资料。你看到的计划都由教练确认后发布。</view>
+
+  <view wx:if="{{isCoach}}" class="card coach-entry rise" bindtap="openCoach">
+    <view class="ce-copy">
+      <view class="t">教练工作台</view>
+      <view class="s">看会员、审计划、处理身体提醒</view>
+    </view>
+    <image class="link-ic" src="/assets/icons/arrow.svg" />
   </view>
-  <view class="card">
-    <view class="section-title">已记录的同意</view>
-    <view wx:if="{{!consents.length}}" class="muted">还没有记录。</view>
-    <view wx:for="{{consents}}" wx:key="*this" class="muted">· {{item}}</view>
+
+  <view wx:if="{{deletion}}" class="card deletion rise">
+    <view class="t">已申请删除资料</view>
+    <view class="s">{{deletion.day}}会清除你的资料、计划和打卡记录。想恢复，在那之前告诉教练就行。</view>
   </view>
-  <view class="card link-row" bindtap="openPrivacy"><text>隐私说明</text><image class="link-ic" src="/assets/icons/arrow.svg" /></view>
-  <view class="card"><button bindtap="requestDelete" class="danger">申请删除我的资料</button></view>
+
+  <view wx:if="{{status === 'ready'}}" class="rows rise">
+    <view wx:if="{{hasProfile}}" class="row" bindtap="editProfile">
+      <view class="row-copy"><view class="t">更新我的资料</view><view class="s">体重、器械、哪里不舒服、不能吃的</view></view>
+      <image class="link-ic" src="/assets/icons/arrow.svg" />
+    </view>
+    <view class="row" bindtap="openPrivacy">
+      <view class="row-copy"><view class="t">隐私说明</view><view class="s">资料怎么用、谁能看到、怎么删除</view></view>
+      <image class="link-ic" src="/assets/icons/arrow.svg" />
+    </view>
+  </view>
+  <view wx:elif="{{status === 'guest'}}" class="rows rise">
+    <view class="row" bindtap="openPrivacy">
+      <view class="row-copy"><view class="t">隐私说明</view><view class="s">资料怎么用、谁能看到、怎么删除</view></view>
+      <image class="link-ic" src="/assets/icons/arrow.svg" />
+    </view>
+  </view>
+
+  <view wx:if="{{status === 'ready' && !deletion}}" class="delete-link" bindtap="requestDelete">申请删除我的资料</view>
   <view wx:if="{{accountId}}" class="account" bindtap="copyAccountId">账号编号 <text class="num">{{accountId[0]}}{{accountId[1]}}{{accountId[2]}}{{accountId[3]}}{{accountId[4]}}{{accountId[5]}}</text>… · 点此复制</view>
 </view>

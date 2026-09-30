@@ -1,7 +1,7 @@
 import { ageBands, consentTypes, isConsentType, requiredConsents, requiresManualReview } from "../../packages/contracts/src/index";
 import { exerciseCatalogById, foodCatalogById } from "../../packages/catalogs/src/index";
 import { PLAN_SCHEMA_VERSION, PLAN_TIMEZONE } from "../../packages/plan-schema/src/index";
-import { allowedCatalog, explainPlanErrors, validateProviderPayload } from "./plan-validation";
+import { allowedCatalog, catalogContext, explainPlanErrors, validateProviderPayload } from "./plan-validation";
 import { body, error, issueSession, json, requireClient, requireCoach, requireOperator } from "./http";
 import { audit, checkinKey, id, nowIso, randomToken, recordOpenedDay, sha256 } from "./store";
 import { encryptSecret } from "./persistence";
@@ -17,6 +17,11 @@ function safeString(value: unknown, fallback = ""): string {
 
 function localToday(): string {
   return new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
+function beijingMonthDay(iso: string): string {
+  const local = new Date(Date.parse(iso) + 8 * 60 * 60 * 1000).toISOString();
+  return `${Number(local.slice(5, 7))}月${Number(local.slice(8, 10))}日`;
 }
 
 function isCalendarDate(value: string): boolean {
@@ -273,7 +278,12 @@ function listClients(context: ApiContext): Response {
 function clientMe(context: ApiContext): Response {
   const clientId = requireClient(context); if (clientId instanceof Response) return clientId;
   const client = context.store.clients.get(clientId); if (!client) return error("NOT_FOUND", "Client not found", 404);
-  return json({ client: clientView(client), profile: context.store.profiles.get(clientId) ?? null, consents: [...(context.store.consents.get(clientId) ?? [])] });
+  const deletion = pendingDeletion(context.store, clientId);
+  return json({ client: clientView(client), profile: context.store.profiles.get(clientId) ?? null, consents: [...(context.store.consents.get(clientId) ?? [])], deletion: deletion ? { purgeAt: deletion.purgeAt } : null });
+}
+
+function pendingDeletion(store: ApiContext["store"], clientId: string) {
+  return [...store.deletionRequests.values()].find((item) => item.clientId === clientId && item.status === "requested") ?? null;
 }
 
 async function saveProfile(context: ApiContext, reqId: string): Promise<Response> {
@@ -282,8 +292,12 @@ async function saveProfile(context: ApiContext, reqId: string): Promise<Response
   const profile = parseProfile(await body(context.request));
   if (!profile) return error("INVALID_INPUT", "Profile fields are invalid", 400);
   const client = context.store.clients.get(clientId); if (!client) return error("NOT_FOUND", "Client not found", 404);
-  context.store.profiles.set(clientId, profile); client.status = "pending_profile_review";
-  audit(context.store, "profile.saved", { requestId: reqId, clientId });
+  const updating = context.store.profiles.has(clientId);
+  context.store.profiles.set(clientId, profile);
+  // A later correction keeps an active client active unless it now needs a conversation; the coach is told either way.
+  if (updating) client.profileUpdatedAt = nowIso();
+  if (client.status !== "deletion_pending" && !(updating && client.status === "active" && !hasManualRisk(profile))) client.status = "pending_profile_review";
+  audit(context.store, updating ? "profile.updated" : "profile.saved", { requestId: reqId, clientId });
   return json({ ok: true, status: client.status });
 }
 
@@ -342,6 +356,7 @@ async function confirmProfile(context: ApiContext, clientId: string, reqId: stri
   if (!client || !profile) return error("PROFILE_INCOMPLETE", "Client profile is incomplete", 400);
   if (!requiredConsents(consents)) return error("CONSENT_REQUIRED", "Required consent is missing", 400);
   client.status = hasManualRisk(profile) ? "pending_profile_review" : "active";
+  client.profileUpdatedAt = null;
   audit(context.store, "profile.confirmed", { requestId: reqId, clientId, safetyGate: hasManualRisk(profile) ? "manual" : "auto_allowed" });
   return json({ client: clientView(client), safetyGate: hasManualRisk(profile) ? "manual" : "auto_allowed" });
 }
@@ -703,6 +718,15 @@ function daysBetween(from: string, to: string): number {
   return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
 }
 
+/** True when today's or a later day of the client's published plans uses a move or food the current profile rules out. */
+function planConflicts(store: ApiContext["store"], clientId: string, profile: HealthProfile, today: string): boolean {
+  const blocked = catalogContext(profile);
+  return [...store.plans.values()].some((plan) => plan.clientId === clientId && plan.status !== "archived" && plan.payload.days.some((day) =>
+    day.localDate >= today && currentPlan(store, clientId, day.localDate)?.id === plan.id && (
+      day.exercises.some((item) => blocked.blockedExerciseIds?.has(item.catalogId)) ||
+      day.meals.some((meal) => meal.foods.some((food) => blocked.blockedFoodIds?.has(food.foodCatalogId))))));
+}
+
 /** Everything the coach home screen needs in one call: each client's stage and what is waiting on the coach. */
 function coachOverview(context: ApiContext): Response {
   const auth = requireCoach(context); if (auth !== true) return auth;
@@ -732,6 +756,9 @@ function coachOverview(context: ApiContext): Response {
     if (course && course.dayNumber > 0 && today <= course.endDate && quietDays >= 2) attention.push({ kind: "quiet", text: lastOpenedDate && lastOpenedDate >= course.startDate ? `${quietDays} 天没打开` : "开始后还没打开过" });
     if (course && !course.nextStartDate && today > course.endDate) attention.push({ kind: "ended", text: "这一期已结束" });
     else if (course && !course.nextStartDate && course.dayNumber > 0 && course.daysLeft <= 5) attention.push({ kind: "ending", text: course.daysLeft === 0 ? "今天是最后一天" : `还剩 ${course.daysLeft} 天` });
+    const deletion = pendingDeletion(context.store, client.id);
+    if (profile && client.profileUpdatedAt) attention.unshift({ kind: "profile", text: planConflicts(context.store, client.id, profile, today) ? "资料有更新，现在的计划里有不再适合的安排" : "资料有更新" });
+    if (deletion) attention.unshift({ kind: "deletion", text: `已申请删除资料，${beijingMonthDay(deletion.purgeAt)}清除` });
     return {
       client: clientView(client),
       stage,
@@ -763,6 +790,14 @@ async function manageClient(context: ApiContext, clientId: string, reqId: string
   if (input.message !== undefined) {
     if (typeof input.message !== "string" || input.message.trim().length > 60) return error("INVALID_INPUT", "message must be text up to 60 characters", 400);
     client.coachMessage = input.message.trim() ? { text: input.message.trim(), at: nowIso() } : null;
+  }
+  if (input.profileSeen === true) client.profileUpdatedAt = null;
+  if (input.cancelDeletion === true) {
+    const deletion = pendingDeletion(context.store, clientId);
+    if (!deletion) return error("CONFLICT", "There is no pending deletion to withdraw", 409);
+    deletion.status = "cancelled";
+    client.status = deletion.previousStatus ?? (context.store.profiles.has(clientId) ? "pending_profile_review" : "onboarding");
+    audit(context.store, "deletion.cancelled", { requestId: reqId, clientId, deletionRequestId: deletion.id, actor: "coach" });
   }
   if (input.archived !== undefined) {
     if (typeof input.archived !== "boolean") return error("INVALID_INPUT", "archived must be true or false", 400);
@@ -806,7 +841,7 @@ async function requestDeletion(context: ApiContext, reqId: string): Promise<Resp
   const requestedAt = nowIso();
   const purgeAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30).toISOString();
   const receiptHash = await sha256(`${clientId}:${requestedAt}:${purgeAt}`);
-  const record = { id: id("deletion"), clientId, requestedAt, purgeAt, receiptHash, status: "requested" as const };
+  const record = { id: id("deletion"), clientId, requestedAt, purgeAt, receiptHash, status: "requested" as const, previousStatus: client.status };
   context.store.deletionRequests.set(record.id, record); client.status = "deletion_pending";
   audit(context.store, "deletion.requested", { requestId: reqId, clientId, deletionRequestId: record.id, purgeAt, receiptHash, actor: "client" });
   return json({ status: client.status, receipt: record.id, purgeAt, message: "Data deletion is scheduled after the 30-day recovery window" }, 202);

@@ -60,6 +60,7 @@ function respond(path, method, body) {
     return reply(pool[params.date || first] || pool[first]);
   }
   if (method === 'PATCH' && /^\/api\/coach\/clients\/[^/]+$/.test(pathname)) return reply({ note: body.note !== undefined ? body.note : '', message: body.message !== undefined ? body.message : '', archived: Boolean(body.archived) });
+  if (method === 'DELETE' && pathname === '/api/me') return reply({ status: 'deletion_pending' });
   if (method === 'POST' && pathname === '/api/coach/invitations') return reply({ invitation: { token: 'preview-invite-code', client: { displayName: body.displayName } } });
   if (method === 'POST' && /^\/api\/coach\//.test(pathname)) return reply({ ok: true });
   // Onboarding can be walked through in DevTools with ?preview=onboarding.

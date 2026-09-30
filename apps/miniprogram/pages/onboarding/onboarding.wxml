@@ -2,7 +2,7 @@
   <topbar />
   <view wx:if="{{preview}}" class="preview-banner">本地预览数据 · 未连接云开发</view>
 
-  <view wx:if="{{step !== 'loading' && step !== 'done'}}" class="progress rise">
+  <view wx:if="{{step !== 'loading' && step !== 'done' && !editing}}" class="progress rise">
     <view class="bar {{step === 'invite' || step === 'consent' || step === 'profile' ? 'on' : ''}}"></view>
     <view class="bar {{step === 'consent' || step === 'profile' ? 'on' : ''}}"></view>
     <view class="bar {{step === 'profile' ? 'on' : ''}}"></view>
@@ -40,21 +40,14 @@
         <view class="s">去掉姓名和微信身份后交给第三方模型起草，教练逐项检查确认后你才会看到。</view>
       </view>
     </view>
-    <view class="consent-card {{consents.subscription_message ? 'on' : ''}}" data-type="subscription_message" bindtap="toggleConsent" aria-role="checkbox" aria-checked="{{consents.subscription_message}}">
-      <view class="tick"><view class="check-mark small"></view></view>
-      <view class="consent-copy">
-        <view class="t">每天提醒我今天的安排 <text class="optional">可选</text></view>
-        <view class="s">不选也能正常使用，以后可以再打开。</view>
-      </view>
-    </view>
     <view class="privacy-link" bindtap="openPrivacy">查看完整隐私说明</view>
     <view class="primary sticky {{consents.health_processing && consents.third_party_model ? '' : 'disabled'}}" bindtap="saveConsents">{{busy ? '正在保存…' : '继续'}}</view>
   </view>
 
   <view wx:elif="{{step === 'profile'}}" class="rise">
     <view class="section-intro">
-      <view class="h1">说说你的情况</view>
-      <view class="sub">大概就好，教练会再和你确认。</view>
+      <view class="h1">{{editing ? '更新你的情况' : '说说你的情况'}}</view>
+      <view class="sub">{{editing ? '体重变了、添了器械、哪里不舒服，改完教练会看到。' : '大概就好，教练会再和你确认。'}}</view>
     </view>
 
     <view class="card group">
@@ -92,7 +85,7 @@
       <view class="chips"><view wx:for="{{view.risk}}" wx:key="value" class="chip-opt warn {{item.on ? 'on' : ''}}" data-field="risk" data-value="{{item.value}}" bindtap="pickMany">{{item.label}}</view></view>
     </view>
 
-    <view class="primary sticky" bindtap="saveProfile">{{busy ? '正在提交…' : '交给教练'}}</view>
+    <view class="primary sticky" bindtap="saveProfile">{{busy ? '正在提交…' : editing ? '保存，让教练知道' : '交给教练'}}</view>
   </view>
 
   <view wx:elif="{{step === 'done'}}" class="rise">

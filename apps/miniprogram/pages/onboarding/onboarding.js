@@ -16,10 +16,11 @@ Page({
     step: 'loading',
     inviteToken: '',
     busy: false,
-    consents: { health_processing: false, third_party_model: false, subscription_message: false },
+    consents: { health_processing: false, third_party_model: false },
     form: { target: 'fat_loss', ageBand: '25_34', heightCm: '', weightKg: '', trainingExperience: 'beginner', sessionsPerWeek: 3, minutesPerSession: 45, equipment: [], injury: [], allergy: [], risk: [] },
     view: {},
-    manualReview: false
+    manualReview: false,
+    editing: false
   },
 
   onLoad(query) {
@@ -27,6 +28,7 @@ Page({
     this.setData({ preview: getApp().globalData.preview, inviteToken: token });
     this.refreshView();
     if (query && query.preview === 'onboarding') { this.setData({ step: 'invite' }); return; }
+    if (query && query.edit) { this.startEdit(); return; }
     this.resume();
   },
 
@@ -44,6 +46,20 @@ Page({
         minutes: chips([30, 45, 60, 90].map(value => ({ value, label: `${value} 分钟` })), form.minutesPerSession)
       }
     });
+  },
+
+  // Opened from 我的: the same form, filled with what the client told us before.
+  async startEdit() {
+    try {
+      const me = await request('/api/me');
+      const profile = me.profile;
+      if (!profile) { this.resume(); return; }
+      this.setData({
+        editing: true, step: 'profile',
+        form: { target: profile.target, ageBand: profile.ageBand, heightCm: String(profile.heightCm), weightKg: String(profile.weightKg), trainingExperience: profile.trainingExperience, sessionsPerWeek: profile.sessionsPerWeek, minutesPerSession: profile.minutesPerSession, equipment: profile.equipment, injury: profile.injuryFlags, allergy: profile.allergyFlags, risk: profile.riskFlags }
+      });
+      this.refreshView();
+    } catch (error) { wx.showToast({ title: '暂时没连上', icon: 'none' }); setTimeout(() => wx.navigateBack(), 800); }
   },
 
   // Picks up wherever the client left off: invitation, consents, profile, or waiting for the coach.
@@ -128,6 +144,7 @@ Page({
         sessionsPerWeek: form.sessionsPerWeek, minutesPerSession: form.minutesPerSession, equipment: form.equipment,
         injuryFlags: form.injury, allergyFlags: form.allergy, dietaryPreferences: [], riskFlags: form.risk, timezone: 'Asia/Shanghai'
       } });
+      if (this.data.editing) { wx.showToast({ title: '已更新，教练会看到', icon: 'none' }); setTimeout(() => wx.navigateBack(), 900); return; }
       this.setData({ step: 'done', manualReview: form.risk.length > 0 || form.ageBand === 'under_18' });
     } catch (error) { wx.showToast({ title: '没存上，再试一次', icon: 'none' }); }
     finally { this.setData({ busy: false }); }

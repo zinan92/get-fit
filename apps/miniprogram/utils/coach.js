@@ -25,7 +25,7 @@ const FILTERS = [
 function inFilter(row, key) {
   if (key === 'archived') return row.archived;
   if (row.archived) return false;
-  if (key === 'todo') return row.stageView.tone === 'action' || row.openAlerts > 0 || row.attention.some(item => item.kind === 'quiet');
+  if (key === 'todo') return row.stageView.tone === 'action' || row.openAlerts > 0 || row.attention.some(item => item.kind === 'quiet' || item.kind === 'profile' || item.kind === 'deletion');
   if (key === 'active') return row.stage === 'published';
   if (key === 'ending') return row.attention.some(item => item.kind === 'ending' || item.kind === 'ended');
   return true;
@@ -37,7 +37,7 @@ function memberRow(item) {
   let hint = '';
   let hintTone = '';
   if (item.openAlerts) { hint = '有未处理的身体提醒'; hintTone = 'warn'; }
-  else if (attention.length) { hint = attention.map(entry => entry.text).join(' · '); hintTone = attention[0].kind === 'quiet' ? 'warn' : 'train'; }
+  else if (attention.length) { hint = attention.map(entry => entry.text).join(' · '); hintTone = attention[0].kind === 'ending' || attention[0].kind === 'ended' ? 'train' : 'warn'; }
   else if (item.course && item.course.dayNumber > 0) hint = `第 ${item.course.dayNumber}/${item.course.totalDays} 天`;
   else if (item.course && item.course.dayNumber === 0) hint = `${item.course.startDate.slice(5).replace('-', '月')}日开始`;
   if (item.note) hint = hint ? `${hint}  ·  ${item.note}` : item.note;

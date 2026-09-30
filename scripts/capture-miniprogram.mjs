@@ -174,6 +174,30 @@ try {
     if (noteCard) { const { top } = await noteCard.offset(); await mini.pageScrollTo(Math.max(0, top - 160)); }
     await shot("38-coach-message");
   }
+  // 我的, the profile update form, and the floating tab bar not swallowing taps on content behind its row.
+  page = await mini.reLaunch("/pages/profile/profile");
+  await wait(1600);
+  await shot("41-profile");
+  page = await mini.navigateTo("/pages/onboarding/onboarding?edit=1");
+  await wait(1600);
+  await shot("42-profile-edit");
+  if (live) {
+    page = await mini.reLaunch(`/pages/coach/client/client?id=${live.id}`);
+    await wait(1800);
+    await shot("43-coach-profile-updated");
+  }
+  page = await mini.reLaunch("/pages/today/today");
+  await wait(1600);
+  // Content scrolls behind the floating tab bar; a box level with it still takes its tap
+  // (automator dispatches the tap on the element, so this shows the handler, not the hit test).
+  const boxes = await page.$$(".check-button");
+  if (boxes[2]) {
+    const { top } = await boxes[2].offset();
+    await mini.pageScrollTo(Math.max(0, top - 754));
+    await wait(600);
+    await boxes[2].tap();
+    await shot("44-today-behind-tabbar");
+  }
   console.log(logs.slice(-20).join("\n"));
 } finally {
   mini.disconnect();
