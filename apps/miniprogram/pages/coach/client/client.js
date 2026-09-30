@@ -9,7 +9,7 @@ function labels(list, values) {
 }
 
 Page({
-  data: { preview: false, status: 'loading', clientId: '', item: null, stageView: null, profile: null, facts: [], flags: [], summary: null, alerts: [], startDate: '', busy: false, course: null, renewal: false, note: '', noteDraft: '', message: '', messageDraft: '', archived: false, adjustFrom: '', adjustMin: '', adjustMax: '' },
+  data: { preview: false, status: 'loading', clientId: '', item: null, stageView: null, profile: null, facts: [], flags: [], summary: null, alerts: [], startDate: '', busy: false, course: null, renewal: false, note: '', noteDraft: '', message: '', messageDraft: '', archived: false, adjustFrom: '', adjustMin: '', adjustMax: '', notices: [] },
 
   onLoad(query) {
     this.setData({ preview: getApp().globalData.preview, clientId: query.id, startDate: dates.addDays(dates.today(), 1) });
@@ -46,6 +46,7 @@ Page({
       this.setData({
         adjustMin, adjustMax, adjustFrom: this.data.adjustFrom && this.data.adjustFrom >= adjustMin ? this.data.adjustFrom : adjustMin,
         course, renewal, startDate, note: item ? item.note : '', noteDraft: item ? item.note : '', message: item ? item.message : '', messageDraft: item ? item.message : '', archived: Boolean(item && item.archived),
+        notices: item ? item.attention.filter(entry => entry.kind === 'profile' || entry.kind === 'deletion') : [],
         status: 'ready', item, stageView: coach.stage(item ? item.stage : ''), profile, facts, flags, summary,
         alerts: alerts.alerts.filter(alert => alert.clientId === id && alert.status === 'open')
       });
@@ -98,6 +99,18 @@ Page({
       this.setData({ message: result.message, messageDraft: result.message });
       wx.showToast({ title: result.message ? 'TA 下次打开就能看到' : '已清空', icon: 'none' });
     } catch (error) { wx.showToast({ title: '没发出去', icon: 'none' }); }
+  },
+
+  async ackProfile() {
+    try { await request(`/api/coach/clients/${this.data.clientId}`, { method: 'PATCH', data: { profileSeen: true } }); this.load(); }
+    catch (error) { wx.showToast({ title: '没标记成功', icon: 'none' }); }
+  },
+
+  async cancelDeletion() {
+    const result = await wx.showModal({ title: '帮 TA 撤回删除', content: '确认 TA 本人想继续用再撤回。撤回后资料和计划照常保留。', confirmText: '撤回' });
+    if (!result.confirm) return;
+    try { await request(`/api/coach/clients/${this.data.clientId}`, { method: 'PATCH', data: { cancelDeletion: true } }); wx.showToast({ title: '已撤回', icon: 'none' }); this.load(); }
+    catch (error) { wx.showToast({ title: '没撤回成功', icon: 'none' }); }
   },
 
   onNote(e) { this.setData({ noteDraft: e.detail.value }); },

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { handleApi } from "../server/api/handlers";
 import { createMemoryStore, recordOpenedDay } from "../server/api/store";
+import { purgeDueDeletions } from "../server/api/retention";
 import { PLAN_SCHEMA_VERSION, PLAN_TIMEZONE, type PlanPayload } from "../packages/plan-schema/src/index";
 
 const env = { DEV_MODE: "true" };
@@ -620,4 +621,49 @@ test("adjusting a published plan takes over from the chosen day without touching
   } finally {
     Date.now = realNow;
   }
+});
+
+test("promises kept: a client can correct the profile, and the coach can withdraw a deletion inside the cooling-off window", async (t) => {
+  t.mock.method(Date, "now", () => Date.parse("2026-09-16T02:00:00.000Z"));
+  const keepStore = createMemoryStore();
+  const keepCtx = { waitUntil() {}, passThroughOnException() {} } as ExecutionContext;
+  const clientId = "keep-client";
+  const baseProfile = { target: "general_fitness", ageBand: "25_34", heightCm: 170, weightKg: 65, trainingExperience: "beginner", sessionsPerWeek: 3, minutesPerSession: 45, equipment: [], injuryFlags: [], allergyFlags: [], dietaryPreferences: [], riskFlags: [], timezone: "Asia/Shanghai" };
+  keepStore.clients.set(clientId, { id: clientId, displayName: "守约客户", status: "active", createdAt: "2026-09-01T00:00:00.000Z" });
+  keepStore.profiles.set(clientId, baseProfile as never);
+  keepStore.consents.set(clientId, new Set(["health_processing", "third_party_model"]));
+  keepStore.sessions.set("keep-token", { kind: "client", subjectId: clientId, expiresAt: Date.parse("2027-01-01T00:00:00.000Z") });
+  recordOpenedDay(keepStore, clientId, "2026-09-16");
+  keepStore.plans.set("keep-plan", { id: "keep-plan", clientId, versionNo: 1, effectiveFrom: "2026-09-10", effectiveTo: null, payload: plan("2026-09-10"), status: "published", approvedAt: "2026-09-09T00:00:00.000Z", changeReason: null });
+  const asClient = async (path: string, init: RequestInit = {}) => {
+    const response = await handleApi({ request: new Request(`http://localhost${path}`, { ...init, headers: { authorization: "Bearer keep-token", "content-type": "application/json" } }), env, store: keepStore, ctx: keepCtx });
+    return { response, payload: await response.json() as Record<string, any> }; // eslint-disable-line @typescript-eslint/no-explicit-any
+  };
+  const asCoach = async (path: string, init: RequestInit = {}) => {
+    const response = await handleApi({ request: new Request(`http://localhost${path}`, { ...init, headers: { "x-coach-token": "dev-coach", "content-type": "application/json" } }), env, store: keepStore, ctx: keepCtx });
+    return { response, payload: await response.json() as Record<string, any> }; // eslint-disable-line @typescript-eslint/no-explicit-any
+  };
+  const row = async () => (await asCoach("/api/coach/overview")).payload.clients[0];
+
+  // A harmless correction: still active, the coach is told, nothing in the plan conflicts.
+  assert.equal((await asClient("/api/me/profile", { method: "PUT", body: JSON.stringify({ ...baseProfile, weightKg: 62 }) })).response.status, 200);
+  assert.equal(keepStore.clients.get(clientId)?.status, "active");
+  assert.deepEqual((await row()).attention.map((item: { kind: string; text: string }) => item.text), ["资料有更新"]);
+  assert.equal((await asCoach(`/api/coach/clients/${clientId}`, { method: "PATCH", body: JSON.stringify({ profileSeen: true }) })).response.status, 200);
+  assert.deepEqual((await row()).attention, []);
+
+  // A new allergy that the live plan violates is called out, not just "updated".
+  await asClient("/api/me/profile", { method: "PUT", body: JSON.stringify({ ...baseProfile, weightKg: 62, allergyFlags: ["egg"] }) });
+  assert.deepEqual((await row()).attention.map((item: { text: string }) => item.text), ["资料有更新，现在的计划里有不再适合的安排"]);
+
+  // Deletion: visible to both sides, and the coach can withdraw it; the purge then leaves the client alone.
+  assert.equal((await asClient("/api/me", { method: "DELETE" })).response.status, 202);
+  assert.match((await asClient("/api/me")).payload.deletion.purgeAt, /^2026-10-16/);
+  assert.equal((await row()).attention[0].text, "已申请删除资料，10月16日清除");
+  assert.equal((await asCoach(`/api/coach/clients/${clientId}`, { method: "PATCH", body: JSON.stringify({ cancelDeletion: true }) })).response.status, 200);
+  assert.equal(keepStore.clients.get(clientId)?.status, "active");
+  assert.equal((await asClient("/api/me")).payload.deletion, null);
+  assert.equal(await purgeDueDeletions(keepStore, Date.parse("2026-12-01T00:00:00.000Z")), 0);
+  assert.ok(keepStore.clients.has(clientId));
+  assert.equal((await asCoach(`/api/coach/clients/${clientId}`, { method: "PATCH", body: JSON.stringify({ cancelDeletion: true }) })).response.status, 409);
 });

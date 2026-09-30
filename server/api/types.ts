@@ -56,6 +56,8 @@ export type ClientRecord = {
   archivedAt?: string | null;
   /** A short line from the coach shown on the client's weekly card. */
   coachMessage?: { text: string; at: string } | null;
+  /** Set when the client changes a profile the coach had already seen; cleared when the coach acknowledges it. */
+  profileUpdatedAt?: string | null;
 };
 
 export type InvitationRecord = {
@@ -141,6 +143,8 @@ export type DeletionRequestRecord = {
   purgeAt: string;
   receiptHash: string;
   status: "requested" | "purged" | "cancelled";
+  /** What the client was before asking for deletion, restored if the request is withdrawn. */
+  previousStatus?: ClientStatus;
 };
 
 export type FallbackTokenRecord = {

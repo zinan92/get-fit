@@ -123,6 +123,8 @@ async function buildDataset() {
     await call(client, "/api/checkins", "PUT", { localDate: date, planDayId: `${previewPlanId}:${date}`, itemId, itemType, status: "completed" });
   }
   await call(coach, `/api/coach/clients/${clientId}`, "PATCH", { message: "这周两次训练都很稳，周末记得多走走" });
+  // 小满 lost a kilo and bought a band: the coach sees "资料有更新".
+  await call(client, "/api/me/profile", "PUT", { ...me.profile, weightKg: 61, equipment: ["dumbbell", "band"] });
   const week = await call(client, "/api/me/week");
   await call(client, "/api/wellness-feedback", "PUT", { localDate: PREVIEW_TODAY, pain: "present", energy: "low", hunger: "normal" });
 
@@ -190,7 +192,7 @@ async function buildDataset() {
     options: await call(coach, `/api/coach/plan-drafts/${adjustmentId}/options`),
     days: Object.fromEntries(await Promise.all(["2026-09-13", "2026-09-14", "2026-09-15"].map(async (date) => [date, await call(coach, `/api/coach/plan-drafts/${adjustmentId}/preview?date=${date}`)]))),
   };
-  const dataset = { today: PREVIEW_TODAY, me: { client: me.client }, days, calendar, week, coach: { ...coachData, revision } };
+  const dataset = { today: PREVIEW_TODAY, me: { client: me.client, profile: { ...me.profile, weightKg: 61, equipment: ["dumbbell", "band"] }, consents: me.consents, deletion: null }, days, calendar, week, coach: { ...coachData, revision } };
   // Generated ids and timestamps vary per run; pin them so the committed dataset is reproducible.
   const ids = new Map<string, string>();
   const text = JSON.stringify(dataset)

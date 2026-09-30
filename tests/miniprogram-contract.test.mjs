@@ -103,7 +103,8 @@ test("onboarding gates on the two required consents and uses the shared profile 
   assert.match(js, /require\('\.\.\/\.\.\/utils\/profile-options'\)/);
   assert.match(js, /query\.invite \|\| \(query\.scene && decodeURIComponent\(query\.scene\)\)/, "invitation links and QR scenes prefill the code");
   assert.doesNotMatch(js, /knee_discomfort|tree_nut|pregnancy|sessionToken|devOpenid|wx\.login/, "flag values come only from the generated options");
-  for (const type of ["health_processing", "third_party_model", "subscription_message"]) assert.match(wxml, new RegExp(`data-type="${type}"`));
+  for (const type of ["health_processing", "third_party_model"]) assert.match(wxml, new RegExp(`data-type="${type}"`));
+  assert.doesNotMatch(wxml, /subscription_message|每天提醒/, "no reminder is offered until reminders exist (#43)");
   assert.match(wxml, /第三方模型/, "the consent text discloses third-party drafting");
   const options = await read("utils/profile-options.js");
   for (const flag of ["knee_discomfort", "tree_nut", "shellfish", "pregnancy", "under_18", "gym"]) assert.match(options, new RegExp(`"${flag}"`));
@@ -147,6 +148,15 @@ test("the week card encourages and never counts missed days against the client",
   assert.match(wxml, /class="card week rise"/);
   assert.match(wxml, /week\.message/);
   assert.doesNotMatch(js + wxml, /没练|没打卡|落后|偷懒|已经 \$\{[^}]+\} 天/);
+});
+
+test("what the privacy notice promises has a way to happen", async () => {
+  const guide = await readFile(path.join(root, "docs", "privacy", "user-privacy-guide.md"), "utf8");
+  const notice = await read("pages/privacy/privacy.js");
+  for (const phrase of ["教练可以帮你撤回", "在「我的」里更新自己的资料"]) { assert.ok(guide.includes(phrase), `guide: ${phrase}`); assert.ok(notice.includes(phrase), `page: ${phrase}`); }
+  assert.match(await read("pages/coach/client/client.js"), /cancelDeletion: true/, "the coach can withdraw a deletion");
+  assert.match(await read("pages/profile/profile.wxml"), /bindtap="editProfile"/, "the client can correct the profile");
+  assert.match(await read("pages/onboarding/onboarding.js"), /query\.edit/);
 });
 
 test("privacy notice matches the declared guide and is reachable from consent and 我的", async () => {

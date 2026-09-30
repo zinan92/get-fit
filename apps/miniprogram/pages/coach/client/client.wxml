@@ -17,6 +17,16 @@
       <view class="ack" data-id="{{item.id}}" bindtap="ackAlert">已沟通</view>
     </view>
 
+    <view wx:for="{{notices}}" wx:for-item="notice" wx:key="kind" class="alert-card">
+      <image class="alert-ic" src="/assets/icons/warning.svg" />
+      <view class="alert-copy">
+        <view class="t">{{notice.text}}</view>
+        <view class="s">{{notice.kind === 'profile' ? '看一下下面的资料；需要的话用「调整计划」改后面的日子' : 'TA 改主意的话，你可以帮 TA 撤回'}}</view>
+      </view>
+      <view wx:if="{{notice.kind === 'profile'}}" class="ack" bindtap="ackProfile">知道了</view>
+      <view wx:else class="ack" bindtap="cancelDeletion">撤回</view>
+    </view>
+
     <view class="card next-step">
       <block wx:if="{{item.stage === 'profile_submitted'}}">
         <view class="t">看完资料后确认</view>
@@ -53,7 +63,7 @@
           </view>
           <view class="bar"><view class="bar-in" style="width: {{course.percent}}%"></view></view>
           <view class="course-dates num">{{course.startDate}} — {{course.endDate}}</view>
-          <view wx:for="{{item.attention}}" wx:for-item="entry" wx:key="kind" class="att {{entry.kind}}">{{entry.text}}</view>
+          <view wx:for="{{item.attention}}" wx:for-item="entry" wx:key="kind" wx:if="{{entry.kind !== 'profile' && entry.kind !== 'deletion'}}" class="att {{entry.kind}}">{{entry.text}}</view>
           <view wx:if="{{course.nextStartDate}}" class="att next">下一期 <text class="num">{{course.nextStartDate}}</text> 开始</view>
         </view>
         <view wx:if="{{course && course.daysLeft > 0}}" class="adjust">
