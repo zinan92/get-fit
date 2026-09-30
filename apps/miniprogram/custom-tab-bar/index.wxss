@@ -1,4 +1,7 @@
-.nav { position: fixed; left: 0; right: 0; bottom: 0; display: flex; border-top: 2rpx solid #E6DDC9; background: rgba(243, 238, 227, .94); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); padding: 16rpx 0 calc(20rpx + env(safe-area-inset-bottom)); }
-.item { flex: 1; display: flex; flex-direction: column; align-items: center; font-size: 21rpx; color: #A79C8B; }
-.item.active { color: #D85C28; font-weight: 700; }
-.icon { width: 42rpx; height: 42rpx; margin-bottom: 6rpx; }
+/* A floating capsule: it sits off the bottom edge and content scrolls behind it. */
+.nav { position: fixed; left: 50%; bottom: calc(24rpx + env(safe-area-inset-bottom)); transform: translateX(-50%); display: flex; gap: 8rpx; padding: 10rpx; border-radius: 999rpx; background: rgba(255, 255, 255, .92); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 2rpx solid #E6DDC9; box-shadow: 0 12rpx 40rpx rgba(46, 42, 36, .14), 0 2rpx 6rpx rgba(46, 42, 36, .06); }
+.item { width: 148rpx; padding: 12rpx 0 10rpx; border-radius: 999rpx; display: flex; flex-direction: column; align-items: center; font-size: 21rpx; color: #A79C8B; transition: background-color .25s cubic-bezier(.4, 0, .2, 1), color .25s; }
+.item.active { background: #FBE4D3; color: #D85C28; font-weight: 700; }
+.item:active { transform: scale(.96); }
+.icon { width: 42rpx; height: 42rpx; margin-bottom: 4rpx; }
+@media (prefers-reduced-motion: reduce) { .item { transition: none; } }

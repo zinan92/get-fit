@@ -38,7 +38,7 @@
 .chip-opt.on { background: var(--train-soft); border-color: var(--train); color: var(--train); font-weight: 700; }
 .chip-opt.diet.on { background: var(--diet-soft); border-color: var(--diet); color: var(--diet); }
 .chip-opt.warn.on { background: var(--warn-soft); border-color: var(--warn); color: #7A5205; }
-.row2 { display: flex; gap: 20rpx; }
+.row2 { display: flex; gap: 20rpx; margin-top: 28rpx; }
 .half { flex: 1; }
 .unit-field { position: relative; }
 .unit-field text { position: absolute; right: 26rpx; top: 26rpx; font-size: 24rpx; color: var(--ink-3); }
